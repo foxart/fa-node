@@ -1,3 +1,5 @@
+import { ApolloCodeEnum } from './apollo-code.enum';
+
 export enum ExceptionResponseContextEnum {
   'HTTP' = 'Http',
   'GRAPHQL' = 'Graphql',
@@ -8,22 +10,24 @@ export enum ExceptionResponseContextEnum {
 
 export enum ExceptionResponseTypeEnum {
   HTTP_EXCEPTION = 'HttpException',
-  MONGO_ERROR = 'MongoErrorException',
-  ERROR_CLASS = 'ErrorClassException',
-  ERROR = 'ErrorException',
-  UNKNOWN = 'UnknownException',
+  APOLLO_ERROR = 'ApolloError',
+  MONGO_ERROR = 'MongoError',
+  ERROR_CLASS = 'ErrorClass',
+  ERROR = 'Error',
+  UNKNOWN = 'Unknown',
 }
 
 export interface ExceptionResponseInterface extends Record<string, unknown> {
+  code: ApolloCodeEnum;
+  context: ExceptionResponseContextEnum;
   name: string;
   message: string;
-  status: number;
-  details?: object;
-  stack?: string;
-  context: ExceptionResponseContextEnum;
-  type: ExceptionResponseTypeEnum;
-  trace: string[];
-  timestamp: string;
   metadata: unknown;
   payload: Record<string, unknown>;
+  status: number;
+  timestamp: string;
+  trace: string[];
+  type: ExceptionResponseTypeEnum;
+  details?: object;
+  stack?: string;
 }

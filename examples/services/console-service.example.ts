@@ -8,7 +8,7 @@ export function run(): void {
   //   console.error(e);
   // }
   // console.log(new ErrorService('simple sting'));
-  const errorClassError = new ErrorClass({ name: 'name', message: 'dd', status: 1 });
+  const errorClassError = new ErrorClass({ name: 'name', message: 'dd', httpStatus: 1 });
   console.error(errorClassError);
   /**
    *
@@ -17,7 +17,7 @@ export function run(): void {
     name: 'Custom name',
     message: 'Custom message',
     details: { a: 1 },
-    status: 500,
+    httpStatus: 500,
   });
   console.log(errorClass);
 }

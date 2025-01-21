@@ -7,9 +7,9 @@ export * from './classes/middleware.class';
 export * from './classes/transformer.class';
 export * from './classes/validator.class';
 /** Declaration */
+export * from './declarations/apollo-code.enum';
 export * from './declarations/exception-response.interface';
 /** Helpers */
-export * from './helpers/apollo.helper';
 export * from './helpers/codegen.helper';
 export * from './helpers/color.helper';
 export * from './helpers/console.helper';
