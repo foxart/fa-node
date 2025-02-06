@@ -19,6 +19,12 @@ interface StackOptionInterface {
   full?: boolean;
 }
 
+interface PathInterface {
+  directory: string;
+  filename: string;
+  extension: string;
+}
+
 interface UrlInterface {
   href: string;
   protocol?: string;
@@ -91,6 +97,14 @@ class ParserSingleton {
       match = this.stackRegexp.exec(stack || '');
     }
     return result;
+  }
+
+  public path(fullPath: string): PathInterface {
+    return {
+      directory: path.dirname(fullPath),
+      filename: path.basename(fullPath, path.extname(fullPath)),
+      extension: path.extname(fullPath),
+    };
   }
 
   public url(url: string): UrlInterface | null {
