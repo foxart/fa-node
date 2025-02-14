@@ -1,6 +1,5 @@
 import fs, { ObjectEncodingOptions, WriteFileOptions } from 'fs';
 import ms from 'ms';
-import process from 'node:process';
 import path from 'path';
 
 export interface PackageInfoInterface {
@@ -39,6 +38,16 @@ class SystemSingleton {
     return parseFloat((diff[0] * 1e3 + diff[1] / 1e6).toFixed(3));
   }
 
+  public timeToHhMmSs(milliseconds: number): string {
+    const hours = Math.floor(milliseconds / 3600000);
+    const minutes = Math.floor((milliseconds % 3600000) / 60000);
+    const seconds = Math.floor((milliseconds % 60000) / 1000);
+    const formattedHours = String(hours).padStart(2, '0');
+    const formattedMinutes = String(minutes).padStart(2, '0');
+    const formattedSeconds = String(seconds).padStart(2, '0');
+    return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+  }
+
   public packageInfo(directory: string): PackageInfoInterface {
     let result: PackageInfoInterface;
     try {
@@ -55,6 +64,10 @@ class SystemSingleton {
         resolve();
       }, ms(time));
     });
+  }
+
+  public checkPathExist(path: string): boolean {
+    return fs.existsSync(path);
   }
 
   public scanDirectoriesSync(directory: string, filter?: RegExp[]): string[] {
@@ -130,7 +143,8 @@ class SystemSingleton {
   public createFileSync(filePath: string, content: string | NodeJS.ArrayBufferView, options?: WriteFileOptions): void {
     try {
       this.createDirectorySync(path.dirname(filePath));
-      fs.writeFileSync(filePath, content, options || { encoding: 'utf-8' });
+      // fs.writeFileSync(filePath, content, options || { encoding: 'utf-8' });
+      fs.writeFileSync(filePath, content, options);
     } catch (e) {
       console.error(e);
     }
@@ -151,7 +165,8 @@ class SystemSingleton {
     options?: (ObjectEncodingOptions & { flag?: string | undefined }) | BufferEncoding,
   ): string | Buffer {
     try {
-      return fs.readFileSync(filePath, options || { encoding: 'utf8' });
+      // return fs.readFileSync(filePath, options || { encoding: 'utf8' });
+      return fs.readFileSync(filePath, options);
     } catch (e) {
       console.error(e);
     }

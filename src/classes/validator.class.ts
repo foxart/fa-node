@@ -52,6 +52,7 @@ export class ValidatorClass {
     // });
     return (
       DataHelper.isInstanceObject(value) &&
+      !Buffer.isBuffer(value) &&
       !(instances || []).some((instance) => {
         return value instanceof (instance as ClassConstructor<unknown>);
       })

@@ -19,6 +19,5 @@ export * from './helpers/exception.helper';
 export * from './helpers/parser.helper';
 export * from './helpers/symbol.helper';
 export * from './helpers/system.helper';
-/** Nest */
-export * from './nest/nest-console.service';
-export * from './nest/nest-logger.service';
+/** Services */
+export * from './services/nest-logger.service';

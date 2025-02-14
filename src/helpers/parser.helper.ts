@@ -1,5 +1,4 @@
-import process from 'node:process';
-import path from 'path';
+import * as path from 'path';
 
 type GraphqlRequestBodyType = Record<'query' | 'mutation' | 'subscription', string>;
 

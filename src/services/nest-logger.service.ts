@@ -1,12 +1,20 @@
-import { ConsoleClass, ConsoleLevelEnum, ConsoleServiceOptionsInterface } from '../classes/console.class';
+import { LoggerService } from '@nestjs/common';
+import { ConsoleClass, ConsoleLevelEnum } from '../classes/console.class';
 import { ErrorClass } from '../classes/error.class';
 import { ColorHelper } from '../helpers/color.helper';
+import { ParserHelper } from '../helpers/parser.helper';
 
 const { foreground, effect } = ColorHelper;
 
-export class NestConsoleService extends ConsoleClass {
-  public constructor(options: ConsoleServiceOptionsInterface) {
-    super(options);
+class NestConsoleClass extends ConsoleClass {
+  public constructor() {
+    super({
+      color: true,
+      counter: true,
+      performance: true,
+      dataColor: true,
+      // dataSort: true,
+    });
   }
 
   public override print(level: ConsoleLevelEnum, trace: string[], args: unknown[]): void {
@@ -14,9 +22,9 @@ export class NestConsoleService extends ConsoleClass {
     this.printCounter();
     this.printName(level);
     this.printDate();
-    this.processStdout(context as string);
+    this.processStdout(ColorHelper.wrapData(context as string, [this.getForeground(level)]));
     this.processStdout(' ');
-    this.processStdout(ColorHelper.wrapData(message as string, [this.getForeground(level)]));
+    this.processStdout(message as string);
     this.processStdout(' ');
     data.forEach((item) => {
       if (item instanceof Error) {
@@ -49,5 +57,31 @@ export class NestConsoleService extends ConsoleClass {
     }
     this.printPerformance();
     this.processStdout('\n');
+  }
+}
+
+const nextConsole = new NestConsoleClass();
+
+export class NestLoggerService implements LoggerService {
+  public readonly console: NestConsoleClass;
+
+  public constructor() {
+    this.console = nextConsole;
+  }
+
+  public log(message: string, context: string, ...args: unknown[]): void {
+    this.console.print(ConsoleLevelEnum.LOG, [], [message, context, ...args]);
+  }
+
+  public error(message: string, stack: string, context: string, ...args: unknown[]): void {
+    this.console.print(
+      ConsoleLevelEnum.ERR,
+      ParserHelper.stack(stack).filter((item) => item.indexOf('node_modules') === -1),
+      [message, context, ...args],
+    );
+  }
+
+  public warn(message: string, context: string, ...args: unknown[]): void {
+    this.console.print(ConsoleLevelEnum.WRN, [], [message, context, ...args]);
   }
 }
