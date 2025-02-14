@@ -84,7 +84,7 @@ export class DecoratorClass {
     this.symbol = Symbol(symbol);
   }
 
-  /* STATIC */
+  /** STATIC */
   private static getClassMetadata(symbol: symbol, target: object): ClassMetadataInterface | undefined {
     return Reflect.getOwnMetadata(symbol, target.constructor) as ClassMetadataInterface;
   }
@@ -127,7 +127,7 @@ export class DecoratorClass {
     Reflect.defineMetadata(symbol, metadata, target, propertyKey);
   }
 
-  /* PRIVATE */
+  /** PRIVATE */
   private static getDesignMetadata(target: object, propertyKey: string | symbol): DesignMetadataInterface {
     return {
       type: Reflect.getOwnMetadata(DESIGN_TYPE, target, propertyKey) as ConstructableType,
@@ -216,7 +216,7 @@ export class DecoratorClass {
         };
   }
 
-  /* PUBLIC */
+  /** PUBLIC */
   public decorateClass(data?: ClassDecoratorInterface): ClassDecorator {
     return <T>(target: object): T | void => {
       const classMetadata: ClassMetadataInterface = {
@@ -246,17 +246,19 @@ export class DecoratorClass {
           return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, descriptorValue)(...args);
         };
         Object.getOwnPropertyNames(descriptorValue).forEach((property) => {
-          Object.defineProperty(descriptor.value, property, { value: propertyKey });
+          Object.defineProperty(descriptor.value, property, {
+            value: propertyKey,
+          });
         });
       }
       if (descriptor.get) {
-        const descriptorGet = descriptor.get;
+        const descriptorGet = (descriptor as { get: FunctionType }).get;
         descriptor.get = function (...args: unknown[]): unknown {
           return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, descriptorGet)(...args);
         };
       }
       if (descriptor.set) {
-        const descriptorSet = descriptor.set;
+        const descriptorSet = (descriptor as { set: FunctionType }).set;
         descriptor.set = function (...args: unknown[]): unknown {
           return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, descriptorSet)(...args);
         };

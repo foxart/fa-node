@@ -14,7 +14,7 @@ export enum ConsoleLevelEnum {
   DBG,
 }
 
-export interface ConsoleServiceOptionsInterface {
+export interface ConsoleOptionsInterface {
   /** console */
   color?: boolean;
   info?: boolean;
@@ -42,7 +42,7 @@ export class ConsoleClass {
 
   private counter: number;
 
-  public constructor(private readonly options: ConsoleServiceOptionsInterface) {
+  public constructor(private readonly options: ConsoleOptionsInterface) {
     this.counter = 0;
     this.performance = performance.now();
     this.stackIndex = options.stackIndex || 1;
@@ -260,8 +260,8 @@ export class ConsoleClass {
     try {
       process.stdout.write(data);
     } catch (e) {
-      this.console.error(e);
       this.console.log(data);
+      this.console.error(e);
     }
   }
 }

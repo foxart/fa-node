@@ -23,6 +23,7 @@ module.exports = {
     '@typescript-eslint/no-floating-promises': 'error',
     '@typescript-eslint/no-for-in-array': 'error',
     '@typescript-eslint/no-implied-eval': 'error',
+    '@typescript-eslint/no-implicit-any-catch': 'off',
     '@typescript-eslint/no-misused-promises': 'error',
     '@typescript-eslint/no-unnecessary-type-arguments': 'error',
     '@typescript-eslint/no-unnecessary-type-assertion': 'error',
@@ -36,15 +37,8 @@ module.exports = {
     '@typescript-eslint/restrict-plus-operands': 'error',
     '@typescript-eslint/restrict-template-expressions': 'error',
     '@typescript-eslint/typedef': 'error',
-    // '@typescript-eslint/unbound-method': 'error',
+    '@typescript-eslint/unbound-method': 'error',
     'no-implied-eval': 'off',
     'require-await': 'error',
-    // 'array-bracket-newline': [
-    // 	'error',
-    // 	{
-    // 		multiline: true,
-    // 		minItems: 1,
-    // 	},
-    // ],
   },
 };

@@ -43,7 +43,9 @@ class ColorSingleton {
   }
 
   public wrapData(data: string, colors: string | string[]): string {
-    const result = (Array.isArray(colors) ? colors : [colors]).reduce((acc, value) => `${value}${acc}`, data);
+    const result = (Array.isArray(colors) ? colors : [colors]).reduce((acc, value) => {
+      return `${value}${acc}`;
+    }, data);
     return `${this.effect.RESET}${result}${this.effect.RESET}`;
   }
 }

@@ -62,7 +62,9 @@ export class ValidatorClass {
   private getError(errorList: ValidationError[]): ErrorInterface[] | null {
     const result: ErrorInterface[] = [];
     const mapConstraints = (constraints: Record<string, string>): Array<Record<string, string>> => {
-      return Object.entries(constraints).map(([key, value]) => ({ [key]: value }));
+      return Object.entries(constraints).map(([key, value]) => ({
+        [key]: value,
+      }));
     };
     const processError = (error: ValidationError, propertyPath: string = ''): void => {
       const currentProperty = propertyPath ? `${propertyPath}.${error.property}` : error.property;

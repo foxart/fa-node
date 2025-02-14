@@ -11,6 +11,7 @@ export interface FilterOptionsInterface {
 
 class DataSingleton {
   private static self: DataSingleton;
+
   private readonly characters: string;
 
   private constructor() {
@@ -95,7 +96,12 @@ class DataSingleton {
           return this.filter(item, options);
         })
         .filter((item) => {
-          return !isEmpty(item, { ...options, nullValue: false, zeroNumber: false, emptyString: false });
+          return !isEmpty(item, {
+            ...options,
+            nullValue: false,
+            zeroNumber: false,
+            emptyString: false,
+          });
         }) as Data;
     } else if (this.isPlainObject(data)) {
       return Object.entries(data as Record<keyof Data, Data>).reduce((acc, [key, value]) => {

@@ -1,4 +1,4 @@
-import { ConsoleClass, ConsoleServiceOptionsInterface } from '../classes/console.class';
+import { ConsoleClass, ConsoleOptionsInterface } from '../classes/console.class';
 
 class ConsoleSingleton {
   private static self: ConsoleSingleton;
@@ -18,7 +18,7 @@ class ConsoleSingleton {
     return ConsoleSingleton.self;
   }
 
-  public override(options: ConsoleServiceOptionsInterface): void {
+  public override(options: ConsoleOptionsInterface): void {
     this.consoleService = new ConsoleClass(options);
     console.log = this.consoleService.log.bind(this.consoleService) as typeof console.log;
     console.info = this.consoleService.info.bind(this.consoleService) as typeof console.info;
