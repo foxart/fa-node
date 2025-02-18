@@ -20,11 +20,11 @@ class ConsoleSingleton {
 
   public override(options: ConsoleOptionsInterface): void {
     this.consoleService = new ConsoleClass(options);
-    console.log = this.consoleService.log.bind(this.consoleService) as typeof console.log;
-    console.info = this.consoleService.info.bind(this.consoleService) as typeof console.info;
-    console.warn = this.consoleService.warn.bind(this.consoleService) as typeof console.warn;
-    console.error = this.consoleService.error.bind(this.consoleService) as typeof console.error;
-    console.debug = this.consoleService.debug.bind(this.consoleService) as typeof console.debug;
+    console.log = this.consoleService.log.bind(this.consoleService);
+    console.info = this.consoleService.info.bind(this.consoleService);
+    console.warn = this.consoleService.warn.bind(this.consoleService);
+    console.error = this.consoleService.error.bind(this.consoleService);
+    console.debug = this.consoleService.debug.bind(this.consoleService);
   }
 
   public restore(): void {

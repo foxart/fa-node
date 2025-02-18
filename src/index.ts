@@ -19,5 +19,3 @@ export * from './helpers/exception.helper';
 export * from './helpers/parser.helper';
 export * from './helpers/symbol.helper';
 export * from './helpers/system.helper';
-/** Services */
-export * from './services/nest-logger.service';
