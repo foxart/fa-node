@@ -1,5 +1,4 @@
-import * as process from 'process';
-import * as util from 'util';
+import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
 import { ParserHelper } from '../helpers/parser.helper';
 import { ErrorClass } from './error.class';

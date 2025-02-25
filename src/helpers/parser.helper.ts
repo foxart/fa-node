@@ -1,4 +1,4 @@
-import * as path from 'path';
+import path from 'path';
 
 type GraphqlRequestBodyType = Record<'query' | 'mutation' | 'subscription', string>;
 

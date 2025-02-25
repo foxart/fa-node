@@ -1,5 +1,4 @@
-import { exec as childProcessExec } from 'child_process';
-import fs from 'fs';
+import { exec } from 'child_process';
 import { buildClientSchema, printSchema } from 'graphql/utilities';
 import type { IntrospectionQuery } from 'graphql/utilities/getIntrospectionQuery';
 import path from 'path';
@@ -8,10 +7,7 @@ import { ColorHelper } from './color.helper';
 import { SymbolHelper } from './symbol.helper';
 import { SystemHelper } from './system.helper';
 
-const exec = promisify(childProcessExec);
-const { status } = SymbolHelper;
-const { foreground, background, effect } = ColorHelper;
-
+// const executor = promisify(exec);
 class CodegenSingleton {
   private static self: CodegenSingleton;
 
@@ -23,34 +19,34 @@ class CodegenSingleton {
   }
 
   public message(name: string, msg: string): void {
-    const result = [ColorHelper.wrapData(` ${name.toUpperCase()} `, background.CYAN)];
+    const result = [ColorHelper.wrapData(` ${name.toUpperCase()} `, ColorHelper.background.CYAN)];
     if (msg) {
-      result.push(ColorHelper.wrapData(` ${msg}`, foreground.CYAN), ' ');
+      result.push(ColorHelper.wrapData(` ${msg}`, ColorHelper.foreground.CYAN), ' ');
     }
     console.log(result.join(''));
   }
 
   public success(name: string, msg: string): void {
     const result = [
-      ColorHelper.wrapData(name, foreground.WHITE),
+      ColorHelper.wrapData(name, ColorHelper.foreground.WHITE),
       ' ',
-      ColorHelper.wrapData(status.SUCCESS, [effect.BOLD, foreground.GREEN]),
+      ColorHelper.wrapData(SymbolHelper.status.SUCCESS, [ColorHelper.effect.BOLD, ColorHelper.foreground.GREEN]),
       ' ',
-      ColorHelper.wrapData(msg, [effect.DIM, foreground.GREEN]),
+      ColorHelper.wrapData(msg, [ColorHelper.effect.DIM, ColorHelper.foreground.GREEN]),
     ];
     console.log(result.join(''));
   }
 
   public error(name: string, msg: string, err: Error): void {
     const result = [
-      ColorHelper.wrapData(name, foreground.WHITE),
+      ColorHelper.wrapData(name, ColorHelper.foreground.WHITE),
       ' ',
-      ColorHelper.wrapData(status.ERROR, [effect.BOLD, foreground.RED]),
+      ColorHelper.wrapData(SymbolHelper.status.ERROR, [ColorHelper.effect.BOLD, ColorHelper.foreground.RED]),
       ' ',
-      ColorHelper.wrapData(msg, [effect.DIM, foreground.RED]),
+      ColorHelper.wrapData(msg, [ColorHelper.effect.DIM, ColorHelper.foreground.RED]),
     ];
     if (err) {
-      result.push(' ', ColorHelper.wrapData(err.message ?? err.name, foreground.RED));
+      result.push(' ', ColorHelper.wrapData(err.message ?? err.name, ColorHelper.foreground.RED));
     }
     console.log(result.join(''));
   }
@@ -62,7 +58,7 @@ class CodegenSingleton {
         this.error(this.fetchJson.name, host, new Error(response.statusText));
         return null;
       }
-      const json = (await response.json()) as unknown;
+      const json = await response.json();
       this.success(this.fetchJson.name, host);
       return json;
     } catch (e) {
@@ -98,7 +94,7 @@ class CodegenSingleton {
 
   public async buildProto(source: string, destination: string, filePath: string): Promise<void> {
     try {
-      fs.mkdirSync(destination, { recursive: true });
+      SystemHelper.createDirectorySync(destination);
       const command = [
         'protoc',
         `--proto_path=${source}`,
@@ -107,7 +103,8 @@ class CodegenSingleton {
         `--ts_out=${destination}`,
         filePath,
       ];
-      await exec(command.join(' '));
+      // await executor(command.join(' '));
+      await promisify(exec)(command.join(' '));
       this.success(this.buildProto.name, path.basename(filePath));
     } catch (e) {
       this.error(this.buildProto.name, path.basename(filePath), e as Error);
