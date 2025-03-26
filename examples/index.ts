@@ -1,4 +1,3 @@
-import process from 'process';
 import { ConsoleClass } from '../src';
 
 export function initCatch(): void {
@@ -23,11 +22,10 @@ export function initConsole(): void {
     performance: true,
     link: true,
     /** */
-    stackIndex: 2,
-    stackShow: true,
+    linkIndex: 2,
+    stackErrorShow: true,
     // stackFull: true,
     /** */
-    dataColor: true,
     // dataSort: true,
     // dataType: true,
   });
@@ -62,7 +60,7 @@ initConsole();
 /**
  *
  */
-void import('./helpers/crypt-helper.example').then((module) => module.run());
+// void import('./helpers/crypt-helper.example').then((module) => module.run());
 /**
  * Converter Helper
  */
@@ -83,4 +81,67 @@ void import('./helpers/crypt-helper.example').then((module) => module.run());
 /**
  * Validator Service
  */
+
 // void import('./services/validator-service.example').then((module) => module.cryptHelperExample());
+/**
+ *
+ */
+function firstUniqChar(s: string): number {
+  if (s.length > 100000) {
+    // throw new Error('String length exceeds the limit of 10^5');
+  }
+  if (!/^[a-z]+$/.test(s)) {
+    // throw new Error('Only english lowercase letters are allowed.');
+  }
+  const letterMap = new Map();
+  for (const letter of s) {
+    if (letterMap.has(letter)) {
+      letterMap.set(letter, letterMap.get(letter) + 1);
+    } else {
+      letterMap.set(letter, 0);
+    }
+  }
+  for (let i = 0; i < s.length; i++) {
+    if (letterMap.get(s[i]) === 0) {
+      return i;
+    }
+  }
+  return -1;
+  /**
+   *
+   */
+  // const charCount = new Array(26).fill(0);
+  // const charCodeA = 'a'.charCodeAt(0);
+  // for (const char of s) {
+  //   console.log(char.charCodeAt(0));
+  //   charCount[char.charCodeAt(0) - charCodeA]++;
+  // }
+  // console.log(charCount);
+  // for (let i = 0; i < s.length; i++) {
+  //   if (charCount[s.charCodeAt(i) - charCodeA] === 1) {
+  //     return i;
+  //   }
+  // }
+  // return -1;
+}
+
+// console.log(firstUniqChar('leetcode'));
+// console.log(firstUniqChar('loveleetcodez'));
+// const myError = new Error('my error');
+// console.error(myError);
+// console.trace('XXX');
+// console.error(ParserHelper.stack(myError.stack));
+console.log('Start');
+setTimeout(() => {
+  console.log('setTimeout');
+}, 0);
+setImmediate(() => {
+  console.log('setImmediate');
+});
+void Promise.resolve().then(() => {
+  console.log('Promise');
+});
+process.nextTick(() => {
+  console.log('nextTick');
+});
+console.log('End');

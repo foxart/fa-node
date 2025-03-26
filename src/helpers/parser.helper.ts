@@ -1,6 +1,10 @@
-import path from 'path';
-
 type GraphqlRequestBodyType = Record<'query' | 'mutation' | 'subscription', string>;
+
+export interface ParserTraceInterface {
+  file: string;
+  context?: string;
+  method?: string;
+}
 
 enum GraphqlOperationTypeEnum {
   QUERY = 'QUERY',
@@ -38,14 +42,11 @@ interface UrlInterface {
 class ParserSingleton {
   private static self: ParserSingleton;
 
-  private readonly cwd: string;
-
   private readonly stackRegexp: RegExp;
 
   private readonly urlRegexp: RegExp;
 
   private constructor() {
-    this.cwd = process.cwd();
     // this.stackRegexp = /\/?(\/.+:\d+:\d+)/gm;
     // this.stackRegexp = /\/?[a-zA-Z0-9@_.\/\-]+(?:\.js|\.ts):\d+:\d+/gm;
     this.stackRegexp = new RegExp('\\/?[a-zA-Z0-9@_.\\/\\-]+(?:\\.js|\\.ts):\\d+:\\d+', 'gm');
@@ -86,23 +87,42 @@ class ParserSingleton {
     }
   }
 
-  public stack(stack?: string, options?: StackOptionInterface): string[] {
-    const result: string[] = [];
-    let match = this.stackRegexp.exec(stack || '');
-    while (match) {
-      if (match[0].indexOf(this.cwd) !== -1) {
-        result.push(options?.full ? match[0] : path.relative(this.cwd, match[0]));
+  public stack(stack?: string, options?: StackOptionInterface): ParserTraceInterface[] {
+    // const result: string[] = [];
+    // let match = this.stackRegexp.exec(stack || '');
+    // while (match) {
+    //   if (match[0].indexOf(this.cwd) !== -1) {
+    //     result.push(options?.full ? match[0] : path.relative(this.cwd, match[0]));
+    //   }
+    //   match = this.stackRegexp.exec(stack || '');
+    // }
+    // return result;
+    const result: ParserTraceInterface[] = [];
+    const errorStack = stack || new Error().stack || '';
+    const stackLines = errorStack.split('\n').slice(1);
+    for (const line of stackLines) {
+      const match = line.match(this.stackRegexp);
+      if (match) {
+        const file = options?.full ? match[0] : this.relativePath(this.getCwd(), match[0]);
+        const methodMatch = line.match(/at (\S+) \(/);
+        const fullMethodName = methodMatch?.[1];
+        const context = fullMethodName?.includes('.') ? fullMethodName.split('.')[0] : undefined;
+        const method = fullMethodName?.includes('.') ? fullMethodName.split('.')[1] : undefined;
+        result.push({
+          file,
+          context,
+          method,
+        });
       }
-      match = this.stackRegexp.exec(stack || '');
     }
     return result;
   }
 
   public path(fullPath: string): PathInterface {
     return {
-      directory: path.dirname(fullPath),
-      filename: path.basename(fullPath, path.extname(fullPath)),
-      extension: path.extname(fullPath),
+      directory: this.getDirectory(fullPath),
+      filename: this.getFilenameWithoutExtension(fullPath),
+      extension: this.getFileExtension(fullPath),
     };
   }
 
@@ -120,6 +140,40 @@ class ParserSingleton {
         hash: match[7],
       }
     );
+  }
+
+  /**
+   *
+   */
+
+  private getCwd(): string {
+    if (typeof process !== 'undefined' && process.cwd) {
+      return process.cwd();
+    }
+    return '/';
+  }
+
+  private getDirectory(fullPath: string): string {
+    return fullPath.substring(0, fullPath.lastIndexOf('/'));
+  }
+
+  private getFilenameWithoutExtension(fullPath: string): string {
+    const fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
+    return fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+  }
+
+  private getFileExtension(fullPath: string): string {
+    return fullPath.substring(fullPath.lastIndexOf('.'));
+  }
+
+  private relativePath(basePath: string, targetPath: string): string {
+    const baseParts = basePath.split('/');
+    const targetParts = targetPath.split('/');
+    while (baseParts.length && targetParts.length && baseParts[0] === targetParts[0]) {
+      baseParts.shift();
+      targetParts.shift();
+    }
+    return `${'../'.repeat(baseParts.length)}${targetParts.join('/')}`;
   }
 }
 

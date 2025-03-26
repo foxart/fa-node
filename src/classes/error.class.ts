@@ -7,9 +7,9 @@ export interface ErrorClassInterface {
 }
 
 export class ErrorClass extends Error {
-  public readonly details: object;
-
   public readonly status: number;
+
+  public readonly details?: object;
 
   public constructor(error: ErrorClassInterface) {
     super();

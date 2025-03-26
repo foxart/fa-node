@@ -5,7 +5,8 @@
     "target": "ES2020",
     "module": "CommonJS",
     "lib": [
-      "ES2020"
+      "ES2022",
+      "DOM"
     ],
     "declarationDir": "./dist",
     "allowJs": false,
