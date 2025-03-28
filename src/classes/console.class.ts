@@ -255,8 +255,11 @@ export class ConsoleClass {
     try {
       process.stdout.write(data);
     } catch (e) {
-      this.console.log(data);
-      this.console.error(e);
+      if (e instanceof Error) {
+        this.console.error(e.name, e.message, { data });
+      } else {
+        this.console.error(e, { data });
+      }
     }
   }
 }

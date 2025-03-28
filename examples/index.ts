@@ -86,62 +86,57 @@ initConsole();
 /**
  *
  */
-function firstUniqChar(s: string): number {
-  if (s.length > 100000) {
-    // throw new Error('String length exceeds the limit of 10^5');
-  }
-  if (!/^[a-z]+$/.test(s)) {
-    // throw new Error('Only english lowercase letters are allowed.');
-  }
-  const letterMap = new Map();
-  for (const letter of s) {
-    if (letterMap.has(letter)) {
-      letterMap.set(letter, letterMap.get(letter) + 1);
-    } else {
-      letterMap.set(letter, 0);
-    }
-  }
-  for (let i = 0; i < s.length; i++) {
-    if (letterMap.get(s[i]) === 0) {
-      return i;
-    }
-  }
-  return -1;
-  /**
-   *
-   */
-  // const charCount = new Array(26).fill(0);
-  // const charCodeA = 'a'.charCodeAt(0);
-  // for (const char of s) {
-  //   console.log(char.charCodeAt(0));
-  //   charCount[char.charCodeAt(0) - charCodeA]++;
-  // }
-  // console.log(charCount);
-  // for (let i = 0; i < s.length; i++) {
-  //   if (charCount[s.charCodeAt(i) - charCodeA] === 1) {
-  //     return i;
-  //   }
-  // }
-  // return -1;
+
+function filterSubtitleList(subtitleList: string[]): string[] {
+  const excludedPatterns = [
+    // RU
+    /субтитр(а|у|ом|е|ы|ов|ам|ами|ах)?/i,
+    /и так далее/i,
+    /продолжение следует/i,
+    /следующ(ее|его|ему|им|ем)? обновлени(е|я|ю|ем|и)?/i,
+    /мо(й|его|ему|им|ем|ём)? канал(а|у|ом|е)?/i,
+    // EN
+    /subtitle(s)?/i,
+    /and so on/i,
+    /to be continued/i,
+    /(next)? update(s)?/i,
+    /my channel/i,
+    // DE
+    /untertitel([ns])?/i,
+    /und so weiter/i,
+    /fortsetzung folgt/i,
+    /nächst(es|en|em|er)? update(s)?/i,
+    /mein(en|em|es|e)? kanal(s|es|e|en)?/i,
+    // FR
+    /sous-titre(s)?/i,
+    /et ainsi de suite/i,
+    /à suivre/i,
+    /(prochain(e|es)?)? mise(s)? à jour/i,
+    /m(a|on|es)? chaîne(s)?/i,
+  ];
+  return subtitleList.filter((subtitle) => {
+    return !excludedPatterns.some((pattern) => pattern.test(subtitle));
+  });
 }
 
-// console.log(firstUniqChar('leetcode'));
-// console.log(firstUniqChar('loveleetcodez'));
-// const myError = new Error('my error');
-// console.error(myError);
-// console.trace('XXX');
-// console.error(ParserHelper.stack(myError.stack));
-console.log('Start');
-setTimeout(() => {
-  console.log('setTimeout');
-}, 0);
-setImmediate(() => {
-  console.log('setImmediate');
-});
-void Promise.resolve().then(() => {
-  console.log('Promise');
-});
-process.nextTick(() => {
-  console.log('nextTick');
-});
-console.log('End');
+const testArray = [
+  // Russian phrases for subtitles
+  'Эти субтитры были переведены специально для вас.',
+  'У вас отсутствуют субтитры к фильму.',
+  'Я добавлю субтитры к этому видео позже.',
+  'Этих субтитров совершенно не хватает!',
+  'Можете ли вы помочь с субтитрами к этому видео?',
+  // Continuation or progression phrases
+  'Продолжение следует где-то в ближайшем будущем.',
+  'На этом история не заканчивается — продолжение следует!',
+  'Продолжение следует завтра, не переключайтесь!',
+  // Update-related phrases
+  'Увидимся в следующем обновлении, оно будет скоро.',
+  'Спасибо за внимание, увидимся в следующем обновлении!',
+  'Следующая большая новость будет в следующем обновлении.',
+  // Channel gratitude
+  'Я так рада, что вы зашли на мой канал, подпишитесь, если хотите больше!',
+  'Я так рад, что вы посетили мой канал, это значит для меня многое.',
+  'Огромное спасибо, что зашли на мой канал, приглашаю вас остаться!',
+];
+console.log(filterSubtitleList(testArray));
