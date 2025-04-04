@@ -4,8 +4,8 @@ import type { IntrospectionQuery } from 'graphql/utilities/getIntrospectionQuery
 import path from 'path';
 import { promisify } from 'util';
 import { ColorHelper } from './color.helper';
+import { IoHelper } from './io.helper';
 import { SymbolHelper } from './symbol.helper';
-import { SystemHelper } from './system.helper';
 
 // const executor = promisify(exec);
 class CodegenSingleton {
@@ -58,7 +58,7 @@ class CodegenSingleton {
         this.error(this.fetchJson.name, host, new Error(response.statusText));
         return null;
       }
-      const json = await response.json();
+      const json = (await response.json()) as unknown;
       this.success(this.fetchJson.name, host);
       return json;
     } catch (e) {
@@ -85,7 +85,7 @@ class CodegenSingleton {
 
   public buildGraphql(filePath: string, introspectionQuery: IntrospectionQuery): void {
     try {
-      SystemHelper.createFileSync(filePath, printSchema(buildClientSchema(introspectionQuery)));
+      IoHelper.createFileSync(filePath, printSchema(buildClientSchema(introspectionQuery)));
       this.success(this.buildGraphql.name, path.basename(filePath));
     } catch (e) {
       this.error(this.buildGraphql.name, path.basename(filePath), e as Error);
@@ -94,7 +94,7 @@ class CodegenSingleton {
 
   public async buildProto(source: string, destination: string, filePath: string): Promise<void> {
     try {
-      SystemHelper.createDirectorySync(destination);
+      IoHelper.createDirectorySync(destination);
       const command = [
         'protoc',
         `--proto_path=${source}`,

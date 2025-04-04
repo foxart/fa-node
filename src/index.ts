@@ -16,6 +16,7 @@ export * from './helpers/console.helper';
 export * from './helpers/converter.helper';
 export * from './helpers/data.helper';
 export * from './helpers/exception.helper';
+export * from './helpers/io.helper';
 export * from './helpers/parser.helper';
 export * from './helpers/symbol.helper';
 export * from './helpers/system.helper';
