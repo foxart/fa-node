@@ -46,15 +46,15 @@ class ExceptionSingleton {
     return (
       typeof exception === 'object' &&
       exception !== null &&
-      'context' in exception &&
       'code' in exception &&
+      'context' in exception &&
       'message' in exception &&
       'metadata' in exception &&
       'name' in exception &&
       'payload' in exception &&
       'status' in exception &&
       'timestamp' in exception &&
-      'trace' in exception &&
+      // 'trace' in exception &&
       'type' in exception &&
       // Enum checks
       Object.values(ApolloCodeEnum).includes(exception.code as ApolloCodeEnum) &&
@@ -62,14 +62,14 @@ class ExceptionSingleton {
       Object.values(ExceptionResponseTypeEnum).includes(exception.type as ExceptionResponseTypeEnum) &&
       // Type checks
       typeof exception.message === 'string' &&
-      typeof exception.metadata !== 'undefined' &&
+      typeof exception.metadata === 'object' &&
       typeof exception.name === 'string' &&
       typeof exception.payload === 'object' &&
       typeof exception.status === 'number' &&
       typeof exception.timestamp === 'string' &&
       // Array checks
-      Array.isArray(exception.trace) &&
-      exception.trace.every((item: unknown) => typeof item === 'string') &&
+      // Array.isArray(exception.trace) &&
+      // exception.trace.every((item: unknown) => typeof item === 'string') &&
       // Null checks
       exception.payload !== null
     );
