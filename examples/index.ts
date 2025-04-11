@@ -1,3 +1,4 @@
+// console.log(filterSubtitleList(testArray));
 import { ConsoleClass } from '../src';
 
 export function initCatch(): void {
@@ -12,7 +13,7 @@ export function initCatch(): void {
 }
 
 export function initConsole(): void {
-  Array.from(Array(15).keys()).forEach(() => console.log('|'));
+  Array.from(Array(5).keys()).forEach(() => console.log('|'));
   const Console = new ConsoleClass({
     name: 'CONTEXT',
     color: true,
@@ -139,4 +140,4 @@ const testArray = [
   'Я так рад, что вы посетили мой канал, это значит для меня многое.',
   'Огромное спасибо, что зашли на мой канал, приглашаю вас остаться!',
 ];
-console.log(filterSubtitleList(testArray));
+void import('./canonical').then((module) => module.run());
