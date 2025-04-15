@@ -1,4 +1,3 @@
-// console.log(filterSubtitleList(testArray));
 import { ConsoleClass } from '../src';
 
 export function initCatch(): void {
@@ -140,4 +139,4 @@ const testArray = [
   'Я так рад, что вы посетили мой канал, это значит для меня многое.',
   'Огромное спасибо, что зашли на мой канал, приглашаю вас остаться!',
 ];
-void import('./canonical').then((module) => module.run());
+console.log(filterSubtitleList(testArray));
