@@ -2,7 +2,7 @@ type GraphqlRequestBodyType = Record<'query' | 'mutation' | 'subscription', stri
 
 export interface ParserTraceInterface {
   file: string;
-  context?: string;
+  caller?: string;
   method?: string;
 }
 
@@ -106,11 +106,11 @@ class ParserSingleton {
         const file = options?.full ? match[0] : this.relativePath(this.getCwd(), match[0]);
         const methodMatch = line.match(/at (\S+) \(/);
         const fullMethodName = methodMatch?.[1];
-        const context = fullMethodName?.includes('.') ? fullMethodName.split('.')[0] : undefined;
+        const caller = fullMethodName?.includes('.') ? fullMethodName.split('.')[0] : undefined;
         const method = fullMethodName?.includes('.') ? fullMethodName.split('.')[1] : undefined;
         result.push({
           file,
-          context,
+          caller,
           method,
         });
       }

@@ -1,3 +1,4 @@
+import { ParserHelper } from '../../src';
 import { ErrorClass } from '../../src/classes/error.class';
 
 export function run(): void {
@@ -7,9 +8,10 @@ export function run(): void {
   // } catch (e) {
   //   console.error(e);
   // }
-  // console.log(new ErrorService('simple sting'));
-  const errorClassError = new ErrorClass({ name: 'name', message: 'dd', httpStatus: 1 });
-  console.error(errorClassError);
+  console.log(new Error().stack);
+  console.log(ParserHelper.stack(new Error().stack));
+  // const errorClassError = new ErrorClass({ name: 'name', message: 'dd', status: 1 });
+  // console.error(errorClassError);
   /**
    *
    */
@@ -17,7 +19,7 @@ export function run(): void {
     name: 'Custom name',
     message: 'Custom message',
     details: { a: 1 },
-    httpStatus: 500,
+    status: 500,
   });
-  console.log(errorClass);
+  // console.log(errorClass);
 }

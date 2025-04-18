@@ -24,6 +24,7 @@ export function initConsole(): void {
     /** */
     linkIndex: 2,
     stackErrorShow: true,
+    stackDebugShow: true,
     // stackFull: true,
     /** */
     // dataSort: true,
@@ -56,7 +57,7 @@ initConsole();
 /**
  * Console Helper
  */
-// void import('./services/console-service.example').then((module) => module.cryptHelperExample());
+void import('./services/console-service.example').then((module) => module.run());
 /**
  *
  */
@@ -139,4 +140,4 @@ const testArray = [
   'Я так рад, что вы посетили мой канал, это значит для меня многое.',
   'Огромное спасибо, что зашли на мой канал, приглашаю вас остаться!',
 ];
-console.log(filterSubtitleList(testArray));
+// console.log(filterSubtitleList(testArray));

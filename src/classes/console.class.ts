@@ -6,12 +6,12 @@ import { ErrorClass } from './error.class';
 const { foreground, background, effect } = ColorHelper;
 
 export enum ConsoleLevelEnum {
-  UNK,
   LOG,
   INF,
   WRN,
   ERR,
   DBG,
+  CST,
 }
 
 export interface ConsoleOptionsInterface {
@@ -29,8 +29,8 @@ export interface ConsoleOptionsInterface {
   stackErrorShow?: boolean;
   stackDebugShow?: boolean;
   /** utils */
-  dataType?: boolean;
-  dataSort?: boolean;
+  sort?: boolean;
+  hidden?: boolean;
 }
 
 export class ConsoleClass {
@@ -50,46 +50,30 @@ export class ConsoleClass {
   }
 
   public log(...data: unknown[]): void {
-    try {
-      this.print(ConsoleLevelEnum.LOG, ParserHelper.stack(new Error().stack), data);
-    } catch (e) {
-      this.console.error(e);
-    }
+    this.print(ConsoleLevelEnum.LOG, ParserHelper.stack(new Error().stack), data);
   }
 
   public info(...data: unknown[]): void {
-    try {
-      this.print(ConsoleLevelEnum.INF, ParserHelper.stack(new Error().stack), data);
-    } catch (e) {
-      this.console.error(e);
-    }
+    this.print(ConsoleLevelEnum.INF, ParserHelper.stack(new Error().stack), data);
   }
 
   public warn(...data: unknown[]): void {
-    try {
-      this.print(ConsoleLevelEnum.WRN, ParserHelper.stack(new Error().stack), data);
-    } catch (e) {
-      this.console.error(e);
-    }
+    this.print(ConsoleLevelEnum.WRN, ParserHelper.stack(new Error().stack), data);
   }
 
   public error(...data: unknown[]): void {
-    try {
-      this.print(ConsoleLevelEnum.ERR, ParserHelper.stack(new Error().stack), data);
-    } catch (e) {
-      this.console.error(e);
-    }
+    this.print(ConsoleLevelEnum.ERR, ParserHelper.stack(new Error().stack), data);
   }
 
   public debug(...data: unknown[]): void {
-    try {
-      this.print(ConsoleLevelEnum.DBG, ParserHelper.stack(new Error().stack), data);
-    } catch (e) {
-      this.console.error(e);
-    }
+    this.print(ConsoleLevelEnum.DBG, ParserHelper.stack(new Error().stack), data);
   }
 
-  protected print(level: ConsoleLevelEnum, stack: ParserTraceInterface[], args: unknown[]): void {
+  public custom(...data: unknown[]): void {
+    this.print(ConsoleLevelEnum.CST, ParserHelper.stack(new Error().stack), data);
+  }
+
+  public print(level: ConsoleLevelEnum, stack: ParserTraceInterface[], args: unknown[]): void {
     this.printInfo(level);
     this.printCounter();
     this.printName(level);
@@ -110,7 +94,7 @@ export class ConsoleClass {
     this.processStdout('\n');
   }
 
-  protected printError(error: Error | ErrorClass): void {
+  public printError(error: Error | ErrorClass): void {
     this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.CYAN]));
     this.processStdout(this.colorWrapper(': ', foreground.RED));
     this.processStdout(this.colorWrapper(error.message, foreground.RED));
@@ -126,7 +110,7 @@ export class ConsoleClass {
     }
   }
 
-  protected printCounter(): void {
+  public printCounter(): void {
     if (this.options.counter) {
       this.counter++;
       this.processStdout(this.colorWrapper(this.counter.toString(), foreground.CYAN));
@@ -134,7 +118,7 @@ export class ConsoleClass {
     }
   }
 
-  protected printDate(): void {
+  public printDate(): void {
     if (this.options.date) {
       this.processStdout(
         this.colorWrapper(new Date().toISOString().replace(/T/, ' ').replace(/Z/, ''), [effect.DIM, foreground.CYAN]),
@@ -143,7 +127,7 @@ export class ConsoleClass {
     }
   }
 
-  protected printInfo(level: ConsoleLevelEnum): void {
+  public printInfo(level: ConsoleLevelEnum): void {
     if (this.options.info) {
       const info = Object.keys(ConsoleLevelEnum as object)[Object.values(ConsoleLevelEnum as object).indexOf(level)];
       this.processStdout(this.colorWrapper(` ${info} `, this.getBackground(level)));
@@ -151,7 +135,7 @@ export class ConsoleClass {
     }
   }
 
-  protected printLink(level: ConsoleLevelEnum, link: string): void {
+  public printLink(level: ConsoleLevelEnum, link: string): void {
     if (this.options.link) {
       this.processStdout('\n');
       if (this.options.info) {
@@ -162,7 +146,7 @@ export class ConsoleClass {
     }
   }
 
-  protected printName(level: ConsoleLevelEnum): void {
+  public printName(level: ConsoleLevelEnum): void {
     if (this.options.name) {
       this.processStdout(this.colorWrapper('[', [effect.BOLD, this.getForeground(level)]));
       this.processStdout(this.colorWrapper(this.options.name, [effect.DIM, this.getForeground(level)]));
@@ -171,7 +155,7 @@ export class ConsoleClass {
     }
   }
 
-  protected printPerformance(): void {
+  public printPerformance(): void {
     if (this.options.performance) {
       this.processStdout(this.colorWrapper('+', [effect.DIM, foreground.CYAN]));
       this.processStdout(
@@ -182,7 +166,7 @@ export class ConsoleClass {
     }
   }
 
-  protected printTrace(level: ConsoleLevelEnum, trace: ParserTraceInterface[]): void {
+  public printTrace(level: ConsoleLevelEnum, trace: ParserTraceInterface[]): void {
     this.processStdout(this.colorWrapper('{', [effect.DIM, this.getForeground(level)]));
     trace
       .filter((item) => {
@@ -201,7 +185,7 @@ export class ConsoleClass {
     this.processStdout(' ');
   }
 
-  protected getBackground(level: ConsoleLevelEnum): string {
+  public getBackground(level: ConsoleLevelEnum): string {
     switch (level) {
       case ConsoleLevelEnum.LOG:
         return background.GREEN;
@@ -218,7 +202,7 @@ export class ConsoleClass {
     }
   }
 
-  protected getForeground(level: ConsoleLevelEnum): string {
+  public getForeground(level: ConsoleLevelEnum): string {
     switch (level) {
       case ConsoleLevelEnum.LOG:
         return foreground.GREEN;
@@ -235,31 +219,31 @@ export class ConsoleClass {
     }
   }
 
-  protected colorWrapper(data: string, colors: string | string[]): string {
+  public colorWrapper(data: string, colors: string | string[]): string {
     if (!this.options.color) {
       return Array.isArray(data) ? data.join('') : data;
     }
     return ColorHelper.wrapData(data, colors);
   }
 
-  protected dataWrapper(data: unknown): string {
+  public dataWrapper(data: unknown): string {
     return util.inspect(data, {
       colors: this.options.color,
-      showHidden: this.options.dataType,
-      sorted: this.options.dataSort,
+      showHidden: this.options.sort,
+      sorted: this.options.hidden,
       depth: null,
     });
   }
 
-  protected processStdout(data: string): void {
+  public processStdout(data: string): void {
     try {
       process.stdout.write(data);
     } catch (e) {
-      if (e instanceof Error) {
-        this.console.error(e.name, e.message, { data });
-      } else {
-        this.console.error(e, { data });
-      }
+      const error = e as Error;
+      this.console.error('\n', this.constructor.name);
+      this.console.error('Name:', error.name);
+      this.console.error('Message:', error.message);
+      this.console.error('Data:', data, '\n');
     }
   }
 }
