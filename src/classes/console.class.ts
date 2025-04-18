@@ -1,3 +1,4 @@
+import * as process from 'node:process';
 import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
@@ -18,9 +19,10 @@ export interface ConsoleOptionsInterface {
   /** console */
   color?: boolean;
   info?: boolean;
-  counter?: boolean;
   name?: string;
+  pid?: boolean;
   date?: boolean;
+  time?: boolean;
   performance?: boolean;
   link?: boolean;
   linkIndex?: number;
@@ -38,15 +40,15 @@ export class ConsoleClass {
 
   public readonly stackIndex: number;
 
+  private readonly pid: string;
+
   private readonly performance: number;
 
-  private counter: number;
-
   public constructor(private readonly options: ConsoleOptionsInterface) {
-    this.counter = 0;
-    this.performance = performance.now();
-    this.stackIndex = options.linkIndex || 1;
     this.console = Object.assign({}, console);
+    this.stackIndex = options.linkIndex || 1;
+    this.pid = process.pid.toString();
+    this.performance = performance.now();
   }
 
   public log(...data: unknown[]): void {
@@ -74,10 +76,8 @@ export class ConsoleClass {
   }
 
   public print(level: ConsoleLevelEnum, stack: ParserTraceInterface[], args: unknown[]): void {
-    this.printInfo(level);
-    this.printCounter();
-    this.printName(level);
-    this.printDate();
+    this.printLevel(level);
+    this.printInfo();
     args.forEach((item) => {
       if (item instanceof Error || item instanceof ErrorClass) {
         this.printError(item);
@@ -94,43 +94,104 @@ export class ConsoleClass {
     this.processStdout('\n');
   }
 
-  public printError(error: Error | ErrorClass): void {
-    this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.CYAN]));
-    this.processStdout(this.colorWrapper(': ', foreground.RED));
-    this.processStdout(this.colorWrapper(error.message, foreground.RED));
-    this.processStdout(' ');
-    if (error instanceof ErrorClass) {
-      if (error.details) {
-        this.processStdout(this.dataWrapper(error.details));
-        this.processStdout(' ');
-      }
-    }
-    if (this.options.stackErrorShow) {
-      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.stack(error.stack, { full: this.options.stackFull }));
-    }
-  }
-
-  public printCounter(): void {
-    if (this.options.counter) {
-      this.counter++;
-      this.processStdout(this.colorWrapper(this.counter.toString(), foreground.CYAN));
-      this.processStdout(this.colorWrapper('/', [effect.BOLD, foreground.WHITE]));
-    }
-  }
-
-  public printDate(): void {
-    if (this.options.date) {
-      this.processStdout(
-        this.colorWrapper(new Date().toISOString().replace(/T/, ' ').replace(/Z/, ''), [effect.DIM, foreground.CYAN]),
-      );
+  public printInfo(): void {
+    const info = [this.getName(), this.getPid(), this.getDate(), this.getTime()].filter((item) => {
+      return item;
+    });
+    if (info.length) {
+      this.processStdout(info.join(this.colorWrapper(' | ', [effect.BOLD, foreground.CYAN])));
       this.processStdout(' ');
     }
   }
 
-  public printInfo(level: ConsoleLevelEnum): void {
+  public getName(): string | void {
+    if (!this.options.name) {
+      return;
+    }
+    return this.colorWrapper(this.options.name, foreground.WHITE);
+  }
+
+  public getPid(): string | void {
+    if (!this.options.pid) {
+      return;
+    }
+    return this.colorWrapper(this.pid, [effect.DIM, foreground.YELLOW]);
+  }
+
+  public getDate(): string | void {
+    if (!this.options.date) {
+      return;
+    }
+    const ISO_DATE_INDEX = 0; // Index to extract date from ISO string
+    const DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
+    const formatDateString = (year: string, month: string, day: string): string => {
+      return [day, month, year.slice(-2)]
+        .map((unit) => {
+          return this.colorWrapper(unit, [effect.DIM, foreground.GREEN]);
+        })
+        .join(this.colorWrapper('/', [effect.DIM]));
+    };
+    const isoDate = new Date().toISOString().split('T')[ISO_DATE_INDEX]; // Extract ISO date part
+    return isoDate.replace(DATE_REGEX, formatDateString);
+  }
+
+  public getTime(): string | void {
+    if (!this.options.time) {
+      return;
+    }
+    const ISO_TIME_INDEX = 1; // Index to extract time from ISO string
+    const TIME_REGEX = /^(\d{2}):(\d{2}):(\d{2})\.(\d{3})Z$/;
+    const formatHMS = (hour: string, minute: string, second: string): string => {
+      return [hour, minute, second]
+        .map((unit) => this.colorWrapper(unit, foreground.GREEN))
+        .join(this.colorWrapper(':', effect.DIM));
+    };
+    const formatMilliseconds = (ms: string): string => {
+      return `${this.colorWrapper('.', effect.DIM)}${this.colorWrapper(ms, [effect.DIM, foreground.GREEN])}`;
+    };
+    const formatTime = (_: string, hour: string, minute: string, second: string, ms: string): string => {
+      const hms = formatHMS(hour, minute, second);
+      const millis = formatMilliseconds(ms);
+      return `${hms}${millis}`;
+    };
+    const isoTime = new Date().toISOString().split('T')[ISO_TIME_INDEX]; // Extract ISO time part
+    return isoTime.replace(TIME_REGEX, formatTime);
+  }
+
+  public printLevel(level: ConsoleLevelEnum): void {
     if (this.options.info) {
       const info = Object.keys(ConsoleLevelEnum as object)[Object.values(ConsoleLevelEnum as object).indexOf(level)];
       this.processStdout(this.colorWrapper(` ${info} `, this.getBackground(level)));
+      this.processStdout(' ');
+    }
+  }
+
+  public printTrace(level: ConsoleLevelEnum, trace: ParserTraceInterface[]): void {
+    this.processStdout(this.colorWrapper('{', [effect.BOLD, foreground.CYAN]));
+    trace
+      .filter((item) => {
+        return !item.file.includes('node_modules');
+      })
+      .forEach((item) => {
+        this.processStdout('\n');
+        if (this.options.info) {
+          this.processStdout(this.colorWrapper(' at ', [effect.DIM, this.getForeground(level)]));
+        } else {
+          this.processStdout('    ');
+        }
+        this.processStdout(item.file);
+      });
+    this.processStdout(`\n${this.colorWrapper('}', [effect.BOLD, foreground.CYAN])}`);
+    this.processStdout(' ');
+  }
+
+  public printPerformance(): void {
+    if (this.options.performance) {
+      this.processStdout(this.colorWrapper('+', [effect.DIM, foreground.CYAN]));
+      this.processStdout(
+        this.colorWrapper(Math.floor(performance.now() - this.performance).toString(), foreground.CYAN),
+      );
+      this.processStdout(this.colorWrapper('ms', [effect.DIM, foreground.CYAN]));
       this.processStdout(' ');
     }
   }
@@ -146,43 +207,20 @@ export class ConsoleClass {
     }
   }
 
-  public printName(level: ConsoleLevelEnum): void {
-    if (this.options.name) {
-      this.processStdout(this.colorWrapper('[', [effect.BOLD, this.getForeground(level)]));
-      this.processStdout(this.colorWrapper(this.options.name, [effect.DIM, this.getForeground(level)]));
-      this.processStdout(this.colorWrapper(']', [effect.BOLD, this.getForeground(level)]));
-      this.processStdout(' ');
-    }
-  }
-
-  public printPerformance(): void {
-    if (this.options.performance) {
-      this.processStdout(this.colorWrapper('+', [effect.DIM, foreground.CYAN]));
-      this.processStdout(
-        this.colorWrapper(Math.floor(performance.now() - this.performance).toString(), foreground.CYAN),
-      );
-      this.processStdout(this.colorWrapper('ms', [effect.DIM, foreground.CYAN]));
-      this.processStdout(' ');
-    }
-  }
-
-  public printTrace(level: ConsoleLevelEnum, trace: ParserTraceInterface[]): void {
-    this.processStdout(this.colorWrapper('{', [effect.DIM, this.getForeground(level)]));
-    trace
-      .filter((item) => {
-        return item.file.indexOf('node_modules') === -1;
-      })
-      .forEach((item) => {
-        this.processStdout('\n');
-        if (this.options.info) {
-          this.processStdout(this.colorWrapper(' at ', [effect.DIM, this.getForeground(level)]));
-        } else {
-          this.processStdout('    ');
-        }
-        this.processStdout(item.file);
-      });
-    this.processStdout(`\n${this.colorWrapper('}', [effect.DIM, this.getForeground(level)])}`);
+  public printError(error: Error | ErrorClass): void {
+    this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.CYAN]));
+    this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.CYAN]));
+    this.processStdout(this.colorWrapper(error.message, foreground.RED));
     this.processStdout(' ');
+    if (error instanceof ErrorClass) {
+      if (error.details) {
+        this.processStdout(this.dataWrapper(error.details));
+        this.processStdout(' ');
+      }
+    }
+    if (this.options.stackErrorShow) {
+      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.stack(error.stack, { full: this.options.stackFull }));
+    }
   }
 
   public getBackground(level: ConsoleLevelEnum): string {
@@ -196,9 +234,9 @@ export class ConsoleClass {
       case ConsoleLevelEnum.ERR:
         return background.RED;
       case ConsoleLevelEnum.DBG:
-        return background.MAGENTA;
+        return background.WHITE;
       default:
-        return background.GRAY;
+        return background.MAGENTA;
     }
   }
 
@@ -213,9 +251,9 @@ export class ConsoleClass {
       case ConsoleLevelEnum.ERR:
         return foreground.RED;
       case ConsoleLevelEnum.DBG:
-        return foreground.MAGENTA;
-      default:
         return foreground.WHITE;
+      default:
+        return foreground.MAGENTA;
     }
   }
 

@@ -2,8 +2,8 @@ type GraphqlRequestBodyType = Record<'query' | 'mutation' | 'subscription', stri
 
 export interface ParserTraceInterface {
   file: string;
-  caller?: string;
-  method?: string;
+  caller: string;
+  method: string;
 }
 
 enum GraphqlOperationTypeEnum {
@@ -47,9 +47,10 @@ class ParserSingleton {
   private readonly urlRegexp: RegExp;
 
   private constructor() {
-    // this.stackRegexp = /\/?(\/.+:\d+:\d+)/gm;
-    // this.stackRegexp = /\/?[a-zA-Z0-9@_.\/\-]+(?:\.js|\.ts):\d+:\d+/gm;
-    this.stackRegexp = new RegExp('\\/?[a-zA-Z0-9@_.\\/\\-]+(?:\\.js|\\.ts):\\d+:\\d+', 'gm');
+    this.stackRegexp = new RegExp('^ *at\\s+(.+?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
+    // Группа 1 (.+?) — всё между at и ссылкой (лениво)
+    // Группа 2 (\S+:\d+:\d+) — путь вплоть до :строка:столбец, без пробелов
+    // Скобки вокруг ссылки — опциональны (\(? … \)?)
     this.urlRegexp = new RegExp(
       [
         '^(https?:)//', // protocol
@@ -88,32 +89,17 @@ class ParserSingleton {
   }
 
   public stack(stack?: string, options?: StackOptionInterface): ParserTraceInterface[] {
-    // const result: string[] = [];
-    // let match = this.stackRegexp.exec(stack || '');
-    // while (match) {
-    //   if (match[0].indexOf(this.cwd) !== -1) {
-    //     result.push(options?.full ? match[0] : path.relative(this.cwd, match[0]));
-    //   }
-    //   match = this.stackRegexp.exec(stack || '');
-    // }
-    // return result;
     const result: ParserTraceInterface[] = [];
-    const errorStack = stack || new Error().stack || '';
-    const stackLines = errorStack.split('\n').slice(1);
-    for (const line of stackLines) {
-      const match = line.match(this.stackRegexp);
-      if (match) {
-        const file = options?.full ? match[0] : this.relativePath(this.getCwd(), match[0]);
-        const methodMatch = line.match(/at (\S+) \(/);
-        const fullMethodName = methodMatch?.[1];
-        const caller = fullMethodName?.includes('.') ? fullMethodName.split('.')[0] : undefined;
-        const method = fullMethodName?.includes('.') ? fullMethodName.split('.')[1] : undefined;
-        result.push({
-          file,
-          caller,
-          method,
-        });
-      }
+    let match;
+    const stackTrace = stack || new Error().stack || '';
+    while ((match = this.stackRegexp.exec(stackTrace)) !== null) {
+      const context = match[1].includes('.') ? match[1].split('.') : match[1].split(' ');
+      const file = match[2] || '';
+      result.push({
+        caller: context[0] || '',
+        method: context[1] || '',
+        file: options?.full ? file : this.relativePath(this.getCwd(), file),
+      });
     }
     return result;
   }
@@ -167,13 +153,11 @@ class ParserSingleton {
   }
 
   private relativePath(basePath: string, targetPath: string): string {
-    const baseParts = basePath.split('/');
-    const targetParts = targetPath.split('/');
-    while (baseParts.length && targetParts.length && baseParts[0] === targetParts[0]) {
-      baseParts.shift();
-      targetParts.shift();
+    if (targetPath.startsWith(basePath)) {
+      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
+      return cleanedPath || '.'; // Return '.' if the cleaned path is empty
     }
-    return `${'../'.repeat(baseParts.length)}${targetParts.join('/')}`;
+    return targetPath.replace(/^\/|\/$/g, '');
   }
 }
 

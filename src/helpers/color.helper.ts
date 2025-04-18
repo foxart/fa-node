@@ -46,7 +46,8 @@ class ColorSingleton {
     const result = (Array.isArray(colors) ? colors : [colors]).reduce((acc, value) => {
       return `${value}${acc}`;
     }, data);
-    return `${this.effect.RESET}${result}${this.effect.RESET}`;
+    // return `${this.effect.RESET}${result}${this.effect.RESET}`;
+    return `${result}${this.effect.RESET}`;
   }
 }
 

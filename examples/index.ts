@@ -14,11 +14,12 @@ export function initCatch(): void {
 export function initConsole(): void {
   Array.from(Array(5).keys()).forEach(() => console.log('|'));
   const Console = new ConsoleClass({
-    name: 'CONTEXT',
     color: true,
     info: true,
-    counter: true,
+    name: 'NAME',
+    // pid: true,
     date: true,
+    time: true,
     performance: true,
     link: true,
     /** */
