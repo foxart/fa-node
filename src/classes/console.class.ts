@@ -266,8 +266,8 @@ export class ConsoleClass {
   public dataWrapper(data: unknown): string {
     return util.inspect(data, {
       colors: this.options.color,
-      showHidden: this.options.sort,
-      sorted: this.options.hidden,
+      showHidden: this.options.hidden,
+      sorted: this.options.sort,
       depth: null,
     });
   }

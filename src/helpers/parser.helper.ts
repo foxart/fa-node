@@ -54,8 +54,10 @@ class ParserSingleton {
         '^(https?:)//', // protocol
         '(([^:/?#]*)(?::([0-9]+))?)', // host (hostname and port)
         '(/{0,1}[^?#]*)', // pathname
-        '(\\?[^#]*|)', // search
-        '(#.*|)$', // hash
+        // '(\\?[^#]*|)', // search
+        // '(#.*|)$', // hash
+        '(?:\\?([^#]*))?', // search (without the leading ?)
+        '(?:#(.*))?$', // hash (without the leading #)
       ].join(''),
     );
   }
