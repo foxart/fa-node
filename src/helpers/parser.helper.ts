@@ -18,10 +18,6 @@ interface GraphqlOperationInterface {
   operation: string;
 }
 
-interface StackOptionInterface {
-  full?: boolean;
-}
-
 interface PathInterface {
   directory: string;
   filename: string;
@@ -36,7 +32,9 @@ interface UrlInterface {
   port?: string;
   pathname?: string;
   search?: string;
+  searchParams?: { [key: string]: string };
   hash?: string;
+  hashParams?: { [key: string]: string };
 }
 
 class ParserSingleton {
@@ -47,8 +45,8 @@ class ParserSingleton {
   private readonly urlRegexp: RegExp;
 
   private constructor() {
-    this.stackRegexp = new RegExp('^ *at\\s+(.+?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
-    // Группа 1 (.+?) — всё между at и ссылкой (лениво)
+    this.stackRegexp = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
+    // Группа 1 (.*?) — всё между at и ссылкой (лениво)
     // Группа 2 (\S+:\d+:\d+) — путь вплоть до :строка:столбец, без пробелов
     // Скобки вокруг ссылки — опциональны (\(? … \)?)
     this.urlRegexp = new RegExp(
@@ -88,7 +86,7 @@ class ParserSingleton {
     }
   }
 
-  public stack(stack?: string, options?: StackOptionInterface): ParserTraceInterface[] {
+  public stack(stack?: string): ParserTraceInterface[] {
     const result: ParserTraceInterface[] = [];
     let match;
     const stackTrace = stack || new Error().stack || '';
@@ -98,17 +96,18 @@ class ParserSingleton {
       result.push({
         caller: context[0] || '',
         method: context[1] || '',
-        file: options?.full ? file : this.relativePath(this.getCwd(), file),
+        file: file,
       });
     }
     return result;
   }
 
   public path(fullPath: string): PathInterface {
+    const fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
     return {
-      directory: this.getDirectory(fullPath),
-      filename: this.getFilenameWithoutExtension(fullPath),
-      extension: this.getFileExtension(fullPath),
+      directory: fullPath.substring(0, fullPath.lastIndexOf('/')),
+      filename: fileName.substring(0, fileName.lastIndexOf('.')) || fileName,
+      extension: fullPath.substring(fullPath.lastIndexOf('.')),
     };
   }
 
@@ -123,41 +122,29 @@ class ParserSingleton {
         port: match[4],
         pathname: match[5],
         search: match[6],
+        searchParams: this.parseParams(match[6]),
         hash: match[7],
+        hashParams: this.parseParams(match[7]),
       }
     );
   }
 
-  /**
-   *
-   */
-
-  private getCwd(): string {
-    if (typeof process !== 'undefined' && process.cwd) {
-      return process.cwd();
+  private parseParams(paramString: string | undefined): { [key: string]: string } {
+    if (!paramString) {
+      return {};
     }
-    return '/';
-  }
-
-  private getDirectory(fullPath: string): string {
-    return fullPath.substring(0, fullPath.lastIndexOf('/'));
-  }
-
-  private getFilenameWithoutExtension(fullPath: string): string {
-    const fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
-    return fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
-  }
-
-  private getFileExtension(fullPath: string): string {
-    return fullPath.substring(fullPath.lastIndexOf('.'));
-  }
-
-  private relativePath(basePath: string, targetPath: string): string {
-    if (targetPath.startsWith(basePath)) {
-      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
-      return cleanedPath || '.'; // Return '.' if the cleaned path is empty
-    }
-    return targetPath.replace(/^\/|\/$/g, '');
+    return paramString
+      .split('&')
+      .map((param) => {
+        return param.split('=');
+      })
+      .reduce(
+        (acc, [key, value]) => {
+          acc[key] = decodeURIComponent(value || '');
+          return acc;
+        },
+        {} as { [key: string]: string },
+      );
   }
 }
 

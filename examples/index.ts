@@ -24,8 +24,8 @@ export function initConsole(): void {
     link: true,
     /** */
     linkIndex: 2,
-    stackErrorShow: true,
-    stackDebugShow: true,
+    stackError: true,
+    stackDebug: true,
     // stackFull: true,
     /** */
     // dataSort: true,

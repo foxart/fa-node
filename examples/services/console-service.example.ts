@@ -33,5 +33,5 @@ export function run(): void {
   // console.log(ParserHelper.stack(stack)[0]);
   console.log(new Error('XXX'));
   // console.debug(new Error('XXX'));
-  console.info(123);
+  console.debug(123);
 }

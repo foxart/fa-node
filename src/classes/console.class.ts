@@ -27,9 +27,8 @@ export interface ConsoleOptionsInterface {
   link?: boolean;
   linkIndex?: number;
   /** trace */
-  stackFull?: boolean;
-  stackErrorShow?: boolean;
-  stackDebugShow?: boolean;
+  stackError?: boolean;
+  stackDebug?: boolean;
   /** utils */
   sort?: boolean;
   hidden?: boolean;
@@ -86,8 +85,8 @@ export class ConsoleClass {
         this.processStdout(' ');
       }
     });
-    if (level === ConsoleLevelEnum.DBG && this.options.stackDebugShow) {
-      this.printTrace(level, ParserHelper.stack(new Error().stack, { full: this.options.stackFull }));
+    if (level === ConsoleLevelEnum.DBG && this.options.stackDebug) {
+      this.printTrace(level, ParserHelper.stack(new Error().stack));
     }
     this.printPerformance();
     this.printLink(level, stack[this.stackIndex].file);
@@ -170,7 +169,7 @@ export class ConsoleClass {
     this.processStdout(this.colorWrapper('{', [effect.BOLD, foreground.CYAN]));
     trace
       .filter((item) => {
-        return !item.file.includes('node_modules');
+        return !item.file.includes('node_modules/') && !item.file.includes('node:');
       })
       .forEach((item) => {
         this.processStdout('\n');
@@ -179,7 +178,7 @@ export class ConsoleClass {
         } else {
           this.processStdout('    ');
         }
-        this.processStdout(item.file);
+        this.processStdout(this.relativePath(process.cwd(), item.file));
       });
     this.processStdout(`\n${this.colorWrapper('}', [effect.BOLD, foreground.CYAN])}`);
     this.processStdout(' ');
@@ -203,7 +202,7 @@ export class ConsoleClass {
         this.processStdout(this.colorWrapper(' at ', this.getBackground(level)));
         this.processStdout(' ');
       }
-      this.processStdout(link);
+      this.processStdout(this.relativePath(process.cwd(), link));
     }
   }
 
@@ -218,8 +217,8 @@ export class ConsoleClass {
         this.processStdout(' ');
       }
     }
-    if (this.options.stackErrorShow) {
-      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.stack(error.stack, { full: this.options.stackFull }));
+    if (this.options.stackError) {
+      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.stack(error.stack));
     }
   }
 
@@ -283,5 +282,13 @@ export class ConsoleClass {
       this.console.error('Message:', error.message);
       this.console.error('Data:', data, '\n');
     }
+  }
+
+  private relativePath(basePath: string, targetPath: string): string {
+    if (targetPath.startsWith(basePath)) {
+      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
+      return cleanedPath || '.'; // Return '.' if the cleaned path is empty
+    }
+    return targetPath.replace(/^\/|\/$/g, '');
   }
 }
