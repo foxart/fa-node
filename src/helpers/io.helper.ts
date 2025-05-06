@@ -4,8 +4,6 @@ import path from 'path';
 class IoSingleton {
   private static self: IoSingleton;
 
-  private constructor() {}
-
   public static getInstance(): IoSingleton {
     if (!IoSingleton.self) {
       IoSingleton.self = new IoSingleton();
@@ -13,7 +11,15 @@ class IoSingleton {
     return IoSingleton.self;
   }
 
-  public checkPathExist(path: string): boolean {
+  public relativePath(basePath: string, targetPath: string): string {
+    if (targetPath.startsWith(basePath)) {
+      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
+      return cleanedPath || '.'; // Return '.' if the cleaned path is empty
+    }
+    return targetPath.replace(/^\/|\/$/g, '');
+  }
+
+  public checkPath(path: string): boolean {
     return fs.existsSync(path);
   }
 

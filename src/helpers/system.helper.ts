@@ -1,15 +1,4 @@
-import fs from 'fs';
 import ms from 'ms';
-
-export interface PackageInfoInterface {
-  name?: string;
-  version?: string;
-  description?: string;
-  author?: string;
-  license?: string;
-  private?: string;
-  homepage?: string;
-}
 
 class SystemSingleton {
   private static self: SystemSingleton;
@@ -45,16 +34,6 @@ class SystemSingleton {
     const formattedMinutes = String(minutes).padStart(2, '0');
     const formattedSeconds = String(seconds).padStart(2, '0');
     return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
-  }
-
-  public packageInfo(path: string): PackageInfoInterface {
-    let result: PackageInfoInterface;
-    try {
-      result = JSON.parse(fs.readFileSync(path, 'utf-8')) as PackageInfoInterface;
-    } catch (e) {
-      result = {};
-    }
-    return result;
   }
 
   public sleep(time: string): Promise<void> {
