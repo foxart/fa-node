@@ -11,14 +11,6 @@ class IoSingleton {
     return IoSingleton.self;
   }
 
-  public relativePath(basePath: string, targetPath: string): string {
-    if (targetPath.startsWith(basePath)) {
-      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
-      return cleanedPath || '.'; // Return '.' if the cleaned path is empty
-    }
-    return targetPath.replace(/^\/|\/$/g, '');
-  }
-
   public checkPath(path: string): boolean {
     return fs.existsSync(path);
   }

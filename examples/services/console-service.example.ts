@@ -29,9 +29,8 @@ export function run(): void {
     '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
     '    at async target (/Users/ivankosenko/Projects/pet/fa-node/node_modules/@nestjs/core/helpers/external-context-creator.js:74:28)\n' +
     '    at async Object.authSignIn (/Users/ivankosenko/Projects/pet/fa-node/node_modules/@nestjs/core/helpers/external-proxy.js:9:24)';
-  // console.debug(ParserHelper.stack(stack));
-  // console.log(ParserHelper.stack(stack)[0]);
-  console.log(new Error('XXX'));
-  // console.debug(new Error('XXX'));
-  console.debug(123);
+  // console.log(ParserHelper.stack(stack));
+  console.log(new Error('LOG'));
+  // console.debug(new Error('DEBUG'));
+  console.log(123);
 }

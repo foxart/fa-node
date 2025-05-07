@@ -1,21 +1,7 @@
-type GraphqlRequestBodyType = Record<'query' | 'mutation' | 'subscription', string>;
-
 export interface ParserTraceInterface {
   file: string;
   caller: string;
   method: string;
-}
-
-enum GraphqlOperationTypeEnum {
-  QUERY = 'QUERY',
-  MUTATION = 'MUTATION',
-  SUBSCRIPTION = 'SUBSCRIPTION',
-  UNKNOWN = 'UNKNOWN',
-}
-
-interface GraphqlOperationInterface {
-  type: GraphqlOperationTypeEnum;
-  operation: string;
 }
 
 interface PathInterface {
@@ -69,36 +55,36 @@ class ParserSingleton {
     return ParserSingleton.self;
   }
 
-  public graphqlBody(body: GraphqlRequestBodyType): GraphqlOperationInterface {
-    if (!!body.query) {
-      return {
-        type: GraphqlOperationTypeEnum.QUERY,
-        operation: body.query.replace(/\s+/g, ' ').trim(),
-      };
-    } else if (!!body.mutation) {
-      return {
-        type: GraphqlOperationTypeEnum.MUTATION,
-        operation: body.mutation.replace(/\s+/g, ' ').trim(),
-      };
-    } else {
-      return {
-        type: GraphqlOperationTypeEnum.SUBSCRIPTION,
-        operation: body.subscription.replace(/\s+/g, ' ').trim(),
-      };
+  public configuration<T>(config: Record<string, unknown>): { configuration: T; errors: string[] } {
+    const result: Record<string, unknown> = {};
+    const errors: string[] = [];
+    for (const key in config) {
+      if (typeof config[key] === 'object') {
+        const nested = this.configuration(config[key] as Record<string, unknown>);
+        result[key] = nested.configuration;
+        errors.push(...nested.errors);
+      } else if (typeof config[key] === 'string' && /^<.*>$/.test(config[key])) {
+        const match = config[key].match(/^<(.*)>$/);
+        if (match) {
+          errors.push(match[1]);
+        }
+        result[key] = undefined;
+      } else {
+        result[key] = config[key];
+      }
     }
+    return { configuration: result as T, errors };
   }
 
-  public stack(stack?: string): ParserTraceInterface[] {
+  public stack(stack = ''): ParserTraceInterface[] {
     const result: ParserTraceInterface[] = [];
     let match;
-    const stackTrace = stack || new Error().stack || '';
-    while ((match = this.stackRegexp.exec(stackTrace)) !== null) {
+    while ((match = this.stackRegexp.exec(stack)) !== null) {
       const context = match[1].includes('.') ? match[1].split('.') : match[1].split(' ');
-      const file = match[2] || '';
       result.push({
         caller: context[0] || '',
         method: context[1] || '',
-        file: file,
+        file: match[2] || '',
       });
     }
     return result;
@@ -124,14 +110,14 @@ class ParserSingleton {
         port: match[4],
         pathname: match[5],
         search: match[6],
-        searchParams: this.parseParams(match[6]),
+        searchParams: this.parseUrlParams(match[6]),
         hash: match[7],
-        hashParams: this.parseParams(match[7]),
+        hashParams: this.parseUrlParams(match[7]),
       }
     );
   }
 
-  private parseParams(paramString: string | undefined): { [key: string]: string } {
+  private parseUrlParams(paramString: string | undefined): { [key: string]: string } {
     if (!paramString) {
       return {};
     }

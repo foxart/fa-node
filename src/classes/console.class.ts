@@ -1,6 +1,6 @@
+import * as process from 'node:process';
 import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
-import { IoHelper } from '../helpers/io.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ErrorClass } from './error.class';
 
@@ -103,6 +103,71 @@ export class ConsoleClass {
     }
   }
 
+  public printLevel(level: ConsoleLevelEnum): void {
+    if (this.options.info) {
+      const info = Object.keys(ConsoleLevelEnum as object)[Object.values(ConsoleLevelEnum as object).indexOf(level)];
+      this.processStdout(this.colorWrapper(` ${info} `, this.getBackground(level)));
+      this.processStdout(' ');
+    }
+  }
+
+  public printTrace(level: ConsoleLevelEnum, trace: ParserTraceInterface[]): void {
+    this.processStdout(this.colorWrapper('{', [effect.BOLD, foreground.CYAN]));
+    trace
+      .filter((item) => {
+        return !item.file.includes('node_modules/') && !item.file.includes('node:');
+      })
+      .forEach((item) => {
+        this.processStdout('\n');
+        if (this.options.info) {
+          this.processStdout(this.colorWrapper(' at ', [effect.DIM, this.getForeground(level)]));
+        } else {
+          this.processStdout('    ');
+        }
+        this.processStdout(this.excludePath(process.cwd(), item.file));
+      });
+    this.processStdout(`\n${this.colorWrapper('}', [effect.BOLD, foreground.CYAN])}`);
+    this.processStdout(' ');
+  }
+
+  public printPerformance(): void {
+    if (this.options.performance) {
+      this.processStdout(this.colorWrapper('+', [effect.DIM, foreground.CYAN]));
+      this.processStdout(
+        this.colorWrapper(Math.floor(performance.now() - this.performance).toString(), foreground.CYAN),
+      );
+      this.processStdout(this.colorWrapper('ms', [effect.DIM, foreground.CYAN]));
+      this.processStdout(' ');
+    }
+  }
+
+  public printLink(level: ConsoleLevelEnum, link: string): void {
+    if (this.options.link) {
+      this.processStdout('\n');
+      if (this.options.info) {
+        this.processStdout(this.colorWrapper(' at ', this.getBackground(level)));
+        this.processStdout(' ');
+      }
+      this.processStdout(this.excludePath(process.cwd(), link));
+    }
+  }
+
+  public printError(error: Error | ErrorClass): void {
+    this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.CYAN]));
+    this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.CYAN]));
+    this.processStdout(this.colorWrapper(error.message, foreground.RED));
+    this.processStdout(' ');
+    if (error instanceof ErrorClass) {
+      if (error.details) {
+        this.processStdout(this.dataWrapper(error.details));
+        this.processStdout(' ');
+      }
+    }
+    if (this.options.stackError) {
+      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.stack(error.stack));
+    }
+  }
+
   public getName(): string | void {
     if (!this.options.name) {
       return;
@@ -157,71 +222,6 @@ export class ConsoleClass {
     return isoTime.replace(TIME_REGEX, formatTime);
   }
 
-  public printLevel(level: ConsoleLevelEnum): void {
-    if (this.options.info) {
-      const info = Object.keys(ConsoleLevelEnum as object)[Object.values(ConsoleLevelEnum as object).indexOf(level)];
-      this.processStdout(this.colorWrapper(` ${info} `, this.getBackground(level)));
-      this.processStdout(' ');
-    }
-  }
-
-  public printTrace(level: ConsoleLevelEnum, trace: ParserTraceInterface[]): void {
-    this.processStdout(this.colorWrapper('{', [effect.BOLD, foreground.CYAN]));
-    trace
-      .filter((item) => {
-        return !item.file.includes('node_modules/') && !item.file.includes('node:');
-      })
-      .forEach((item) => {
-        this.processStdout('\n');
-        if (this.options.info) {
-          this.processStdout(this.colorWrapper(' at ', [effect.DIM, this.getForeground(level)]));
-        } else {
-          this.processStdout('    ');
-        }
-        this.processStdout(IoHelper.relativePath(process.cwd(), item.file));
-      });
-    this.processStdout(`\n${this.colorWrapper('}', [effect.BOLD, foreground.CYAN])}`);
-    this.processStdout(' ');
-  }
-
-  public printPerformance(): void {
-    if (this.options.performance) {
-      this.processStdout(this.colorWrapper('+', [effect.DIM, foreground.CYAN]));
-      this.processStdout(
-        this.colorWrapper(Math.floor(performance.now() - this.performance).toString(), foreground.CYAN),
-      );
-      this.processStdout(this.colorWrapper('ms', [effect.DIM, foreground.CYAN]));
-      this.processStdout(' ');
-    }
-  }
-
-  public printLink(level: ConsoleLevelEnum, link: string): void {
-    if (this.options.link) {
-      this.processStdout('\n');
-      if (this.options.info) {
-        this.processStdout(this.colorWrapper(' at ', this.getBackground(level)));
-        this.processStdout(' ');
-      }
-      this.processStdout(IoHelper.relativePath(process.cwd(), link));
-    }
-  }
-
-  public printError(error: Error | ErrorClass): void {
-    this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.CYAN]));
-    this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.CYAN]));
-    this.processStdout(this.colorWrapper(error.message, foreground.RED));
-    this.processStdout(' ');
-    if (error instanceof ErrorClass) {
-      if (error.details) {
-        this.processStdout(this.dataWrapper(error.details));
-        this.processStdout(' ');
-      }
-    }
-    if (this.options.stackError) {
-      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.stack(error.stack));
-    }
-  }
-
   public getBackground(level: ConsoleLevelEnum): string {
     switch (level) {
       case ConsoleLevelEnum.LOG:
@@ -254,6 +254,14 @@ export class ConsoleClass {
       default:
         return foreground.MAGENTA;
     }
+  }
+
+  public excludePath(basePath: string, targetPath: string): string {
+    if (targetPath.startsWith(basePath)) {
+      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
+      return cleanedPath || '.';
+    }
+    return targetPath.replace(/^\/|\/$/g, '');
   }
 
   public colorWrapper(data: string, colors: string | string[]): string {

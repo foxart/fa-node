@@ -71,7 +71,7 @@ export class ConsoleNestClass {
       case ConsoleLevelEnum.DBG:
         return 'DEBUG';
       case ConsoleLevelEnum.INF:
-        return ' VERB';
+        return ' INFO';
       default:
         return 'FATAL';
     }
@@ -128,7 +128,8 @@ export class ConsoleNestClass {
           ]),
         );
       }
-      this.consoleClass.processStdout(file);
+      this.consoleClass.processStdout(this.consoleClass.excludePath(process.cwd(), file));
+      // this.consoleClass.processStdout(file);
       this.consoleClass.processStdout('\n');
     }
   }
