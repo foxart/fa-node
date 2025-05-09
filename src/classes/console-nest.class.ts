@@ -1,4 +1,5 @@
 import { ColorHelper } from '../helpers/color.helper';
+import { IoHelper } from '../helpers/io.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ConsoleClass, ConsoleLevelEnum, ConsoleOptionsInterface } from './console.class';
 
@@ -128,7 +129,7 @@ export class ConsoleNestClass {
           ]),
         );
       }
-      this.consoleClass.processStdout(this.consoleClass.excludePath(process.cwd(), file));
+      this.consoleClass.processStdout(IoHelper.excludePath(process.cwd(), file));
       // this.consoleClass.processStdout(file);
       this.consoleClass.processStdout('\n');
     }

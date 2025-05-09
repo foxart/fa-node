@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'crypto';
+import { v4, V4Options } from 'uuid';
 
 // type WordArray = CryptoJS.lib.WordArray;
 export class CryptClass {
@@ -82,6 +83,10 @@ export class CryptClass {
 
   public salt(rounds = 10): string {
     return bcrypt.genSaltSync(rounds);
+  }
+
+  public uuidV4(options?: V4Options): string {
+    return v4(options);
   }
 
   public passwordCrypt(password: string, rounds = 10): string {

@@ -1,6 +1,7 @@
 import * as process from 'node:process';
 import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
+import { IoHelper } from '../helpers/io.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ErrorClass } from './error.class';
 
@@ -124,7 +125,7 @@ export class ConsoleClass {
         } else {
           this.processStdout('    ');
         }
-        this.processStdout(this.excludePath(process.cwd(), item.file));
+        this.processStdout(IoHelper.excludePath(process.cwd(), item.file));
       });
     this.processStdout(`\n${this.colorWrapper('}', [effect.BOLD, foreground.CYAN])}`);
     this.processStdout(' ');
@@ -148,7 +149,7 @@ export class ConsoleClass {
         this.processStdout(this.colorWrapper(' at ', this.getBackground(level)));
         this.processStdout(' ');
       }
-      this.processStdout(this.excludePath(process.cwd(), link));
+      this.processStdout(IoHelper.excludePath(process.cwd(), link));
     }
   }
 
@@ -254,14 +255,6 @@ export class ConsoleClass {
       default:
         return foreground.MAGENTA;
     }
-  }
-
-  public excludePath(basePath: string, targetPath: string): string {
-    if (targetPath.startsWith(basePath)) {
-      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
-      return cleanedPath || '.';
-    }
-    return targetPath.replace(/^\/|\/$/g, '');
   }
 
   public colorWrapper(data: string, colors: string | string[]): string {
