@@ -7,8 +7,8 @@
   "homepage": "https://github.com/foxart/fa-node",
   "private": false,
   "scripts": {
-    "start": "nodemon -e ts --watch src --watch examples -x ts-node examples/index.ts",
-    "start:js": "nodemon --watch examples --ext js,json --ignore node_modules examples/test.js",
+    "start": "nodemon -e ts --watch src --watch playground -x ts-node playground/index.ts",
+    "migrator": "nodemon -e ts --watch src --watch playground --ignore node_modules -x ts-node playground/index.ts new my-test",
     "prebuild": "rimraf dist",
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint -c .eslintrc.js \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -43,7 +43,8 @@
     "graphql": "^16.9.0",
     "ms": "^2.1.3",
     "reflect-metadata": "^0.2.1",
-    "uuid": "^10.0.0"
+    "uuid": "^10.0.0",
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@nestjs/common": "^10.3.7",

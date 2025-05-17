@@ -8,12 +8,12 @@ import { ErrorClass } from './error.class';
 const { foreground, background, effect } = ColorHelper;
 
 export enum ConsoleLevelEnum {
-  LOG,
-  INF,
-  WRN,
-  ERR,
-  DBG,
-  CST,
+  LOG = 'LOG',
+  INF = 'INFO',
+  WRN = 'WARNING',
+  ERR = 'ERROR',
+  DBG = 'DEBUG',
+  CST = 'CUSTOM',
 }
 
 export interface ConsoleOptionsInterface {
@@ -75,7 +75,7 @@ export class ConsoleClass {
     this.print(ConsoleLevelEnum.CST, ParserHelper.stack(new Error().stack), data);
   }
 
-  public print(level: ConsoleLevelEnum, stack: ParserTraceInterface[], args: unknown[]): void {
+  public print(level: ConsoleLevelEnum, trace: ParserTraceInterface[], args: unknown[]): void {
     this.printLevel(level);
     this.printInfo();
     args.forEach((item) => {
@@ -90,7 +90,7 @@ export class ConsoleClass {
       this.printTrace(level, ParserHelper.stack(new Error().stack));
     }
     this.printPerformance();
-    this.printLink(level, stack[this.stackIndex].file);
+    this.printLink(level, trace[this.stackIndex].file);
     this.processStdout('\n');
   }
 

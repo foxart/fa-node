@@ -7,7 +7,8 @@ import { ColorHelper } from './color.helper';
 import { IoHelper } from './io.helper';
 import { SymbolHelper } from './symbol.helper';
 
-// const executor = promisify(exec);
+const { foreground, background, effect } = ColorHelper;
+
 class CodegenSingleton {
   private static self: CodegenSingleton;
 
@@ -18,36 +19,29 @@ class CodegenSingleton {
     return CodegenSingleton.self;
   }
 
-  public message(name: string, msg: string): void {
-    const result = [ColorHelper.wrapData(` ${name.toUpperCase()} `, ColorHelper.background.CYAN)];
-    if (msg) {
-      result.push(ColorHelper.wrapData(` ${msg}`, ColorHelper.foreground.CYAN), ' ');
-    }
-    console.log(result.join(''));
-  }
-
-  public success(name: string, msg: string): void {
+  public displayMessage(name: string, message: string): void {
     const result = [
-      ColorHelper.wrapData(name, ColorHelper.foreground.WHITE),
-      ' ',
-      ColorHelper.wrapData(SymbolHelper.status.SUCCESS, [ColorHelper.effect.BOLD, ColorHelper.foreground.GREEN]),
-      ' ',
-      ColorHelper.wrapData(msg, [ColorHelper.effect.DIM, ColorHelper.foreground.GREEN]),
+      ColorHelper.wrapData(` ${name.toUpperCase()} `, background.CYAN),
+      ColorHelper.wrapData(` ${message}`, foreground.CYAN),
     ];
     console.log(result.join(''));
   }
 
-  public error(name: string, msg: string, err: Error): void {
+  public logSuccess(context: string, message: string): void {
     const result = [
-      ColorHelper.wrapData(name, ColorHelper.foreground.WHITE),
-      ' ',
-      ColorHelper.wrapData(SymbolHelper.status.ERROR, [ColorHelper.effect.BOLD, ColorHelper.foreground.RED]),
-      ' ',
-      ColorHelper.wrapData(msg, [ColorHelper.effect.DIM, ColorHelper.foreground.RED]),
+      ColorHelper.wrapData(context, foreground.WHITE),
+      ColorHelper.wrapData(` ${SymbolHelper.status.SUCCESS} `, [effect.BOLD, foreground.GREEN]),
+      ColorHelper.wrapData(message, [effect.DIM, foreground.GREEN]),
     ];
-    if (err) {
-      result.push(' ', ColorHelper.wrapData(err.message ?? err.name, ColorHelper.foreground.RED));
-    }
+    console.log(result.join(''));
+  }
+
+  public logError(context: string, err: Error): void {
+    const result = [
+      ColorHelper.wrapData(context, foreground.WHITE),
+      ColorHelper.wrapData(` ${SymbolHelper.status.ERROR} `, [effect.BOLD, foreground.RED]),
+      ColorHelper.wrapData(err.message, [effect.DIM, foreground.RED]),
+    ];
     console.log(result.join(''));
   }
 
@@ -55,14 +49,14 @@ class CodegenSingleton {
     try {
       const response = await fetch(host, init);
       if (!response.ok) {
-        this.error(this.fetchJson.name, host, new Error(response.statusText));
+        this.logError(this.fetchJson.name, new Error(response.statusText));
         return null;
       }
       const json = (await response.json()) as unknown;
-      this.success(this.fetchJson.name, host);
+      this.logSuccess(this.fetchJson.name, host);
       return json;
     } catch (e) {
-      this.error(this.fetchJson.name, host, e as Error);
+      this.logError(this.fetchJson.name, e as Error);
       return null;
     }
   }
@@ -71,14 +65,14 @@ class CodegenSingleton {
     try {
       const response = await fetch(host, init);
       if (!response.ok) {
-        this.error(this.fetchTxt.name, host, new Error(response.statusText));
+        this.logError(this.fetchTxt.name, new Error(response.statusText));
         return null;
       }
       const text = await response.text();
-      this.success(this.fetchTxt.name, host);
+      this.logSuccess(this.fetchTxt.name, host);
       return text;
     } catch (e) {
-      this.error(this.fetchTxt.name, host, e as Error);
+      this.logError(this.fetchTxt.name, e as Error);
       return null;
     }
   }
@@ -86,9 +80,9 @@ class CodegenSingleton {
   public buildGraphql(filePath: string, introspectionQuery: IntrospectionQuery): void {
     try {
       IoHelper.createFileSync(filePath, printSchema(buildClientSchema(introspectionQuery)));
-      this.success(this.buildGraphql.name, path.basename(filePath));
+      this.logSuccess(this.buildGraphql.name, path.basename(filePath));
     } catch (e) {
-      this.error(this.buildGraphql.name, path.basename(filePath), e as Error);
+      this.logError(this.buildGraphql.name, e as Error);
     }
   }
 
@@ -105,9 +99,9 @@ class CodegenSingleton {
       ];
       // await executor(command.join(' '));
       await promisify(exec)(command.join(' '));
-      this.success(this.buildProto.name, path.basename(filePath));
+      this.logSuccess(this.buildProto.name, path.basename(filePath));
     } catch (e) {
-      this.error(this.buildProto.name, path.basename(filePath), e as Error);
+      this.logError(this.buildProto.name, e as Error);
     }
   }
 }

@@ -30,7 +30,7 @@ export function run(): void {
     '    at async target (/Users/ivankosenko/Projects/pet/fa-node/node_modules/@nestjs/core/helpers/external-context-creator.js:74:28)\n' +
     '    at async Object.authSignIn (/Users/ivankosenko/Projects/pet/fa-node/node_modules/@nestjs/core/helpers/external-proxy.js:9:24)';
   // console.log(ParserHelper.stack(stack));
-  console.log(new Error('LOG'));
+  // console.log(new Error('LOG'));
   // console.debug(new Error('DEBUG'));
   console.log(123);
 }

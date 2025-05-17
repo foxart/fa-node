@@ -16,10 +16,10 @@ export function initConsole(): void {
   const Console = new ConsoleClass({
     color: true,
     info: true,
-    name: 'NAME',
+    // name: 'NAME',
     // pid: true,
-    date: true,
-    time: true,
+    // date: true,
+    // time: true,
     performance: true,
     link: true,
     /** */
@@ -58,7 +58,7 @@ initConsole();
 /**
  * Console Helper
  */
-void import('./services/console-service.example').then((module) => module.run());
+// void import('./services/console-service.example').then((module) => module.run());
 /**
  *
  */
@@ -83,8 +83,12 @@ void import('./services/console-service.example').then((module) => module.run())
 /**
  * Validator Service
  */
-
 // void import('./services/validator-service.example').then((module) => module.cryptHelperExample());
+/**
+ *
+ */
+void import('./helpers/migrator-helper.example').then((module) => module.run());
+
 /**
  *
  */

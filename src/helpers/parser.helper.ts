@@ -4,6 +4,11 @@ export interface ParserTraceInterface {
   method: string;
 }
 
+interface ConfigurationInterface<T> {
+  result: T;
+  errors: string[];
+}
+
 interface PathInterface {
   directory: string;
   filename: string;
@@ -55,25 +60,25 @@ class ParserSingleton {
     return ParserSingleton.self;
   }
 
-  public configuration<T>(config: Record<string, unknown>): { configuration: T; errors: string[] } {
+  public configuration<T>(dictionary: T, parentKey = ''): ConfigurationInterface<T> {
     const result: Record<string, unknown> = {};
     const errors: string[] = [];
-    for (const key in config) {
-      if (typeof config[key] === 'object') {
-        const nested = this.configuration(config[key] as Record<string, unknown>);
-        result[key] = nested.configuration;
+    for (const key in dictionary) {
+      const fullKey = parentKey ? `${parentKey}.${key}` : key;
+      if (typeof dictionary[key] === 'object' && dictionary[key] !== null) {
+        const nested = this.configuration(dictionary[key], fullKey);
+        result[key] = nested.result;
         errors.push(...nested.errors);
-      } else if (typeof config[key] === 'string' && /^<.*>$/.test(config[key])) {
-        const match = config[key].match(/^<(.*)>$/);
-        if (match) {
-          errors.push(match[1]);
-        }
-        result[key] = undefined;
+      } else if (dictionary[key] === undefined) {
+        errors.push(fullKey);
+      } else if (typeof dictionary[key] === 'string' && /^<.*>$/.test(dictionary[key])) {
+        const match = dictionary[key].match(/^<(.*)>$/);
+        errors.push(match && match[1] ? match[1] : fullKey);
       } else {
-        result[key] = config[key];
+        result[key] = dictionary[key];
       }
     }
-    return { configuration: result as T, errors };
+    return { result: result as T, errors };
   }
 
   public stack(stack = ''): ParserTraceInterface[] {
