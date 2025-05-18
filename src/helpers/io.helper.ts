@@ -23,7 +23,10 @@ class IoSingleton {
     return targetPath.replace(/^\/|\/$/g, '');
   }
 
-  public scanDirectoriesSync(directory: string, filter?: RegExp[]): string[] {
+  public scanDirectoriesSync(
+    directory: string,
+    options: { recursive?: boolean; filter?: RegExp[] } = { recursive: false },
+  ): string[] {
     const result: string[] = [];
     if (!fs.existsSync(directory)) {
       return result;
@@ -31,47 +34,52 @@ class IoSingleton {
     const entries = fs.readdirSync(directory);
     for (const entry of entries) {
       const fullPath = path.join(directory, entry);
-      if (fs.statSync(fullPath).isDirectory()) {
-        if (!filter || filter?.some((item) => item.test(fullPath))) {
-          result.push(fullPath);
-        }
-        result.push(...this.scanDirectoriesSync(fullPath, filter));
+      if (fs.statSync(fullPath).isDirectory() && options.recursive) {
+        result.push(...this.scanDirectoriesSync(fullPath, options));
+      } else if (!options.filter || options.filter.some((item) => item.test(fullPath))) {
+        result.push(fullPath);
       }
     }
     return result;
   }
 
-  public createDirectorySync(directory: string): void {
+  public createDirectorySync(directory: string, recursive = false): void {
     try {
       if (!fs.existsSync(directory)) {
-        fs.mkdirSync(directory, { recursive: true });
+        fs.mkdirSync(directory, { recursive });
       }
     } catch (e) {
       console.error(e);
     }
   }
 
-  public deleteDirectorySync(directory: string, onlyEmpty?: boolean): void {
+  public deleteDirectorySync(
+    directory: string,
+    options: { recursive?: boolean; onlyEmpty?: boolean } = { recursive: false },
+  ): void {
     try {
-      if (onlyEmpty) {
+      if (options.onlyEmpty) {
         fs.readdirSync(directory).forEach((file) => {
           const fullPath = path.join(directory, file);
           if (fs.lstatSync(fullPath).isDirectory()) {
-            this.deleteDirectorySync(fullPath, onlyEmpty);
+            this.deleteDirectorySync(fullPath, options);
           }
         });
         if (fs.readdirSync(directory).length === 0) {
           fs.rmdirSync(directory);
         }
       } else if (fs.statSync(directory).isDirectory()) {
-        fs.rmSync(directory, { recursive: true, force: true });
+        fs.rmSync(directory, { recursive: options.recursive, force: true });
       }
     } catch (e) {
       console.error(e);
     }
   }
 
-  public scanFilesSync(directory: string, filter?: RegExp[]): string[] {
+  public scanFilesSync(
+    directory: string,
+    options: { recursive?: boolean; filter?: RegExp[] } = { recursive: false },
+  ): string[] {
     if (!fs.existsSync(directory)) {
       return [];
     }
@@ -79,14 +87,9 @@ class IoSingleton {
     const entries = fs.readdirSync(directory);
     for (const entry of entries) {
       const fullPath = path.join(directory, entry);
-      if (fs.statSync(fullPath).isDirectory()) {
-        result.push(...this.scanFilesSync(fullPath, filter));
-      } else if (
-        !filter ||
-        filter?.some((item) => {
-          return item.test(fullPath);
-        })
-      ) {
+      if (fs.statSync(fullPath).isDirectory() && options.recursive) {
+        result.push(...this.scanFilesSync(fullPath, options));
+      } else if (!options.filter || options.filter.some((item) => item.test(fullPath))) {
         result.push(fullPath);
       }
     }
@@ -103,16 +106,6 @@ class IoSingleton {
     }
   }
 
-  public deleteFileSync(filePath: string): void {
-    try {
-      if (fs.lstatSync(filePath).isFile()) {
-        fs.rmSync(filePath, { force: true });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
   public readFileSync(
     filePath: string,
     options?: (ObjectEncodingOptions & { flag?: string | undefined }) | BufferEncoding,
@@ -124,6 +117,16 @@ class IoSingleton {
       console.error(e);
     }
     return '';
+  }
+
+  public deleteFileSync(filePath: string): void {
+    try {
+      if (fs.lstatSync(filePath).isFile()) {
+        fs.rmSync(filePath, { force: true });
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 }
 
