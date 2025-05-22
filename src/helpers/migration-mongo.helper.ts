@@ -6,7 +6,7 @@ import { CodegenHelper } from './codegen.helper';
 import { ConverterHelper } from './converter.helper';
 import { IoHelper } from './io.helper';
 
-interface MigrationMongoInterface {
+export interface MigrationMongoInterface {
   up(db: Db): Promise<void>;
 
   down(db: Db): Promise<void>;
@@ -343,4 +343,4 @@ class MigrationMongoClass {
   }
 }
 
-export const MigrateMongoHelper = MigrationMongoClass.getInstance();
+export const MigrationMongoHelper = MigrationMongoClass.getInstance();

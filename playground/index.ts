@@ -88,7 +88,7 @@ console.clear();
  *
  */
 setTimeout(() => {
-  void import('./helpers/migrator-helper.example').then((module) => module.run());
+  void import('./helpers/migration-mongo-helper.example').then((module) => module.run());
 }, 500);
 /**
  *
