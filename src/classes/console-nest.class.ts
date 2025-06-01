@@ -107,7 +107,11 @@ export class ConsoleNestClass {
 
   private printMessage(message: unknown): void {
     if (typeof message === 'string') {
-      this.consoleClass.processStdout(this.consoleClass.colorWrapper(message, foreground.WHITE));
+      if (message === 'Mapped') {
+        // this.consoleClass.processStdout(this.consoleClass.colorWrapper(message, effect.DIM));
+      } else {
+        // this.consoleClass.processStdout(this.consoleClass.colorWrapper(message, foreground.WHITE));
+      }
     } else if (message instanceof Error) {
       this.consoleClass.printError(message);
     } else {

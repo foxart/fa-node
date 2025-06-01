@@ -7,9 +7,9 @@ import { ConverterHelper } from './converter.helper';
 import { IoHelper } from './io.helper';
 
 export interface MigrationMongoInterface {
-  up(db: Db): Promise<void>;
+  up(db: unknown): Promise<void>;
 
-  down(db: Db): Promise<void>;
+  down(db: unknown): Promise<void>;
 }
 
 interface MigrationLogInterface {
@@ -178,9 +178,9 @@ class MigrationMongoClass {
     const filePath = `${timestamp}_${ConverterHelper.upperToSeparator(migration, '-').toLowerCase()}.ts`;
     const className = `${ConverterHelper.separatorToCamel(migration, '-')}_${timestamp}`;
     const fullPath = `${process.cwd()}/${this.configuration.path}`;
-    const client = await this.getMongoClient();
-    const db = client.db(this.configuration.database);
-    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
+    // const client = await this.getMongoClient();
+    // const db = client.db(this.configuration.database);
+    // const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
     if (!IoHelper.checkPath(fullPath)) {
       CodegenHelper.logError(filePath, new Error(`Path not found: ${fullPath}`));
       process.exit(1);
@@ -191,14 +191,14 @@ class MigrationMongoClass {
         .toString()
         .replace(/MigrationMongo/g, className),
     );
-    await logCollection.insertOne({
-      file: filePath,
-      class: className,
-      status: 'pending',
-      createdAt: new Date(),
-    });
+    // await logCollection.insertOne({
+    //   file: filePath,
+    //   class: className,
+    //   status: 'pending',
+    //   createdAt: new Date(),
+    // });
+    // await client.close();
     CodegenHelper.logSuccess(filePath, className);
-    await client.close();
     process.exit(0);
   }
 
@@ -233,30 +233,64 @@ class MigrationMongoClass {
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
     const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
-    const logList = await logCollection
-      .find(
-        {
-          status: { $in: ['pending', 'revoked'] },
-        },
-        { sort: { _id: -1 } },
-      )
-      .toArray();
-    if (logList.length) {
-      for (const log of logList) {
-        await logCollection.updateOne(
-          { _id: log._id },
-          {
-            $set: {
-              appliedAt: new Date(),
-              status: 'applied',
-            },
-          },
-        );
-        await this.executeMigrationUp(db, log);
+    // Read migration files from the configured folder
+    const fullPath = `${process.cwd()}/${this.configuration.path}`;
+    const migrationFiles = IoHelper.scanFilesSync(fullPath, { filter: [/\.ts$/] });
+    console.log({ migrationFiles });
+    // const fs = await import('fs');
+    // const path = `${process.cwd()}/${this.configuration.path}`;
+    // const migrationFiles = fs.readdirSync(path).filter((file) => file.endsWith('.ts'));
+    // Get already logged migrations
+    const loggedMigrations = await logCollection.find({}).toArray();
+    const loggedFiles = loggedMigrations.map((log) => log.file);
+    // Identify new migrations to apply
+    const pendingMigrations = migrationFiles.filter((file) => !loggedFiles.includes(file));
+    if (pendingMigrations.length) {
+      for (const file of pendingMigrations) {
+        const migrationObj = await this.getMigration(file);
+        // Log migration as pending before applying
+        const log = await logCollection.insertOne({
+          file,
+          class: file.replace(/\.[^/.]+$/, ''),
+          status: 'pending',
+          createdAt: new Date(),
+        });
+        // Apply the migration
+        await this.executeMigrationUp(db, {
+          file,
+          class: file.replace(/\.[^/.]+$/, ''),
+          status: 'applied',
+          createdAt: new Date(),
+          appliedAt: new Date(),
+        });
       }
     } else {
       CodegenHelper.logSuccess(logCollection.collectionName, `No migrations to ${this.up.name}`);
     }
+    // const logList = await logCollection
+    //   .find(
+    //     {
+    //       status: { $in: ['pending', 'revoked'] },
+    //     },
+    //     { sort: { _id: -1 } },
+    //   )
+    //   .toArray();
+    // if (logList.length) {
+    //   for (const log of logList) {
+    //     await logCollection.updateOne(
+    //       { _id: log._id },
+    //       {
+    //         $set: {
+    //           appliedAt: new Date(),
+    //           status: 'applied',
+    //         },
+    //       },
+    //     );
+    //     await this.executeMigrationUp(db, log);
+    //   }
+    // } else {
+    //   CodegenHelper.logSuccess(logCollection.collectionName, `No migrations to ${this.up.name}`);
+    // }
     process.exit(0);
   }
 
