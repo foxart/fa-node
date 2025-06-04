@@ -44,12 +44,8 @@ class IoSingleton {
   }
 
   public createDirectorySync(directory: string, recursive = false): void {
-    try {
-      if (!fs.existsSync(directory)) {
-        fs.mkdirSync(directory, { recursive });
-      }
-    } catch (e) {
-      console.error(e);
+    if (!fs.existsSync(directory)) {
+      fs.mkdirSync(directory, { recursive });
     }
   }
 
@@ -57,22 +53,18 @@ class IoSingleton {
     directory: string,
     options: { recursive?: boolean; onlyEmpty?: boolean } = { recursive: false },
   ): void {
-    try {
-      if (options.onlyEmpty) {
-        fs.readdirSync(directory).forEach((file) => {
-          const fullPath = path.join(directory, file);
-          if (fs.lstatSync(fullPath).isDirectory()) {
-            this.deleteDirectorySync(fullPath, options);
-          }
-        });
-        if (fs.readdirSync(directory).length === 0) {
-          fs.rmdirSync(directory);
+    if (options.onlyEmpty) {
+      fs.readdirSync(directory).forEach((file) => {
+        const fullPath = path.join(directory, file);
+        if (fs.lstatSync(fullPath).isDirectory()) {
+          this.deleteDirectorySync(fullPath, options);
         }
-      } else if (fs.statSync(directory).isDirectory()) {
-        fs.rmSync(directory, { recursive: options.recursive, force: true });
+      });
+      if (fs.readdirSync(directory).length === 0) {
+        fs.rmdirSync(directory);
       }
-    } catch (e) {
-      console.error(e);
+    } else if (fs.statSync(directory).isDirectory()) {
+      fs.rmSync(directory, { recursive: options.recursive, force: true });
     }
   }
 
@@ -96,36 +88,26 @@ class IoSingleton {
     return result;
   }
 
-  public createFileSync(filePath: string, content: string | NodeJS.ArrayBufferView, options?: WriteFileOptions): void {
-    try {
-      this.createDirectorySync(path.dirname(filePath));
-      // fs.writeFileSync(filePath, content, options || { encoding: 'utf-8' });
-      fs.writeFileSync(filePath, content, options);
-    } catch (e) {
-      console.error(e);
-    }
+  public createFileSync(
+    filePath: string,
+    content: string | NodeJS.ArrayBufferView,
+    options: WriteFileOptions = { encoding: 'utf-8' },
+  ): void {
+    this.createDirectorySync(path.dirname(filePath));
+    fs.writeFileSync(filePath, content, options);
   }
 
   public readFileSync(
     filePath: string,
     options?: (ObjectEncodingOptions & { flag?: string | undefined }) | BufferEncoding,
   ): string | Buffer {
-    try {
-      // return fs.readFileSync(filePath, options || { encoding: 'utf8' });
-      return fs.readFileSync(filePath, options);
-    } catch (e) {
-      console.error(e);
-    }
-    return '';
+    // return fs.readFileSync(filePath, options || { encoding: 'utf8' });
+    return fs.readFileSync(filePath, options);
   }
 
   public deleteFileSync(filePath: string): void {
-    try {
-      if (fs.lstatSync(filePath).isFile()) {
-        fs.rmSync(filePath, { force: true });
-      }
-    } catch (e) {
-      console.error(e);
+    if (fs.lstatSync(filePath).isFile()) {
+      fs.rmSync(filePath, { force: true });
     }
   }
 }

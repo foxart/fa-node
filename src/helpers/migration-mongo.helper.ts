@@ -1,4 +1,4 @@
-import { Db, MongoClient } from 'mongodb';
+import { MongoClient, WithId } from 'mongodb';
 import process from 'process';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -13,12 +13,8 @@ export interface MigrationMongoInterface {
 }
 
 interface MigrationLogInterface {
-  class: string;
-  file: string;
-  status: 'applied' | 'pending' | 'revoked';
-  createdAt: Date;
-  appliedAt?: Date;
-  revokedAt?: Date;
+  dateTime: Date;
+  fileName: string;
 }
 
 interface CommandInterface {
@@ -37,7 +33,7 @@ interface ConfigurationInterface {
   database: string;
   path: string;
   collection: string;
-  template: string;
+  template?: string;
 }
 
 class MigrationMongoClass {
@@ -64,7 +60,10 @@ class MigrationMongoClass {
   }
 
   public migrate(configuration: ConfigurationInterface): void {
-    this.configuration = configuration;
+    this.configuration = {
+      ...configuration,
+      path: `${process.cwd()}/${configuration.path}`,
+    };
     const yargsInstance = this.commandList.reduce(
       (yargsInstance, command) =>
         yargsInstance.command(
@@ -128,12 +127,6 @@ class MigrationMongoClass {
         handler: (): void => void this.reset(),
       },
       {
-        name: `remove`,
-        desc: 'Removes migration',
-        builder: emptyBuilder,
-        handler: (): void => void this.remove(),
-      },
-      {
         name: 'status',
         desc: 'Lists all migrations',
         builder: emptyBuilder,
@@ -155,10 +148,114 @@ class MigrationMongoClass {
     return this.client;
   }
 
+  private create(migration: string): Promise<void> {
+    CodegenHelper.displayMessage('migration', this.create.name);
+    const timestamp = new Date().getTime();
+    const migrationName = ConverterHelper.upperToSeparator(migration.replace(/[^a-zA-Z0-9-]/g, ''), '-').toLowerCase();
+    const filePath = `${this.configuration.path}/${timestamp}_${migrationName}.ts`;
+    IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
+    CodegenHelper.logSuccess(migrationName, IoHelper.excludePath(this.configuration.path, filePath));
+    process.exit(0);
+  }
+
+  private async up(): Promise<void> {
+    CodegenHelper.displayMessage('migration', this.up.name);
+    const client = await this.getMongoClient();
+    const db = client.db(this.configuration.database);
+    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
+    const logList = await logCollection.find({}, { sort: { _id: 1 } }).toArray();
+    const fileList = IoHelper.scanFilesSync(this.configuration.path, { filter: [/\.ts$/, /\.js$/] })
+      .map((file) => IoHelper.excludePath(this.configuration.path, file))
+      .filter((file) => !logList.map((log) => log.fileName).includes(file));
+    if (fileList.length) {
+      for (const file of fileList) {
+        await this.executeMigrationUp(file);
+      }
+    } else {
+      CodegenHelper.logSuccess(this.configuration.collection, `No migrations to ${this.up.name}`);
+    }
+    process.exit(0);
+  }
+
+  private async down(): Promise<void> {
+    CodegenHelper.displayMessage('migration', this.down.name);
+    const client = await this.getMongoClient();
+    const db = client.db(this.configuration.database);
+    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
+    const log = await logCollection.findOne({}, { sort: { _id: -1 } });
+    if (log) {
+      await this.executeMigrationDown(log);
+    } else {
+      CodegenHelper.logSuccess(this.configuration.collection, `No migrations to ${this.down.name}`);
+    }
+    process.exit(0);
+  }
+
+  private async reset(): Promise<void> {
+    CodegenHelper.displayMessage('migration', this.reset.name);
+    const client = await this.getMongoClient();
+    const db = client.db(this.configuration.database);
+    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
+    const logList = await logCollection.find({}, { sort: { _id: -1 } }).toArray();
+    if (logList.length) {
+      for (const log of logList) {
+        await this.executeMigrationDown(log);
+      }
+    } else {
+      CodegenHelper.logSuccess(this.configuration.collection, `No migrations to ${this.reset.name}`);
+    }
+    process.exit(0);
+  }
+
+  private getTemplate(timestamp: number, migrationName: string): string {
+    const className = `${ConverterHelper.separatorToPascal(migrationName, '-')}_${timestamp}`;
+    const collectionName = `${ConverterHelper.separatorToCamel(migrationName, '-')}_${timestamp}`;
+    const fieldName = `${ConverterHelper.separatorToCamel(migrationName, '-')}_${timestamp}`;
+    const indexName = `${migrationName.replace(/-/g, '_')}_${timestamp}`;
+    try {
+      const template = !this.configuration.template
+        ? "import { Db } from 'mongodb';\n" +
+          "import { MigrationMongoInterface } from 'fa-node';\n" +
+          '\n' +
+          "const COLLECTION = 'mongoMigrationCollection';\n" +
+          "const FIELD = 'mongoMigrationField';\n" +
+          "const INDEX = 'mongo_migration_index';\n" +
+          '\n' +
+          '/**\n' +
+          ' * MongoMigrationClass\n' +
+          ' */\n' +
+          'export class MongoMigrationClass implements MigrationMongoInterface {\n' +
+          '  public async up(db: Db): Promise<void> {\n' +
+          '    await db.collection(COLLECTION).createIndex(\n' +
+          '      {\n' +
+          '        [FIELD]: 1,\n' +
+          '      },\n' +
+          '      {\n' +
+          '        name: INDEX,\n' +
+          '        unique: true,\n' +
+          '      },\n' +
+          '    );\n' +
+          '  }\n' +
+          '\n' +
+          '  public async down(db: Db): Promise<void> {\n' +
+          '    await db.collection(COLLECTION).dropIndex(INDEX);\n' +
+          '  }\n' +
+          '}\n'
+        : IoHelper.readFileSync(this.configuration.template).toString();
+      return template
+        .replace(/MongoMigrationClass/g, className)
+        .replace(/mongoMigrationCollection/g, collectionName)
+        .replace(/mongoMigrationField/g, fieldName)
+        .replace(/mongo_migration_index/g, indexName);
+    } catch (e) {
+      CodegenHelper.logError(className, e as Error);
+      process.exit(1);
+    }
+  }
+
   private async getMigration(filePath: string): Promise<MigrationMongoInterface> {
     try {
-      const fullPath = `${process.cwd()}/${this.configuration.path}/${filePath}`;
-      const module = (await import(fullPath)) as Record<string, unknown>;
+      const module = (await import(`${this.configuration.path}/${filePath}`)) as Record<string, unknown>;
       const className = Object.keys(module).find((key) => typeof module[key] === 'function');
       if (!className) {
         CodegenHelper.logError(filePath, new Error(`No valid constructor in: ${filePath}`));
@@ -172,206 +269,35 @@ class MigrationMongoClass {
     }
   }
 
-  private async create(migration: string): Promise<void> {
-    CodegenHelper.displayMessage('migration', this.create.name);
-    const timestamp = new Date().getTime();
-    const filePath = `${timestamp}_${ConverterHelper.upperToSeparator(migration, '-').toLowerCase()}.ts`;
-    const className = `${ConverterHelper.separatorToCamel(migration, '-')}_${timestamp}`;
-    const fullPath = `${process.cwd()}/${this.configuration.path}`;
-    // const client = await this.getMongoClient();
-    // const db = client.db(this.configuration.database);
-    // const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
-    if (!IoHelper.checkPath(fullPath)) {
-      CodegenHelper.logError(filePath, new Error(`Path not found: ${fullPath}`));
-      process.exit(1);
-    }
-    IoHelper.createFileSync(
-      `${fullPath}/${filePath}`,
-      IoHelper.readFileSync(this.configuration.template)
-        .toString()
-        .replace(/MigrationMongo/g, className),
-    );
-    // await logCollection.insertOne({
-    //   file: filePath,
-    //   class: className,
-    //   status: 'pending',
-    //   createdAt: new Date(),
-    // });
-    // await client.close();
-    CodegenHelper.logSuccess(filePath, className);
-    process.exit(0);
-  }
-
-  private async remove(): Promise<void> {
-    CodegenHelper.displayMessage('migration', this.remove.name);
+  private async executeMigrationUp(filePath: string): Promise<void> {
+    const migration = await this.getMigration(filePath);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
     const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
-    const log = await logCollection.findOne(
-      {},
-      {
-        sort: { _id: -1 },
-      },
-    );
-    if (log) {
-      if (log.status === 'applied') {
-        await this.executeMigrationDown(db, log);
-      }
-      await logCollection.deleteOne({
-        _id: log._id,
-      });
-      IoHelper.deleteFileSync(`${process.cwd()}/${this.configuration.path}/${log.file}`);
-    } else {
-      CodegenHelper.logSuccess(logCollection.collectionName, `No migrations to ${this.remove.name}`);
-    }
-    await client.close();
-    process.exit(0);
-  }
-
-  private async up(): Promise<void> {
-    CodegenHelper.displayMessage('migration', this.up.name);
-    const client = await this.getMongoClient();
-    const db = client.db(this.configuration.database);
-    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
-    // Read migration files from the configured folder
-    const fullPath = `${process.cwd()}/${this.configuration.path}`;
-    const migrationFiles = IoHelper.scanFilesSync(fullPath, { filter: [/\.ts$/] });
-    console.log({ migrationFiles });
-    // const fs = await import('fs');
-    // const path = `${process.cwd()}/${this.configuration.path}`;
-    // const migrationFiles = fs.readdirSync(path).filter((file) => file.endsWith('.ts'));
-    // Get already logged migrations
-    const loggedMigrations = await logCollection.find({}).toArray();
-    const loggedFiles = loggedMigrations.map((log) => log.file);
-    // Identify new migrations to apply
-    const pendingMigrations = migrationFiles.filter((file) => !loggedFiles.includes(file));
-    if (pendingMigrations.length) {
-      for (const file of pendingMigrations) {
-        const migrationObj = await this.getMigration(file);
-        // Log migration as pending before applying
-        const log = await logCollection.insertOne({
-          file,
-          class: file.replace(/\.[^/.]+$/, ''),
-          status: 'pending',
-          createdAt: new Date(),
-        });
-        // Apply the migration
-        await this.executeMigrationUp(db, {
-          file,
-          class: file.replace(/\.[^/.]+$/, ''),
-          status: 'applied',
-          createdAt: new Date(),
-          appliedAt: new Date(),
-        });
-      }
-    } else {
-      CodegenHelper.logSuccess(logCollection.collectionName, `No migrations to ${this.up.name}`);
-    }
-    // const logList = await logCollection
-    //   .find(
-    //     {
-    //       status: { $in: ['pending', 'revoked'] },
-    //     },
-    //     { sort: { _id: -1 } },
-    //   )
-    //   .toArray();
-    // if (logList.length) {
-    //   for (const log of logList) {
-    //     await logCollection.updateOne(
-    //       { _id: log._id },
-    //       {
-    //         $set: {
-    //           appliedAt: new Date(),
-    //           status: 'applied',
-    //         },
-    //       },
-    //     );
-    //     await this.executeMigrationUp(db, log);
-    //   }
-    // } else {
-    //   CodegenHelper.logSuccess(logCollection.collectionName, `No migrations to ${this.up.name}`);
-    // }
-    process.exit(0);
-  }
-
-  private async reset(): Promise<void> {
-    CodegenHelper.displayMessage('migration', this.reset.name);
-    const client = await this.getMongoClient();
-    const db = client.db(this.configuration.database);
-    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
-    const logList = await logCollection
-      .find(
-        {
-          status: 'applied',
-        },
-        { sort: { _id: -1 } },
-      )
-      .toArray();
-    if (logList.length) {
-      for (const log of logList) {
-        await logCollection.updateOne(
-          { _id: log._id },
-          {
-            $set: {
-              revokedAt: new Date(),
-              status: 'revoked',
-            },
-          },
-        );
-        await this.executeMigrationDown(db, log);
-      }
-    } else {
-      CodegenHelper.logSuccess(logCollection.collectionName, `No migrations to ${this.reset.name}`);
-    }
-    process.exit(0);
-  }
-
-  private async down(): Promise<void> {
-    CodegenHelper.displayMessage('migration', this.down.name);
-    const client = await this.getMongoClient();
-    const db = client.db(this.configuration.database);
-    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
-    const log = await logCollection.findOne(
-      {
-        status: 'applied',
-      },
-      { sort: { _id: -1 } },
-    );
-    if (log) {
-      await logCollection.updateOne(
-        { _id: log._id },
-        {
-          $set: {
-            revokedAt: new Date(),
-            status: 'revoked',
-          },
-        },
-      );
-      await this.executeMigrationDown(db, log);
-    } else {
-      CodegenHelper.logSuccess(logCollection.collectionName, `No migrations to ${this.down.name}`);
-    }
-    process.exit(0);
-  }
-
-  private async executeMigrationUp(db: Db, log: MigrationLogInterface): Promise<void> {
     try {
-      const migration = await this.getMigration(log.file);
       await migration.up(db);
-      CodegenHelper.logSuccess(log.file, log.class);
+      await logCollection.insertOne({
+        dateTime: new Date(),
+        fileName: filePath,
+      });
+      CodegenHelper.logSuccess(migration.constructor.name, filePath);
     } catch (e) {
-      CodegenHelper.logError(log.file, e as Error);
+      CodegenHelper.logError(migration.constructor.name, e as Error);
       process.exit(1);
     }
   }
 
-  private async executeMigrationDown(db: Db, log: MigrationLogInterface): Promise<void> {
+  private async executeMigrationDown(log: WithId<MigrationLogInterface>): Promise<void> {
+    const migration = await this.getMigration(log.fileName);
+    const client = await this.getMongoClient();
+    const db = client.db(this.configuration.database);
+    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
     try {
-      const migration = await this.getMigration(log.file);
       await migration.down(db);
-      CodegenHelper.logSuccess(log.file, log.class);
+      await logCollection.deleteOne({ _id: log._id });
+      CodegenHelper.logSuccess(migration.constructor.name, log.fileName);
     } catch (e) {
-      CodegenHelper.logError(log.file, e as Error);
+      CodegenHelper.logError(migration.constructor.name, e as Error);
       process.exit(1);
     }
   }

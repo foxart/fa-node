@@ -36,10 +36,10 @@ export class ConsoleNestClass {
     this.printContextOrCaller(level, metadata.caller, metadata.method);
     if (Array.isArray(message)) {
       message.forEach((item) => {
-        this.printMessage(item);
+        this.printMessage(level, item);
       });
     } else {
-      this.printMessage(message);
+      this.printMessage(level, message);
     }
     this.consoleClass.printPerformance();
     if (level === ConsoleLevelEnum.DBG) {
@@ -105,12 +105,19 @@ export class ConsoleNestClass {
     this.consoleClass.processStdout(' ');
   }
 
-  private printMessage(message: unknown): void {
+  private printMessage(level: ConsoleLevelEnum, message: unknown): void {
     if (typeof message === 'string') {
-      if (message === 'Mapped') {
-        // this.consoleClass.processStdout(this.consoleClass.colorWrapper(message, effect.DIM));
+      if (message.startsWith('Mapped')) {
+        this.consoleClass.processStdout(
+          this.consoleClass.colorWrapper('Mapped', [effect.DIM, this.consoleClass.getForeground(level)]),
+        );
+        this.consoleClass.processStdout(
+          this.consoleClass.colorWrapper(message.replace('Mapped', ''), foreground.WHITE),
+        );
       } else {
-        // this.consoleClass.processStdout(this.consoleClass.colorWrapper(message, foreground.WHITE));
+        this.consoleClass.processStdout(
+          this.consoleClass.colorWrapper(message, this.consoleClass.getForeground(level)),
+        );
       }
     } else if (message instanceof Error) {
       this.consoleClass.printError(message);

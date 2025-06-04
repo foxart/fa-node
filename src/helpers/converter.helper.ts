@@ -82,27 +82,21 @@ class ConverterSingleton {
   }
 
   public separatorToCamel(string: string, separator: string): string {
-    return (
-      string
-        // .toLowerCase()
-        .split(separator)
-        .map((word) => {
-          return word.charAt(0).toUpperCase() + word.slice(1);
-        })
-        .join('')
-    );
+    return string
+      .split(separator)
+      .map((word, index) => {
+        return index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1);
+      })
+      .join('');
   }
 
   public separatorToPascal(string: string, separator: string): string {
-    return (
-      string
-        // .toLowerCase()
-        .split(separator)
-        .map((word, index) => {
-          return index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1);
-        })
-        .join('')
-    );
+    return string
+      .split(separator)
+      .map((word) => {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      })
+      .join('');
   }
 
   public dataToJson(data: unknown, indent?: number): string {

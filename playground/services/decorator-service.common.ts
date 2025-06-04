@@ -1,4 +1,4 @@
-import { DecoratorClass } from '../../src/classes/decorator.class';
+import { DecoratorClass } from '../../src';
 
 abstract class AbstractClass {}
 

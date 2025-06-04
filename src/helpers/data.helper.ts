@@ -1,13 +1,18 @@
-export interface FilterOptionsInterface {
+interface IsEmptyKeyValueInterface {
   undefined?: boolean;
   nullValue?: boolean;
-  emptyArray?: boolean;
-  emptyObject?: boolean;
   emptyString?: boolean;
   zeroNumber?: boolean;
-  exclude?: string[];
-  recursive?: boolean;
+  emptyArray?: boolean;
+  emptyObject?: boolean;
 }
+
+interface FilterEmptyInterface {
+  array?: IsEmptyKeyValueInterface;
+  object?: IsEmptyKeyValueInterface;
+}
+
+type MapCallback<T> = (key: keyof T | string, value: unknown) => unknown;
 
 class DataSingleton {
   private static self: DataSingleton;
@@ -54,6 +59,10 @@ class DataSingleton {
     return this.isPlainObject(data) && Object.keys(data as object).length === 0;
   }
 
+  public isEmptyArray(data: unknown): boolean {
+    return Array.isArray(data) && data.length === 0;
+  }
+
   public isPlainObject(data: unknown): boolean {
     if (Array.isArray(data)) {
       return false;
@@ -69,59 +78,95 @@ class DataSingleton {
     }
   }
 
-  public filter<Data>(data: Data, options: FilterOptionsInterface & { only?: Array<keyof Data> }): Data {
-    const isEmpty = (data: unknown, options?: FilterOptionsInterface & { only?: Array<keyof Data> }): boolean => {
-      // options?.only;
-      if (options?.undefined && data === undefined) {
-        return true;
-      } else if (options?.nullValue && data === null) {
-        return true;
-      } else if (options?.emptyString && data === '') {
-        return true;
-      } else if (options?.zeroNumber && data === 0) {
-        return true;
-      } else if (options?.emptyObject && this.isPlainObject(data)) {
-        return this.isEmptyObject(data);
-      } else if (options?.emptyArray && Array.isArray(data)) {
-        return data.length === 0;
-      }
-      return false;
-    };
-    /**
-     *
-     */
+  public isEmptyKeyValue(data: unknown, options?: IsEmptyKeyValueInterface): boolean {
+    if (options?.undefined && data === undefined) {
+      return true;
+    } else if (options?.nullValue && data === null) {
+      return true;
+    } else if (options?.emptyString && data === '') {
+      return true;
+    } else if (options?.zeroNumber && data === 0) {
+      return true;
+    } else if (options?.emptyObject && this.isPlainObject(data)) {
+      return this.isEmptyObject(data);
+    } else if (options?.emptyArray && Array.isArray(data)) {
+      return data.length === 0;
+    }
+    return false;
+  }
+
+  public filterEmpty<DATA>(data: DATA, options?: FilterEmptyInterface, recursive = false): DATA {
     if (Array.isArray(data)) {
       return data
-        .map((item: Data) => {
-          return this.filter(item, options);
+        .map((item: DATA) => {
+          return this.filterEmpty(item, options, recursive);
         })
         .filter((item) => {
-          return !isEmpty(item, {
-            ...options,
-            nullValue: false,
-            zeroNumber: false,
-            emptyString: false,
-          });
-        }) as Data;
+          return !this.isEmptyKeyValue(item, options?.array);
+        }) as DATA;
     } else if (this.isPlainObject(data)) {
-      return Object.entries(data as Record<keyof Data, Data>).reduce((acc, [key, value]) => {
-        if (options.exclude?.includes(key)) {
-          return acc;
-        } else if (this.isPlainObject(value)) {
-          const result = options.recursive ? this.filter(value as Data, options) : value;
-          if (options.only && !options.only.includes(key as keyof Data)) {
-            return { ...acc, [key]: result };
+      return Object.entries(data as Record<keyof DATA, DATA>).reduce((acc, [key, value]) => {
+        if (this.isPlainObject(value) || Array.isArray(value)) {
+          const result = recursive ? this.filterEmpty(value, options, recursive) : value;
+          if (options?.object?.emptyObject && this.isEmptyObject(result)) {
+            return acc;
           }
-          return isEmpty(result, options) ? acc : { ...acc, [key]: result };
-        } else {
-          if (options.only && !options.only.includes(key as keyof Data)) {
-            return { ...acc, [key]: value };
+          if (options?.array?.emptyArray && this.isEmptyArray(result)) {
+            return acc;
           }
-          return isEmpty(value, options) ? acc : { ...acc, [key]: value };
+          return { ...acc, [key]: result };
         }
-      }, {} as Data);
+        if (this.isEmptyKeyValue(value, options?.object)) {
+          return acc;
+        }
+        return { ...acc, [key]: value };
+      }, {} as DATA);
     } else {
       return data;
+    }
+  }
+
+  public mapCallback<DATA>(data: DATA, callback: MapCallback<DATA>, recursive = false): DATA {
+    if (Array.isArray(data)) {
+      return data.map((item: DATA) => {
+        return this.mapCallback(item, callback, recursive);
+      }) as DATA;
+    } else if (this.isPlainObject(data)) {
+      return Object.entries(data as Record<keyof DATA, unknown>).reduce((acc, [key, value]) => {
+        if (this.isPlainObject(value) && recursive) {
+          return { ...acc, [key]: recursive ? this.mapCallback(value, callback, recursive) : value };
+        }
+        return { ...acc, [key]: callback(key, value) };
+      }, {} as DATA);
+    } else {
+      return data;
+    }
+  }
+
+  public excludeFields<DATA extends Record<string, unknown>>(
+    data: DATA,
+    fields: (keyof DATA)[],
+    recursive = false,
+  ): Omit<DATA, (typeof fields)[number]> {
+    if (Array.isArray(data)) {
+      return data.map((item) => {
+        return this.excludeFields(item as DATA, fields, recursive) as unknown as Omit<DATA, (typeof fields)[number]>;
+      }) as unknown as Omit<DATA, (typeof fields)[number]>;
+    } else if (this.isPlainObject(data)) {
+      return Object.entries(data).reduce(
+        (acc, [key, value]) => {
+          if (fields.includes(key as keyof DATA)) {
+            return acc;
+          }
+          if (this.isPlainObject(value) && recursive) {
+            return { ...acc, [key]: this.excludeFields(value as DATA, fields, recursive) };
+          }
+          return { ...acc, [key]: value };
+        },
+        {} as Omit<DATA, (typeof fields)[number]>,
+      );
+    } else {
+      return data as Omit<DATA, (typeof fields)[number]>;
     }
   }
 }

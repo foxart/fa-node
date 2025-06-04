@@ -1,4 +1,4 @@
-import { DataHelper, FilterOptionsInterface } from '../../src';
+import { DataHelper } from '../../src';
 
 class EmptyClass {}
 
@@ -55,7 +55,7 @@ function splitObjectByTrueFalse(obj: { [key: string]: boolean }): {
 }
 
 function testFilter(): object {
-  const options: FilterOptionsInterface = {
+  const options = {
     undefined: true,
     nullValue: true,
     zeroNumber: true,
@@ -66,10 +66,9 @@ function testFilter(): object {
   // todo: empty object also filters array
   const data = {
     ...objectEmptyValues,
-    valueObject: { ...objectEmptyValues, ...objectValues, exclude: 'EXCLUDE' },
-    exclude: 'EXCLUDE',
+    valueObject: { ...objectEmptyValues, ...objectValues },
   };
-  return DataHelper.filter(data, { ...options, exclude: ['exclude'] });
+  return DataHelper.filterEmpty(data);
 }
 
 function testIsClass(): object {
@@ -122,9 +121,33 @@ function testIsPlainObject(): object {
 
 export function run(): void {
   console.clear();
-  console.log(testFilter());
-  console.log('testIsClass', testIsClass());
+  // console.log(testFilter());
+  // console.log('testIsClass', testIsClass());
   // console.log('testIsObject', testIsObject());
   // console.log('testIsEmptyObject', testIsEmptyObject());
   // console.log('testIsPlainObject', testIsPlainObject());
+  const options = {
+    array: {
+      undefined: true,
+      nullValue: true,
+      zeroNumber: true,
+      emptyString: true,
+      emptyArray: true,
+      emptyObject: true,
+    },
+    object: {
+      undefined: true,
+      nullValue: true,
+      zeroNumber: true,
+      emptyString: true,
+      emptyArray: true,
+      emptyObject: true,
+    },
+  };
+  const object = { a: undefined, b: null, c: 0, d: '123', e: {}, f: [] };
+  const test = [object, '', null, undefined, {}, ['']];
+  // const res = DataHelper.filterEmpty(test, options, true);
+  const res = DataHelper.excludeFields(object, ['d'], true);
+  console.info(res);
+  // console.warn(test);
 }
