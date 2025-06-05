@@ -220,13 +220,14 @@ class MigrationMongoClass {
         ? "import { Db } from 'mongodb';\n" +
           "import { MigrationMongoInterface } from 'fa-node';\n" +
           '\n' +
+          '/**\n' +
+          ' * MongoMigrationClass\n' +
+          ' */\n' +
+          '\n' +
           "const COLLECTION = 'mongoMigrationCollection';\n" +
           "const FIELD = 'mongoMigrationField';\n" +
           "const INDEX = 'mongo_migration_index';\n" +
           '\n' +
-          '/**\n' +
-          ' * MongoMigrationClass\n' +
-          ' */\n' +
           'export class MongoMigrationClass implements MigrationMongoInterface {\n' +
           '  public async up(db: Db): Promise<void> {\n' +
           '    await db.collection(COLLECTION).createIndex(\n' +

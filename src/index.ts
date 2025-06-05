@@ -19,6 +19,7 @@ export * from './helpers/converter.helper';
 export * from './helpers/data.helper';
 export * from './helpers/exception.helper';
 export * from './helpers/io.helper';
+export * from './helpers/ip.helper';
 export * from './helpers/migration-mongo.helper';
 export * from './helpers/parser.helper';
 export * from './helpers/symbol.helper';

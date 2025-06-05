@@ -24,8 +24,8 @@ class ConfigurationSingleton {
         const nested = this.extract(dictionary[key], fullKey);
         result[key] = nested.result;
         errors.push(...nested.errors);
-      } else if (dictionary[key] === undefined) {
-        errors.push(fullKey);
+        // } else if (dictionary[key] === undefined) {
+        //   errors.push(fullKey);
       } else if (typeof dictionary[key] === 'string' && /^<.*>$/.test(dictionary[key])) {
         const match = dictionary[key].match(/^<(.*)>$/);
         if (match && process.env[match[1]] !== undefined) {

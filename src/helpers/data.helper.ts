@@ -143,17 +143,13 @@ class DataSingleton {
     }
   }
 
-  public excludeKeys<DATA extends Record<string, unknown>>(
-    data: DATA,
-    keys: (keyof DATA)[],
-    recursive = false,
-  ): Partial<DATA> {
+  public excludeKeys<DATA>(data: DATA, keys: string[], recursive = false): Partial<DATA> {
     if (Array.isArray(data)) {
       return data.map((item) => {
         return this.excludeKeys(item as DATA, keys, recursive);
       }) as unknown as Partial<DATA>;
     } else if (this.isPlainObject(data)) {
-      return Object.entries(data).reduce((acc, [key, value]) => {
+      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
         if (keys.includes(key)) {
           return acc;
         }
@@ -167,11 +163,7 @@ class DataSingleton {
     }
   }
 
-  public excludeValues<DATA extends Record<string, unknown>>(
-    data: DATA,
-    values: unknown[],
-    recursive = false,
-  ): Partial<DATA> {
+  public excludeValues<DATA>(data: DATA, values: unknown[], recursive = false): Partial<DATA> {
     if (Array.isArray(data)) {
       return data
         .filter((item) => !values.includes(item))
@@ -179,7 +171,7 @@ class DataSingleton {
           return this.excludeValues(item as DATA, values, recursive);
         }) as unknown as Partial<DATA>;
     } else if (this.isPlainObject(data)) {
-      return Object.entries(data).reduce((acc, [key, value]) => {
+      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
         if (values.includes(value)) {
           return acc;
         }
