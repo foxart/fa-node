@@ -154,7 +154,10 @@ class MigrationMongoClass {
     const migrationName = ConverterHelper.upperToSeparator(migration.replace(/[^a-zA-Z0-9-]/g, ''), '-').toLowerCase();
     const filePath = `${this.configuration.path}/${timestamp}_${migrationName}.ts`;
     IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
-    CodegenHelper.logSuccess(migrationName, IoHelper.excludePath(this.configuration.path, filePath));
+    CodegenHelper.logSuccess(
+      `${ConverterHelper.separatorToPascal(migrationName, '-')}_${timestamp}`,
+      IoHelper.excludePath(this.configuration.path, filePath),
+    );
     process.exit(0);
   }
 

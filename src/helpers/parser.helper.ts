@@ -4,11 +4,6 @@ export interface ParserTraceInterface {
   method: string;
 }
 
-interface ConfigurationInterface<T> {
-  result: T;
-  errors: string[];
-}
-
 interface PathInterface {
   directory: string;
   filename: string;
@@ -58,27 +53,6 @@ class ParserSingleton {
       ParserSingleton.self = new ParserSingleton();
     }
     return ParserSingleton.self;
-  }
-
-  public configuration<T>(dictionary: T, parentKey = ''): ConfigurationInterface<T> {
-    const result: Record<string, unknown> = {};
-    const errors: string[] = [];
-    for (const key in dictionary) {
-      const fullKey = parentKey ? `${parentKey}.${key}` : key;
-      if (typeof dictionary[key] === 'object' && dictionary[key] !== null) {
-        const nested = this.configuration(dictionary[key], fullKey);
-        result[key] = nested.result;
-        errors.push(...nested.errors);
-      } else if (dictionary[key] === undefined) {
-        errors.push(fullKey);
-      } else if (typeof dictionary[key] === 'string' && /^<.*>$/.test(dictionary[key])) {
-        const match = dictionary[key].match(/^<(.*)>$/);
-        errors.push(match && match[1] ? match[1] : fullKey);
-      } else {
-        result[key] = dictionary[key];
-      }
-    }
-    return { result: result as T, errors };
   }
 
   public stack(stack = ''): ParserTraceInterface[] {

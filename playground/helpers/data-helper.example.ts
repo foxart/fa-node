@@ -147,7 +147,7 @@ export function run(): void {
   const object = { a: undefined, b: null, c: 0, d: '123', e: {}, f: [] };
   const test = [object, '', null, undefined, {}, ['']];
   // const res = DataHelper.filterEmpty(test, options, true);
-  const res = DataHelper.excludeFields(object, ['d'], true);
+  const res = DataHelper.excludeKeys(object, ['d'], true);
   console.info(res);
   // console.warn(test);
 }

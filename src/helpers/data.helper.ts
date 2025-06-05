@@ -143,30 +143,56 @@ class DataSingleton {
     }
   }
 
-  public excludeFields<DATA extends Record<string, unknown>>(
+  public excludeKeys<DATA extends Record<string, unknown>>(
     data: DATA,
-    fields: (keyof DATA)[],
+    keys: (keyof DATA)[],
     recursive = false,
-  ): Omit<DATA, (typeof fields)[number]> {
+  ): Partial<DATA> {
     if (Array.isArray(data)) {
       return data.map((item) => {
-        return this.excludeFields(item as DATA, fields, recursive) as unknown as Omit<DATA, (typeof fields)[number]>;
-      }) as unknown as Omit<DATA, (typeof fields)[number]>;
+        return this.excludeKeys(item as DATA, keys, recursive);
+      }) as unknown as Partial<DATA>;
     } else if (this.isPlainObject(data)) {
-      return Object.entries(data).reduce(
-        (acc, [key, value]) => {
-          if (fields.includes(key as keyof DATA)) {
-            return acc;
-          }
-          if (this.isPlainObject(value) && recursive) {
-            return { ...acc, [key]: this.excludeFields(value as DATA, fields, recursive) };
-          }
-          return { ...acc, [key]: value };
-        },
-        {} as Omit<DATA, (typeof fields)[number]>,
-      );
+      return Object.entries(data).reduce((acc, [key, value]) => {
+        if (keys.includes(key)) {
+          return acc;
+        }
+        if (this.isPlainObject(value) && recursive) {
+          return { ...acc, [key]: this.excludeKeys(value as DATA, keys, recursive) };
+        }
+        return { ...acc, [key]: value };
+      }, {} as Partial<DATA>);
     } else {
-      return data as Omit<DATA, (typeof fields)[number]>;
+      return data;
+    }
+  }
+
+  public excludeValues<DATA extends Record<string, unknown>>(
+    data: DATA,
+    values: unknown[],
+    recursive = false,
+  ): Partial<DATA> {
+    if (Array.isArray(data)) {
+      return data
+        .filter((item) => !values.includes(item))
+        .map((item) => {
+          return this.excludeValues(item as DATA, values, recursive);
+        }) as unknown as Partial<DATA>;
+    } else if (this.isPlainObject(data)) {
+      return Object.entries(data).reduce((acc, [key, value]) => {
+        if (values.includes(value)) {
+          return acc;
+        }
+        if (this.isPlainObject(value) && recursive) {
+          return {
+            ...acc,
+            [key]: this.excludeValues(value as DATA, values, recursive),
+          };
+        }
+        return { ...acc, [key]: value };
+      }, {} as Partial<DATA>);
+    } else {
+      return data;
     }
   }
 }

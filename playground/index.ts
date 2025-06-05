@@ -87,7 +87,11 @@ console.clear();
 /**
  *
  */
-void import('./helpers/data-helper.example').then((module) => module.run());
+// void import('./helpers/data-helper.example').then((module) => module.run());
+/**
+ *
+ */
+void import('./helpers/configuration-helper.example').then((module) => module.run());
 /**
  *
  */
