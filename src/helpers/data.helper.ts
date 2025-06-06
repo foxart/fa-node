@@ -12,7 +12,7 @@ interface FilterEmptyInterface {
   object?: IsEmptyKeyValueInterface;
 }
 
-type MapCallback<T> = (key: keyof T | string, value: unknown) => unknown;
+type MapCallback = (key: string, value: unknown) => unknown;
 
 class DataSingleton {
   private static self: DataSingleton;
@@ -105,7 +105,7 @@ class DataSingleton {
           return !this.isEmptyKeyValue(item, options?.array);
         }) as DATA;
     } else if (this.isPlainObject(data)) {
-      return Object.entries(data as Record<keyof DATA, DATA>).reduce((acc, [key, value]) => {
+      return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
         if (this.isPlainObject(value) || Array.isArray(value)) {
           const result = recursive ? this.filterEmpty(value, options, recursive) : value;
           if (options?.object?.emptyObject && this.isEmptyObject(result)) {
@@ -126,13 +126,13 @@ class DataSingleton {
     }
   }
 
-  public mapCallback<DATA>(data: DATA, callback: MapCallback<DATA>, recursive = false): DATA {
+  public mapCallback<DATA>(data: DATA, callback: MapCallback, recursive = false): DATA {
     if (Array.isArray(data)) {
       return data.map((item: DATA) => {
         return this.mapCallback(item, callback, recursive);
       }) as DATA;
     } else if (this.isPlainObject(data)) {
-      return Object.entries(data as Record<keyof DATA, unknown>).reduce((acc, [key, value]) => {
+      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
         if (this.isPlainObject(value) && recursive) {
           return { ...acc, [key]: recursive ? this.mapCallback(value, callback, recursive) : value };
         }
