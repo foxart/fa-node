@@ -35,7 +35,7 @@ export interface ConsoleOptionsInterface {
   hidden?: boolean;
 }
 
-export class ConsoleClass {
+export class ConsoleNodeClass {
   public readonly console: Console;
 
   public readonly stackIndex: number;

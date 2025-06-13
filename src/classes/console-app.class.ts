@@ -1,13 +1,13 @@
-import { ConsoleClass, ConsoleOptionsInterface } from './console.class';
+import { ConsoleNodeClass, ConsoleOptionsInterface } from './console-node.class';
 
 export class ConsoleAppClass {
-  private readonly consoleClass: ConsoleClass;
+  private readonly consoleClass: ConsoleNodeClass;
 
   private readonly console: Console;
 
   public constructor(options: ConsoleOptionsInterface) {
     this.console = console;
-    this.consoleClass = new ConsoleClass(options);
+    this.consoleClass = new ConsoleNodeClass(options);
   }
 
   public override(): void {

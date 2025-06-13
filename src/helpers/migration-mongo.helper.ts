@@ -6,6 +6,18 @@ import { CodegenHelper } from './codegen.helper';
 import { ConverterHelper } from './converter.helper';
 import { IoHelper } from './io.helper';
 
+interface MigrationMongoConfigurationInterface {
+  schema: string;
+  host: string;
+  port: string;
+  database: string;
+  user?: string;
+  password?: string;
+  path: string;
+  collection: string;
+  template?: string;
+}
+
 export interface MigrationMongoInterface {
   up(db: unknown): Promise<void>;
 
@@ -31,8 +43,8 @@ type CommandBuilderYargs = {
 interface ConfigurationInterface {
   uri: string;
   database: string;
-  path: string;
   collection: string;
+  path: string;
   template?: string;
 }
 
@@ -59,11 +71,16 @@ class MigrationMongoClass {
     return MigrationMongoClass.self;
   }
 
-  public migrate(configuration: ConfigurationInterface): void {
+  public async migrate(configuration: MigrationMongoConfigurationInterface): Promise<void> {
+    const { schema, host, port, database, user, password, collection, template } = configuration;
     this.configuration = {
-      ...configuration,
+      uri: user && password ? `${schema}://${user}:${password}@${host}:${port}` : `${schema}://${host}:${port}`,
+      database,
+      collection,
       path: `${process.cwd()}/${configuration.path}`,
+      template,
     };
+    await this.check();
     const yargsInstance = this.commandList.reduce(
       (yargsInstance, command) =>
         yargsInstance.command(
@@ -139,13 +156,33 @@ class MigrationMongoClass {
 
   private async getMongoClient(): Promise<MongoClient> {
     if (!this.client) {
-      this.client = new MongoClient(this.configuration.uri);
+      this.client = new MongoClient(this.configuration.uri, {
+        connectTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 5000,
+      });
     }
     if (!this.clientIsConnected) {
-      await this.client.connect();
-      this.clientIsConnected = true;
+      await Promise.race([
+        this.client.connect().then(() => {
+          this.clientIsConnected = true;
+        }),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Connection timeout')), 5000);
+        }),
+      ]);
     }
     return this.client;
+  }
+
+  private async check(): Promise<void> {
+    try {
+      const client = await this.getMongoClient();
+      const db = client.db(this.configuration.database);
+      await db.collections();
+    } catch (e) {
+      CodegenHelper.logError(this.check.name, e as Error);
+      process.exit(1);
+    }
   }
 
   private create(migration: string): Promise<void> {

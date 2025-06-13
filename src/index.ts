@@ -1,5 +1,5 @@
 /** Classes */
-export * from './classes/console.class';
+export * from './classes/console-node.class';
 export * from './classes/console-app.class';
 export * from './classes/console-nest.class';
 export * from './classes/crypt.class';

@@ -95,7 +95,11 @@ class DataSingleton {
     return false;
   }
 
-  public filterEmpty<DATA>(data: DATA, options?: FilterEmptyInterface, recursive = false): DATA {
+  public filterEmpty<DATA>(
+    data: DATA,
+    options: FilterEmptyInterface = { array: { undefined: true }, object: { undefined: true } },
+    recursive = true,
+  ): DATA {
     if (Array.isArray(data)) {
       return data
         .map((item: DATA) => {
