@@ -41,6 +41,13 @@
     "resolveJsonModule": false,
     "skipDefaultLibCheck": true,
     //    "strict": true,
-    "useUnknownInCatchVariables": true
+    "useUnknownInCatchVariables": true,
+    //
+    "sourceMap": true,
+    // Add this line to enable source maps
+    "inlineSourceMap": false,
+    // Ensure this is false to separate source maps from the JavaScript output
+    "declarationMap": true
+    // Optional: Generate source maps for `.d.ts` files alongside declaration files
   }
 }

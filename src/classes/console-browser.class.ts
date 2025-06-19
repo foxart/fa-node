@@ -1,4 +1,4 @@
-export enum BrowserConsoleLevel {
+enum BrowserConsoleLevel {
   LOG = 'LOG',
   INF = 'INFO',
   WRN = 'WARNING',
@@ -7,23 +7,46 @@ export enum BrowserConsoleLevel {
   CST = 'CUSTOM',
 }
 
-export interface BrowserConsoleOptions {
-  color?: boolean;
-  info?: boolean;
-  name?: string;
-  date?: boolean;
-  time?: boolean;
-  performance?: boolean;
-}
-
-const LEVEL_STYLES: Record<BrowserConsoleLevel, string> = {
-  [BrowserConsoleLevel.LOG]: 'color:#fff;background:#27ae60;font-weight:bold;padding:2px 8px;border-radius:4px;',
-  [BrowserConsoleLevel.INF]: 'color:#fff;background:#2980b9;font-weight:bold;padding:2px 8px;border-radius:4px;',
-  [BrowserConsoleLevel.WRN]: 'color:#000;background:#f1c40f;font-weight:bold;padding:2px 8px;border-radius:4px;',
-  [BrowserConsoleLevel.ERR]: 'color:#fff;background:#e74c3c;font-weight:bold;padding:2px 8px;border-radius:4px;',
-  [BrowserConsoleLevel.DBG]: 'color:#000;background:#bdc3c7;font-weight:bold;padding:2px 8px;border-radius:4px;',
-  [BrowserConsoleLevel.CST]: 'color:#fff;background:#8e44ad;font-weight:bold;padding:2px 8px;border-radius:4px;',
+const foreground = {
+  BLACK: 'color: #000000;',
+  RED: 'color: #e74c3c;',
+  GREEN: 'color: #27ae60;',
+  YELLOW: 'color: #f1c40f;',
+  BLUE: 'color: #0000FF;',
+  MAGENTA: 'color: #8e44ad;',
+  CYAN: 'color: #00bcd4;',
+  WHITE: 'color: #ffffff;',
+  GRAY: 'color: #7f8c8d;',
 };
+const background = {
+  BLACK: 'background-color: #000000;',
+  RED: 'background-color: #e74c3c;',
+  GREEN: 'background-color: #27ae60;',
+  YELLOW: 'background-color: #f1c40f;',
+  BLUE: 'background-color: #0000FF;',
+  MAGENTA: 'background-color: #8e44ad;',
+  CYAN: 'background-color: #00bcd4;',
+  WHITE: 'background-color: #ffffff;',
+  GRAY: 'background-color: #7f8c8d;',
+};
+const padding = 'padding: 2px 8px;';
+const fontWeightBold = 'font-weight: bold;';
+const borderRadius = 'border-radius: 4px;';
+const LEVEL_STYLES: Record<BrowserConsoleLevel, string> = {
+  [BrowserConsoleLevel.LOG]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.GREEN}`,
+  [BrowserConsoleLevel.INF]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.BLUE}`,
+  [BrowserConsoleLevel.WRN]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.BLACK} ${background.YELLOW}`,
+  [BrowserConsoleLevel.ERR]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.RED}`,
+  [BrowserConsoleLevel.DBG]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.BLACK} ${background.WHITE}`,
+  [BrowserConsoleLevel.CST]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.MAGENTA}`,
+};
+const RESET_STYLES = `
+  padding: 0;
+  font-weight: initial;
+  border-radius:0;
+  color: initial;
+  background-color: initial;
+`;
 
 // Helper for time and date formatting
 function formatDate(now = new Date()): string {
@@ -41,89 +64,116 @@ function formatTime(now = new Date()): string {
   return `${h}:${m}:${s}.${ms}`;
 }
 
-export class ConsoleBrowserClass {
+interface ConsoleBrowserOptionsInterface {
+  color?: boolean;
+  info?: boolean;
+  name?: string;
+  date?: boolean;
+  time?: boolean;
+  performance?: boolean;
+}
+
+class ConsoleBrowserClass {
   private readonly performanceStart: number;
 
-  public constructor(private readonly options: BrowserConsoleOptions = {}) {
+  public constructor(private readonly options: ConsoleBrowserOptionsInterface = {}) {
     this.performanceStart = typeof performance !== 'undefined' ? performance.now() : 0;
   }
 
-  public log(...args: unknown[]): void {
-    this.print(BrowserConsoleLevel.LOG, args);
+  public log(...args: unknown[]): unknown[] {
+    return this.wrap(BrowserConsoleLevel.LOG, args);
   }
 
-  public info(...args: unknown[]): void {
-    this.print(BrowserConsoleLevel.INF, args);
+  public info(...args: unknown[]): unknown[] {
+    return this.wrap(BrowserConsoleLevel.INF, args);
   }
 
-  public warn(...args: unknown[]): void {
-    this.print(BrowserConsoleLevel.WRN, args);
+  public warn(...args: unknown[]): unknown[] {
+    return this.wrap(BrowserConsoleLevel.WRN, args);
   }
 
-  public error(...args: unknown[]): void {
-    this.print(BrowserConsoleLevel.ERR, args);
+  public error(...args: unknown[]): unknown[] {
+    return this.wrap(BrowserConsoleLevel.ERR, args);
   }
 
-  public debug(...args: unknown[]): void {
-    this.print(BrowserConsoleLevel.DBG, args);
+  public debug(...args: unknown[]): unknown[] {
+    return this.wrap(BrowserConsoleLevel.DBG, args);
   }
 
-  public custom(...args: unknown[]): void {
-    this.print(BrowserConsoleLevel.CST, args);
+  public custom(...args: unknown[]): unknown[] {
+    return this.wrap(BrowserConsoleLevel.CST, args);
   }
 
-  private print(level: BrowserConsoleLevel, args: unknown[]): void {
-    const style = this.options.color ? LEVEL_STYLES[level] : '';
-    // Compose info prefix, e.g., name | date | time
-    const info: string[] = [];
-    if (this.options.name) info.push(`%c${this.options.name}`, 'color:#888;font-weight:bold');
-    if (this.options.date) info.push(`%c${formatDate()}`, 'color:#16a085');
-    if (this.options.time) info.push(`%c${formatTime()}`, 'color:#16a085');
-    // Perf
-    let performanceMs = null;
+  private wrap(level: BrowserConsoleLevel, args: unknown[]): unknown[] {
+    const styleList: string[] = [];
+    const templateList: string[] = [];
+    // Add log level, if enabled
+    if (this.options.info) {
+      templateList.push(`%c${level}`);
+      styleList.push(this.options.color ? LEVEL_STYLES[level] : '');
+    }
+    // Add optional metadata (name, date, time, performance)
+    if (this.options.name) {
+      templateList.push(`%c${this.options.name}`);
+      styleList.push(`${foreground.WHITE} ${fontWeightBold}`);
+    }
+    if (this.options.date) {
+      templateList.push(`%c${formatDate()}`);
+      styleList.push(foreground.GREEN);
+    }
+    if (this.options.time) {
+      templateList.push(`%c${formatTime()}`);
+      styleList.push(foreground.GREEN);
+    }
     if (this.options.performance && typeof performance !== 'undefined') {
-      performanceMs = Math.floor(performance.now() - this.performanceStart);
-      info.push(`%c+${performanceMs}ms`, 'color:#3498db;font-weight:bold');
+      const performanceMs = Math.floor(performance.now() - this.performanceStart);
+      templateList.push(`%c+${performanceMs}ms`);
+      styleList.push(`${foreground.CYAN} ${fontWeightBold}`);
     }
-    // Level
-    const mainPrefix = this.options.info ? [`%c${level}`, style] : [];
-    // Flatten rest args. Errors will be prettified.
-    const displayArgs = args.map((record) => {
-      if (record instanceof Error) {
-        return `%c${record.name}: %c${record.message}`;
-      }
-      return record;
-    });
-    // Compose style array
-    const styles: string[] = [];
-    if (mainPrefix.length) styles.push(mainPrefix[1]);
-    info.forEach((_, idx) => {
-      // Only add styles for odd indices
-      if (idx % 2 === 1) styles.push(info[idx]);
-    });
-    // Errors styles
-    args.forEach((record) => {
-      if (record instanceof Error) {
-        styles.push('color:#e74c3c;font-weight:bold', 'color:#c0392b;');
-      }
-    });
-    // Build final log string and styles
-    const logParts: unknown[] = [];
-    if (mainPrefix.length) logParts.push(mainPrefix[0]);
-    info.forEach((val, idx) => {
-      if (idx % 2 === 0) logParts.push(val); // skip styles, used separately
-    });
-    displayArgs.forEach((arg) => logParts.push(arg));
-    switch (level) {
-      case BrowserConsoleLevel.ERR:
-        console.error(...logParts, ...styles);
-        break;
-      case BrowserConsoleLevel.WRN:
-        console.warn(...logParts, ...styles);
-        break;
-      default:
-        console.log(...logParts, ...styles);
-        break;
-    }
+    return templateList.length
+      ? [
+          templateList.flatMap((item, i) => (i < templateList.length - 1 ? [item, '%c '] : [item])).join(''),
+          ...styleList.flatMap((item, i) => (i < styleList.length - 1 ? [item, RESET_STYLES] : [item])),
+          ...args,
+        ]
+      : args;
+  }
+}
+
+const consoleLog = console.log.bind(console);
+const consoleWarn = console.warn.bind(console);
+const consoleInfo = console.info.bind(console);
+const consoleError = console.error.bind(console);
+const consoleDebug = console.debug.bind(console);
+
+export class ConsoleClass {
+  private readonly consoleClass: ConsoleBrowserClass;
+
+  public constructor(options: ConsoleBrowserOptionsInterface) {
+    this.consoleClass = new ConsoleBrowserClass(options);
+  }
+
+  public override(): void {
+    // console.log = (...args: unknown[]): void => {
+    //   consoleLog(...this.consoleClass.log(...args));
+    // };
+    // console.warn = (...args: unknown[]): void => {
+    //   consoleWarn.bind(console, ...this.consoleClass.warn(...args))(...args);
+    // };
+    // console.info = (...args: unknown[]): void => {
+    //   consoleInfo.bind(console, ...this.consoleClass.info(...args))(...args);
+    // };
+    console.log = console.log.bind(this, ...this.consoleClass.log());
+    console.warn = console.warn.bind(this, ...this.consoleClass.warn());
+    console.info = console.error.bind(this, ...this.consoleClass.info());
+    console.error = console.error.bind(this, ...this.consoleClass.error());
+  }
+
+  public restore(): void {
+    console.log = consoleLog;
+    console.info = consoleInfo;
+    console.warn = consoleWarn;
+    console.error = consoleError;
+    console.debug = consoleDebug;
   }
 }

@@ -1,4 +1,4 @@
-import { ConsoleNodeClass } from '../src';
+import { ConsoleSystemClass } from '../src';
 
 export function initCatch(): void {
   process.on('uncaughtException', (error) => {
@@ -13,7 +13,7 @@ export function initCatch(): void {
 
 export function initConsole(): void {
   Array.from(Array(5).keys()).forEach(() => console.log('|'));
-  const Console = new ConsoleNodeClass({
+  const Console = new ConsoleSystemClass({
     color: true,
     info: true,
     // name: 'NAME',

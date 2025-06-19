@@ -1,15 +1,15 @@
 import { ColorHelper } from '../helpers/color.helper';
 import { IoHelper } from '../helpers/io.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
-import { ConsoleLevelEnum, ConsoleNodeClass, ConsoleOptionsInterface } from './console-node.class';
+import { ConsoleLevelEnum, ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.class';
 
 const { foreground, effect } = ColorHelper;
 
 export class ConsoleNestClass {
-  private readonly consoleClass: ConsoleNodeClass;
+  private readonly consoleClass: ConsoleSystemClass;
 
   public constructor(private readonly options: ConsoleOptionsInterface) {
-    this.consoleClass = new ConsoleNodeClass(options);
+    this.consoleClass = new ConsoleSystemClass(options);
   }
 
   public output(
