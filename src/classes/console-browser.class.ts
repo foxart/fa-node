@@ -165,7 +165,7 @@ export class ConsoleClass {
     // };
     console.log = console.log.bind(this, ...this.consoleClass.log());
     console.warn = console.warn.bind(this, ...this.consoleClass.warn());
-    console.info = console.error.bind(this, ...this.consoleClass.info());
+    console.info = console.info.bind(this, ...this.consoleClass.info());
     console.error = console.error.bind(this, ...this.consoleClass.error());
   }
 
