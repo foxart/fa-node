@@ -78,7 +78,19 @@ class DataSingleton {
     }
   }
 
-  public isEmptyKeyValue(data: unknown, options?: IsEmptyKeyValueInterface): boolean {
+  public isPrimitive(data: unknown): boolean {
+    return (
+      data === undefined ||
+      data === null ||
+      typeof data === 'string' ||
+      typeof data === 'number' ||
+      typeof data === 'boolean' ||
+      typeof data === 'symbol' ||
+      typeof data === 'bigint'
+    );
+  }
+
+  public isEmpty(data: unknown, options?: IsEmptyKeyValueInterface): boolean {
     if (options?.undefined && data === undefined) {
       return true;
     } else if (options?.nullValue && data === null) {
@@ -106,7 +118,7 @@ class DataSingleton {
           return this.filterEmpty(item, options, recursive);
         })
         .filter((item) => {
-          return !this.isEmptyKeyValue(item, options?.array);
+          return !this.isEmpty(item, options?.array);
         }) as DATA;
     } else if (this.isPlainObject(data)) {
       return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
@@ -120,7 +132,7 @@ class DataSingleton {
           }
           return { ...acc, [key]: result };
         }
-        if (this.isEmptyKeyValue(value, options?.object)) {
+        if (this.isEmpty(value, options?.object)) {
           return acc;
         }
         return { ...acc, [key]: value };
@@ -190,6 +202,20 @@ class DataSingleton {
     } else {
       return data;
     }
+  }
+
+  public toJson(data: unknown, indent?: number): string {
+    const cache: unknown[] = [];
+    return JSON.stringify(
+      data,
+      (_key, value: unknown) =>
+        typeof value === 'object' && value !== null
+          ? cache.includes(value)
+            ? undefined
+            : cache.push(value) && value
+          : value,
+      indent ?? 2,
+    );
   }
 }
 

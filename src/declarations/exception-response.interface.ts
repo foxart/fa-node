@@ -20,13 +20,11 @@ export enum ExceptionResponseTypeEnum {
 export interface ExceptionResponseInterface extends Record<string, unknown> {
   code: ApolloCodeEnum;
   context: ExceptionResponseContextEnum;
-  message: string;
+  message: string | object;
   metadata: unknown;
   name: string;
   payload: Record<string, unknown>;
-  status: number;
   timestamp: string;
-  // trace: string[];
   type: ExceptionResponseTypeEnum;
   details?: object;
   stack?: string;

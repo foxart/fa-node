@@ -1,4 +1,3 @@
-import { HttpStatus } from '@nestjs/common';
 import { ClassConstructor } from 'class-transformer';
 import { validate, validateSync, ValidationError, ValidatorOptions } from 'class-validator';
 import { DataHelper } from '../helpers/data.helper';
@@ -105,10 +104,8 @@ export class ValidatorClass {
   // }
   private throwErrors<T>(instance: T, errors: ErrorInterface[]): void {
     throw new ErrorClass({
-      name: this.constructor.name,
-      message: `${(instance as ClassConstructor<T>).constructor.name} validation failed`,
-      details: errors,
-      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      name: (instance as ClassConstructor<T>).constructor.name,
+      message: errors,
     });
   }
 }

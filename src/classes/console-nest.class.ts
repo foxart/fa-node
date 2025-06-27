@@ -2,6 +2,7 @@ import { ColorHelper } from '../helpers/color.helper';
 import { IoHelper } from '../helpers/io.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ConsoleLevelEnum, ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.class';
+import { ErrorClass } from './error.class';
 
 const { foreground, effect } = ColorHelper;
 
@@ -121,6 +122,8 @@ export class ConsoleNestClass {
       }
     } else if (message instanceof Error) {
       this.consoleClass.printError(message);
+    } else if (message instanceof ErrorClass) {
+      // this.consoleClass.printError(message);
     } else {
       this.consoleClass.processStdout(this.consoleClass.dataWrapper(message));
     }

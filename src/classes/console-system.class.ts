@@ -154,16 +154,19 @@ export class ConsoleSystemClass {
   }
 
   public printError(error: Error | ErrorClass): void {
-    this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.CYAN]));
-    this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.CYAN]));
-    this.processStdout(this.colorWrapper(error.message, foreground.RED));
-    this.processStdout(' ');
-    if (error instanceof ErrorClass) {
-      if (error.details) {
-        this.processStdout(this.dataWrapper(error.details));
-        this.processStdout(' ');
+    this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.RED]));
+    this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.RED]));
+    if (error instanceof ErrorClass && error.messageIsJson) {
+      const data = JSON.parse(error.message) as unknown;
+      if (typeof data === 'string') {
+        this.processStdout(data);
+      } else {
+        this.processStdout(this.dataWrapper(data));
       }
+    } else {
+      this.processStdout(error.message);
     }
+    this.processStdout(' ');
     if (this.options.stackError) {
       this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.stack(error.stack));
     }

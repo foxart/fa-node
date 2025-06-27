@@ -1,3 +1,6 @@
+import process from 'node:process';
+import { IoHelper } from './io.helper';
+
 export interface ParserTraceInterface {
   file: string;
   caller: string;
@@ -69,6 +72,20 @@ class ParserSingleton {
     return result;
   }
 
+  public tracePretty(trace: ParserTraceInterface[]): ParserTraceInterface[] {
+    return trace
+      .filter((item) => {
+        return !item.file.includes('node_modules/') && !item.file.includes('node:');
+      })
+      .map((item) => {
+        return {
+          method: item.method,
+          file: IoHelper.excludePath(process.cwd(), item.file),
+          caller: item.caller,
+        };
+      });
+  }
+
   public path(fullPath: string): PathInterface {
     const fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
     return {
@@ -96,9 +113,10 @@ class ParserSingleton {
     );
   }
 
-  private parseUrlParams(paramString: string | undefined): { [key: string]: string } {
+  private parseUrlParams(paramString: string | undefined): { [key: string]: string } | undefined {
+    console.log({ paramString });
     if (!paramString) {
-      return {};
+      return undefined;
     }
     return paramString
       .split('&')

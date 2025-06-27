@@ -98,20 +98,6 @@ class ConverterSingleton {
       })
       .join('');
   }
-
-  public dataToJson(data: unknown, indent?: number): string {
-    const cache: unknown[] = [];
-    return JSON.stringify(
-      data,
-      (_key, value: unknown) =>
-        typeof value === 'object' && value !== null
-          ? cache.includes(value)
-            ? undefined
-            : cache.push(value) && value
-          : value,
-      indent ?? 2,
-    );
-  }
 }
 
 export const ConverterHelper = ConverterSingleton.getInstance();

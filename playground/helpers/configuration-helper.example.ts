@@ -1,5 +1,5 @@
 import process from 'process';
-import { ConfigurationHelper } from '../../src';
+import { ConfigurationHelper, ConsoleLevelEnum, ConsoleNestClass, ErrorClass } from '../../src';
 
 export function run(): void {
   console.clear();
@@ -11,5 +11,24 @@ export function run(): void {
   };
   const result = ConfigurationHelper.extract(configuration);
   console.error(result.errors);
-  console.log(result.result);
+  console.log(new Error('Error'));
+  console.log(new ErrorClass({ name: 'ErrorString', message: 'Message' }));
+  console.log(new ErrorClass({ name: 'ErrorObject', message: ['123', { a: 1 }] }));
+  const nestConsole = new ConsoleNestClass({
+    color: true,
+    info: true,
+    performance: true,
+    link: true,
+    hidden: true,
+    stackError: true,
+    stackDebug: true,
+  });
+  nestConsole.output(
+    ConsoleLevelEnum.LOG,
+    { caller: '', file: '', method: '' },
+    new ErrorClass({
+      name: 'ErrorString',
+      message: { a: '123' },
+    }),
+  );
 }
