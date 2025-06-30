@@ -1,7 +1,6 @@
 import * as process from 'node:process';
 import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
-import { IoHelper } from '../helpers/io.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ErrorClass } from './error.class';
 
@@ -52,27 +51,27 @@ export class ConsoleSystemClass {
   }
 
   public log(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.LOG, ParserHelper.stack(new Error().stack), data);
+    this.print(ConsoleLevelEnum.LOG, ParserHelper.parseStack(new Error().stack), data);
   }
 
   public info(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.INF, ParserHelper.stack(new Error().stack), data);
+    this.print(ConsoleLevelEnum.INF, ParserHelper.parseStack(new Error().stack), data);
   }
 
   public warn(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.WRN, ParserHelper.stack(new Error().stack), data);
+    this.print(ConsoleLevelEnum.WRN, ParserHelper.parseStack(new Error().stack), data);
   }
 
   public error(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.ERR, ParserHelper.stack(new Error().stack), data);
+    this.print(ConsoleLevelEnum.ERR, ParserHelper.parseStack(new Error().stack), data);
   }
 
   public debug(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.DBG, ParserHelper.stack(new Error().stack), data);
+    this.print(ConsoleLevelEnum.DBG, ParserHelper.parseStack(new Error().stack), data);
   }
 
   public custom(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.CST, ParserHelper.stack(new Error().stack), data);
+    this.print(ConsoleLevelEnum.CST, ParserHelper.parseStack(new Error().stack), data);
   }
 
   public print(level: ConsoleLevelEnum, trace: ParserTraceInterface[], args: unknown[]): void {
@@ -87,7 +86,7 @@ export class ConsoleSystemClass {
       }
     });
     if (level === ConsoleLevelEnum.DBG && this.options.stackDebug) {
-      this.printTrace(level, ParserHelper.stack(new Error().stack));
+      this.printTrace(level, ParserHelper.parseStack(new Error().stack));
     }
     this.printPerformance();
     this.printLink(level, trace[this.stackIndex].file);
@@ -125,7 +124,7 @@ export class ConsoleSystemClass {
         } else {
           this.processStdout('    ');
         }
-        this.processStdout(IoHelper.excludePath(process.cwd(), item.file));
+        this.processStdout(ParserHelper.excludePath(process.cwd(), item.file));
       });
     this.processStdout(`\n${this.colorWrapper('}', [effect.BOLD, foreground.CYAN])}`);
     this.processStdout(' ');
@@ -149,7 +148,7 @@ export class ConsoleSystemClass {
         this.processStdout(this.colorWrapper(' at ', this.getBackground(level)));
         this.processStdout(' ');
       }
-      this.processStdout(IoHelper.excludePath(process.cwd(), link));
+      this.processStdout(ParserHelper.excludePath(process.cwd(), link));
     }
   }
 
@@ -168,7 +167,7 @@ export class ConsoleSystemClass {
     }
     this.processStdout(' ');
     if (this.options.stackError) {
-      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.stack(error.stack));
+      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.parseStack(error.stack));
     }
   }
 

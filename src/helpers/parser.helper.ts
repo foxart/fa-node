@@ -1,6 +1,3 @@
-import process from 'node:process';
-import { IoHelper } from './io.helper';
-
 export interface ParserTraceInterface {
   file: string;
   caller: string;
@@ -58,7 +55,7 @@ class ParserSingleton {
     return ParserSingleton.self;
   }
 
-  public stack(stack = ''): ParserTraceInterface[] {
+  public parseStack(stack = ''): ParserTraceInterface[] {
     const result: ParserTraceInterface[] = [];
     let match;
     while ((match = this.stackRegexp.exec(stack)) !== null) {
@@ -72,7 +69,7 @@ class ParserSingleton {
     return result;
   }
 
-  public tracePretty(trace: ParserTraceInterface[]): ParserTraceInterface[] {
+  public prettifyTrace(basePath: string, trace: ParserTraceInterface[]): ParserTraceInterface[] {
     return trace
       .filter((item) => {
         return !item.file.includes('node_modules/') && !item.file.includes('node:');
@@ -80,13 +77,21 @@ class ParserSingleton {
       .map((item) => {
         return {
           method: item.method,
-          file: IoHelper.excludePath(process.cwd(), item.file),
+          file: this.excludePath(basePath, item.file),
           caller: item.caller,
         };
       });
   }
 
-  public path(fullPath: string): PathInterface {
+  public excludePath(basePath: string, targetPath: string): string {
+    if (targetPath.startsWith(basePath)) {
+      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
+      return cleanedPath || '.';
+    }
+    return targetPath.replace(/^\/|\/$/g, '');
+  }
+
+  public parsePath(fullPath: string): PathInterface {
     const fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
     return {
       directory: fullPath.substring(0, fullPath.lastIndexOf('/')),
@@ -95,7 +100,7 @@ class ParserSingleton {
     };
   }
 
-  public url(url: string): UrlInterface | null {
+  public parseUrl(url: string): UrlInterface | null {
     const match = url.match(this.urlRegexp);
     return (
       match && {

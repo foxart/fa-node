@@ -15,14 +15,6 @@ class IoSingleton {
     return fs.existsSync(path);
   }
 
-  public excludePath(basePath: string, targetPath: string): string {
-    if (targetPath.startsWith(basePath)) {
-      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
-      return cleanedPath || '.';
-    }
-    return targetPath.replace(/^\/|\/$/g, '');
-  }
-
   public scanDirectoriesSync(
     directory: string,
     options: { recursive?: boolean; filter?: RegExp[] } = { recursive: false },

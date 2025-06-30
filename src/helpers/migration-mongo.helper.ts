@@ -5,6 +5,7 @@ import { hideBin } from 'yargs/helpers';
 import { CodegenHelper } from './codegen.helper';
 import { ConverterHelper } from './converter.helper';
 import { IoHelper } from './io.helper';
+import { ParserHelper } from './parser.helper';
 
 interface MigrationMongoConfigurationInterface {
   schema: string;
@@ -193,7 +194,7 @@ class MigrationMongoClass {
     IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
     CodegenHelper.logSuccess(
       `${ConverterHelper.separatorToPascal(migrationName, '-')}_${timestamp}`,
-      IoHelper.excludePath(this.configuration.path, filePath),
+      ParserHelper.excludePath(this.configuration.path, filePath),
     );
     process.exit(0);
   }
@@ -205,7 +206,7 @@ class MigrationMongoClass {
     const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
     const logList = await logCollection.find({}, { sort: { _id: 1 } }).toArray();
     const fileList = IoHelper.scanFilesSync(this.configuration.path, { filter: [/\.ts$/, /\.js$/] })
-      .map((file) => IoHelper.excludePath(this.configuration.path, file))
+      .map((file) => ParserHelper.excludePath(this.configuration.path, file))
       .filter((file) => !logList.map((log) => log.fileName).includes(file));
     if (fileList.length) {
       for (const file of fileList) {

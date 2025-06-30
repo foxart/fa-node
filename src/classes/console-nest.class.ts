@@ -1,5 +1,4 @@
 import { ColorHelper } from '../helpers/color.helper';
-import { IoHelper } from '../helpers/io.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ConsoleLevelEnum, ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.class';
 import { ErrorClass } from './error.class';
@@ -44,7 +43,7 @@ export class ConsoleNestClass {
     }
     this.consoleClass.printPerformance();
     if (level === ConsoleLevelEnum.DBG) {
-      this.consoleClass.printTrace(level, ParserHelper.stack(new Error().stack));
+      this.consoleClass.printTrace(level, ParserHelper.parseStack(new Error().stack));
     }
     this.consoleClass.processStdout('\n');
     this.printLink(level, metadata.file, !info.length);
@@ -115,6 +114,16 @@ export class ConsoleNestClass {
         this.consoleClass.processStdout(
           this.consoleClass.colorWrapper(message.replace('Mapped', ''), foreground.WHITE),
         );
+      } else if (message.includes('dependencies')) {
+        this.consoleClass.processStdout(
+          this.consoleClass.colorWrapper(
+            message.replace(
+              'dependencies',
+              this.consoleClass.colorWrapper('dependencies', [effect.DIM, foreground.WHITE]),
+            ),
+            this.consoleClass.getForeground(level),
+          ),
+        );
       } else {
         this.consoleClass.processStdout(
           this.consoleClass.colorWrapper(message, this.consoleClass.getForeground(level)),
@@ -143,7 +152,7 @@ export class ConsoleNestClass {
           ]),
         );
       }
-      this.consoleClass.processStdout(IoHelper.excludePath(process.cwd(), file));
+      this.consoleClass.processStdout(ParserHelper.excludePath(process.cwd(), file));
       // this.consoleClass.processStdout(file);
       this.consoleClass.processStdout('\n');
     }
