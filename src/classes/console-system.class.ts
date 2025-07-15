@@ -1,6 +1,7 @@
 import * as process from 'node:process';
 import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
+import { DataHelper } from '../helpers/data.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ErrorClass } from './error.class';
 
@@ -156,12 +157,13 @@ export class ConsoleSystemClass {
     this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.RED]));
     this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.RED]));
     if (error instanceof ErrorClass && error.messageIsJson) {
-      const data = JSON.parse(error.message) as unknown;
-      if (typeof data === 'string') {
-        this.processStdout(data);
-      } else {
-        this.processStdout(this.dataWrapper(data));
-      }
+      // const data = JSON.parse(error.message) as unknown;
+      // if (typeof data === 'string') {
+      //   this.processStdout(data);
+      // } else {
+      //   this.processStdout(this.dataWrapper(data));
+      // }
+      this.processStdout(this.dataWrapper(JSON.parse(error.message) as unknown));
     } else {
       this.processStdout(error.message);
     }
@@ -267,12 +269,22 @@ export class ConsoleSystemClass {
   }
 
   public dataWrapper(data: unknown): string {
-    return util.inspect(data, {
-      colors: this.options.color,
-      showHidden: this.options.hidden,
-      sorted: this.options.sort,
-      depth: null,
-    });
+    // return util.inspect(data, {
+    //   colors: this.options.color,
+    //   showHidden: this.options.hidden,
+    //   sorted: this.options.sort,
+    //   depth: null,
+    // });
+    try {
+      return util.inspect(data, {
+        colors: this.options.color,
+        showHidden: this.options.hidden,
+        sorted: this.options.sort,
+        depth: null,
+      });
+    } catch {
+      return util.inspect(JSON.parse(DataHelper.toJson(data)));
+    }
   }
 
   public processStdout(data: string): void {

@@ -211,7 +211,7 @@ class DataSingleton {
       (_key, value: unknown) =>
         typeof value === 'object' && value !== null
           ? cache.includes(value)
-            ? undefined
+            ? '[CIRCULAR]'
             : cache.push(value) && value
           : value,
       indent ?? 2,

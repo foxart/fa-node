@@ -107,32 +107,30 @@ export class ConsoleNestClass {
 
   private printMessage(level: ConsoleLevelEnum, message: unknown): void {
     if (typeof message === 'string') {
-      if (message.startsWith('Mapped')) {
-        this.consoleClass.processStdout(
-          this.consoleClass.colorWrapper('Mapped', [effect.DIM, this.consoleClass.getForeground(level)]),
+      let data: string;
+      if (message.includes('dependencies')) {
+        data = message.replace(
+          'dependencies',
+          this.consoleClass.colorWrapper('dependencies', [effect.DIM, this.consoleClass.getForeground(level)]),
         );
-        this.consoleClass.processStdout(
-          this.consoleClass.colorWrapper(message.replace('Mapped', ''), foreground.WHITE),
-        );
-      } else if (message.includes('dependencies')) {
-        this.consoleClass.processStdout(
-          this.consoleClass.colorWrapper(
-            message.replace(
-              'dependencies',
-              this.consoleClass.colorWrapper('dependencies', [effect.DIM, this.consoleClass.getForeground(level)]),
-            ),
-            this.consoleClass.getForeground(level),
-          ),
-        );
+      } else if (message.startsWith('Mapped')) {
+        data = message
+          .replace(
+            'Mapped',
+            this.consoleClass.colorWrapper('Mapped', [effect.DIM, this.consoleClass.getForeground(level)]),
+          )
+          .replace(
+            'route',
+            this.consoleClass.colorWrapper('route', [effect.DIM, this.consoleClass.getForeground(level)]),
+          );
       } else {
-        this.consoleClass.processStdout(
-          this.consoleClass.colorWrapper(message, this.consoleClass.getForeground(level)),
-        );
+        data = message;
       }
+      this.consoleClass.processStdout(this.consoleClass.colorWrapper(data, this.consoleClass.getForeground(level)));
     } else if (message instanceof Error) {
       this.consoleClass.printError(message);
     } else if (message instanceof ErrorClass) {
-      // this.consoleClass.printError(message);
+      this.consoleClass.printError(message);
     } else {
       this.consoleClass.processStdout(this.consoleClass.dataWrapper(message));
     }
