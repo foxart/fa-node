@@ -83,25 +83,6 @@ export class ValidatorClass {
     return result.length ? result : null;
   }
 
-  // private getError(errorList: ValidationError[]): Record<string, unknown> | null {
-  //   const result = errorList.reduce((acc: ErrorType, validationError) => {
-  //     if (validationError.children?.length) {
-  //       acc[validationError.property] = this.getError(validationError.children);
-  //     } else {
-  //       if (!acc[validationError.property]) {
-  //         acc[validationError.property] = [];
-  //       }
-  //       (acc[validationError.property] as string[]).push(
-  //         ...Object.entries(validationError.constraints as object).reduce((acc: string[], [, value]) => {
-  //           acc.push(value as string);
-  //           return acc;
-  //         }, []),
-  //       );
-  //     }
-  //     return acc;
-  //   }, {});
-  //   return DataHelper.isEmptyObject(result) ? null : result;
-  // }
   private throwErrors<T>(instance: T, errors: ErrorInterface[]): void {
     throw new ErrorClass({
       name: (instance as ClassConstructor<T>).constructor.name,

@@ -119,7 +119,6 @@ class ParserSingleton {
   }
 
   private parseUrlParams(paramString: string | undefined): { [key: string]: string } | undefined {
-    console.log({ paramString });
     if (!paramString) {
       return undefined;
     }

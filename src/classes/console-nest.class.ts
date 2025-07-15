@@ -119,7 +119,7 @@ export class ConsoleNestClass {
           this.consoleClass.colorWrapper(
             message.replace(
               'dependencies',
-              this.consoleClass.colorWrapper('dependencies', [effect.DIM, foreground.WHITE]),
+              this.consoleClass.colorWrapper('dependencies', [effect.DIM, this.consoleClass.getForeground(level)]),
             ),
             this.consoleClass.getForeground(level),
           ),
