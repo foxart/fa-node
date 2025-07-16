@@ -52,6 +52,6 @@ export function run(): void {
   dto.fieldString = 'LOREM';
   // const result = validator.validateSync(dto);
   // console.log(result);
-  const errors = validator.errorsSync(dto);
+  const errors = validator.validate(dto);
   console.error(errors);
 }

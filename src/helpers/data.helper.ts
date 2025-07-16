@@ -86,7 +86,8 @@ class DataSingleton {
       typeof data === 'number' ||
       typeof data === 'boolean' ||
       typeof data === 'symbol' ||
-      typeof data === 'bigint'
+      typeof data === 'bigint' ||
+      Buffer.isBuffer(data)
     );
   }
 

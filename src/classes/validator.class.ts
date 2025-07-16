@@ -1,6 +1,5 @@
 import { ClassConstructor } from 'class-transformer';
 import { validate, validateSync, ValidationError, ValidatorOptions } from 'class-validator';
-import { DataHelper } from '../helpers/data.helper';
 import { ErrorClass } from './error.class';
 
 interface ErrorInterface {
@@ -16,15 +15,15 @@ export class ValidatorClass {
     return this.config;
   }
 
-  public async errorsAsync<I>(instance: I): Promise<ErrorInterface[] | null> {
+  public async validateAsync<I>(instance: I): Promise<ErrorInterface[] | null> {
     return this.getError(await validate(instance as object, this.config));
   }
 
-  public errorsSync<I>(instance: I): ErrorInterface[] | null {
+  public validate<I>(instance: I): ErrorInterface[] | null {
     return this.getError(validateSync(instance as object, this.config));
   }
 
-  public async validateAsync<I>(instance: I): Promise<I> {
+  public async validateOrThrowAsync<I>(instance: I): Promise<I> {
     const errors = this.getError(await validate(instance as object, this.config));
     if (errors) {
       this.throwErrors(instance, errors);
@@ -32,7 +31,7 @@ export class ValidatorClass {
     return instance;
   }
 
-  public validateSync<T>(instance: T): T {
+  public validateOrThrow<T>(instance: T): T {
     const errors = this.getError(validateSync(instance as object, this.config));
     if (errors) {
       this.throwErrors(instance, errors);
@@ -40,24 +39,24 @@ export class ValidatorClass {
     return instance;
   }
 
-  public toValidateType(type: unknown): boolean {
-    const types: unknown[] = [String, Boolean, Number, Array, Object];
-    return !types.includes(type);
-  }
-
-  public toValidateValue(value: unknown, instances?: unknown[]): boolean {
-    // !(instances || []).some((instance) => {
-    //   return typeof instance === 'function' && value instanceof instance;
-    // });
-    return (
-      DataHelper.isInstanceObject(value) &&
-      !Buffer.isBuffer(value) &&
-      !(instances || []).some((instance) => {
-        return value instanceof (instance as ClassConstructor<unknown>);
-      })
-    );
-  }
-
+  //todo remove in advance of DataHelper.isPrimitive
+  // public toValidateType(type: unknown): boolean {
+  //   const types: unknown[] = [String, Boolean, Number, Array, Object];
+  //   return !types.includes(type);
+  // }
+  //todo remove in advance of DataHelper.isPrimitive
+  // public toValidateValue(value: unknown, instances?: unknown[]): boolean {
+  //   // !(instances || []).some((instance) => {
+  //   //   return typeof instance === 'function' && value instanceof instance;
+  //   // });
+  //   return (
+  //     DataHelper.isInstanceObject(value) &&
+  //     !Buffer.isBuffer(value) &&
+  //     !(instances || []).some((instance) => {
+  //       return value instanceof (instance as ClassConstructor<unknown>);
+  //     })
+  //   );
+  // }
   private getError(errorList: ValidationError[]): ErrorInterface[] | null {
     const result: ErrorInterface[] = [];
     const mapConstraints = (constraints: Record<string, string>): Array<Record<string, string>> => {

@@ -127,9 +127,7 @@ export class ConsoleNestClass {
         data = message;
       }
       this.consoleClass.processStdout(this.consoleClass.colorWrapper(data, this.consoleClass.getForeground(level)));
-    } else if (message instanceof Error) {
-      this.consoleClass.printError(message);
-    } else if (message instanceof ErrorClass) {
+    } else if (message instanceof Error || message instanceof ErrorClass) {
       this.consoleClass.printError(message);
     } else {
       this.consoleClass.processStdout(this.consoleClass.dataWrapper(message));
