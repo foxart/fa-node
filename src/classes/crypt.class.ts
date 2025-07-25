@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'crypto';
 import { v4, V4Options } from 'uuid';
+import { DataHelper } from '../helpers/data.helper';
+import { ErrorClass } from './error.class';
 
 // type WordArray = CryptoJS.lib.WordArray;
 export class CryptClass {
@@ -32,10 +34,13 @@ export class CryptClass {
       encrypted += cipher.final(this.encoding);
       return encrypted as T;
     } catch (e) {
-      (e as Error).name = (e as Error).message;
-      (e as Error).message = `Encryption failed for: ${data as string}`;
+      const error = new ErrorClass({
+        name: (e as Error).message,
+        message: `Value ${DataHelper.toJson(data)} could not be encrypted`,
+        stack: (e as Error).stack,
+      });
       if (throws) {
-        throw e;
+        throw error;
       }
       return data;
     }
@@ -60,10 +65,13 @@ export class CryptClass {
       decrypted += decipher.final('utf8');
       return decrypted as T;
     } catch (e) {
-      (e as Error).name = (e as Error).message;
-      (e as Error).message = `Decryption failed for: ${data as string}`;
+      const error = new ErrorClass({
+        name: (e as Error).message,
+        message: `Value ${DataHelper.toJson(data)} could not be decrypted`,
+        stack: (e as Error).stack,
+      });
       if (throws) {
-        throw e;
+        throw error;
       }
       return data;
     }

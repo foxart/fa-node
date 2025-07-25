@@ -3,7 +3,7 @@ import { DataHelper } from '../helpers/data.helper';
 
 export interface ErrorClassInterface {
   name: string;
-  message: string | object;
+  message: string | object | unknown[];
   stack?: string;
   status?: HttpStatus;
 }
