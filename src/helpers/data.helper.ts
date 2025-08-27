@@ -218,6 +218,15 @@ class DataSingleton {
       indent ?? 2,
     );
   }
+
+  public fromJson(data: string): unknown | undefined {
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      console.error(e);
+      return undefined;
+    }
+  }
 }
 
 export const DataHelper = DataSingleton.getInstance();

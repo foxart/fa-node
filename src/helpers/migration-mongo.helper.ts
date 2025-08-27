@@ -1,5 +1,4 @@
 import { MongoClient, WithId } from 'mongodb';
-import process from 'process';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { CodegenHelper } from './codegen.helper';
@@ -8,15 +7,11 @@ import { IoHelper } from './io.helper';
 import { ParserHelper } from './parser.helper';
 
 interface MigrationMongoConfigurationInterface {
-  schema: string;
-  host: string;
-  port: string;
   database: string;
-  user?: string;
-  password?: string;
-  path: string;
   collection: string;
+  path: string;
   template?: string;
+  uri: string;
 }
 
 export interface MigrationMongoInterface {
@@ -73,9 +68,9 @@ class MigrationMongoClass {
   }
 
   public async migrate(configuration: MigrationMongoConfigurationInterface): Promise<void> {
-    const { schema, host, port, database, user, password, collection, template } = configuration;
+    const { collection, database, template, uri } = configuration;
     this.configuration = {
-      uri: user && password ? `${schema}://${user}:${password}@${host}:${port}` : `${schema}://${host}:${port}`,
+      uri: uri,
       database,
       collection,
       path: `${process.cwd()}/${configuration.path}`,
@@ -115,6 +110,12 @@ class MigrationMongoClass {
       return;
     };
     return [
+      {
+        name: this.drop.name,
+        desc: 'Drops all collections in the database',
+        builder: emptyBuilder,
+        handler: (): void => void this.drop(),
+      },
       {
         name: `${this.create.name} <collection>`,
         desc: 'Creates migration',
@@ -184,6 +185,23 @@ class MigrationMongoClass {
       CodegenHelper.logError(this.check.name, e as Error);
       process.exit(1);
     }
+  }
+
+  private async drop(): Promise<void> {
+    CodegenHelper.displayMessage('migration', this.drop.name);
+    const client = await this.getMongoClient();
+    const db = client.db(this.configuration.database);
+    const collectionList = await db.collections();
+    if (collectionList.length === 0) {
+      CodegenHelper.logSuccess(this.configuration.database, 'No collections to drop');
+      process.exit(0);
+    }
+    for (const collection of collectionList) {
+      await collection.drop();
+      CodegenHelper.logSuccess(this.configuration.database, `Dropped collection: ${collection.collectionName}`);
+    }
+    CodegenHelper.logSuccess(this.configuration.database, 'All collections dropped');
+    process.exit(0);
   }
 
   private create(migration: string): Promise<void> {
@@ -264,7 +282,7 @@ class MigrationMongoClass {
           '\n' +
           "const COLLECTION = 'mongoMigrationCollection';\n" +
           "const FIELD = 'mongoMigrationField';\n" +
-          "const INDEX = 'mongo_migration_index';\n" +
+          "const INDEX = '${FIELD}_index';\n" +
           '\n' +
           'export class MongoMigrationClass implements MigrationMongoInterface {\n' +
           '  public async up(db: Db): Promise<void> {\n' +

@@ -1,5 +1,3 @@
-import process from 'process';
-
 interface ConfigurationInterface<T> {
   result: T;
   errors: string[];
