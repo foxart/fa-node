@@ -36,6 +36,15 @@ class CodegenSingleton {
     console.log(result.join(''));
   }
 
+  public logWarning(context: string, message: string): void {
+    const result = [
+      ColorHelper.wrapData(context, foreground.WHITE),
+      ColorHelper.wrapData(` ${SymbolHelper.status.WARNING} `, [effect.BOLD, foreground.YELLOW]),
+      ColorHelper.wrapData(message, [effect.DIM, foreground.YELLOW]),
+    ];
+    console.log(result.join(''));
+  }
+
   public logError(context: string, err: Error): void {
     const result = [
       ColorHelper.wrapData(context, foreground.WHITE),
@@ -52,7 +61,7 @@ class CodegenSingleton {
         this.logError(this.fetchJson.name, new Error(response.statusText));
         return null;
       }
-      const json = (await response.json()) as unknown;
+      const json = await response.json();
       this.logSuccess(this.fetchJson.name, host);
       return json;
     } catch (e) {

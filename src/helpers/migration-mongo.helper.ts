@@ -2,47 +2,50 @@ import { MongoClient, WithId } from 'mongodb';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { CodegenHelper } from './codegen.helper';
+import { ColorHelper } from './color.helper';
 import { ConverterHelper } from './converter.helper';
 import { IoHelper } from './io.helper';
 import { ParserHelper } from './parser.helper';
 
-interface MigrationMongoConfigurationInterface {
-  database: string;
+export interface MigrationMongoInterface {
+  up(db: unknown): Promise<void>;
+  down(db: unknown): Promise<void>;
+}
+
+interface ConfigurationInterface {
   collection: string;
+  database: string;
   path: string;
   template?: string;
   uri: string;
 }
 
-export interface MigrationMongoInterface {
-  up(db: unknown): Promise<void>;
-
-  down(db: unknown): Promise<void>;
+enum CommandNameEnum {
+  DROP = 'drop',
+  CREATE = 'create <collection>`',
+  UP = 'up',
+  DOWN = 'down',
+  RESET = 'reset',
+  STATUS = 'status',
 }
 
-interface MigrationLogInterface {
+interface CollectionInterface {
   dateTime: Date;
   fileName: string;
-}
-
-interface CommandInterface {
-  name: string;
-  desc: string;
-  builder?: (yargs: CommandBuilderYargs) => void;
-  handler: (argv: { collection: string }) => void;
 }
 
 type CommandBuilderYargs = {
   positional: (arg0: string, arg1: yargs.Options) => void;
 };
 
-interface ConfigurationInterface {
-  uri: string;
-  database: string;
-  collection: string;
-  path: string;
-  template?: string;
+interface CommandInterface {
+  name: CommandNameEnum;
+  desc: string;
+  builder?: (yargs: CommandBuilderYargs) => void;
+  handler: (argv: { collection: string }) => void;
 }
+
+const { foreground, effect } = ColorHelper;
 
 class MigrationMongoClass {
   private static self: MigrationMongoClass;
@@ -67,14 +70,14 @@ class MigrationMongoClass {
     return MigrationMongoClass.self;
   }
 
-  public async migrate(configuration: MigrationMongoConfigurationInterface): Promise<void> {
+  public async migrate(configuration: ConfigurationInterface): Promise<void> {
     const { collection, database, template, uri } = configuration;
     this.configuration = {
       uri: uri,
-      database,
-      collection,
+      database: database,
+      collection: collection,
       path: `${process.cwd()}/${configuration.path}`,
-      template,
+      template: template,
     };
     await this.check();
     const yargsInstance = this.commandList.reduce(
@@ -111,13 +114,13 @@ class MigrationMongoClass {
     };
     return [
       {
-        name: this.drop.name,
+        name: CommandNameEnum.DROP,
         desc: 'Drops all collections in the database',
         builder: emptyBuilder,
         handler: (): void => void this.drop(),
       },
       {
-        name: `${this.create.name} <collection>`,
+        name: CommandNameEnum.CREATE,
         desc: 'Creates migration',
         builder: (yargs: CommandBuilderYargs): void => {
           yargs.positional('collection', {
@@ -128,30 +131,28 @@ class MigrationMongoClass {
         handler: (argv: { collection: string }): void => void this.create(argv.collection),
       },
       {
-        name: this.up.name,
+        name: CommandNameEnum.UP,
         desc: 'Applies migration',
         builder: emptyBuilder,
         handler: (): void => void this.up(),
       },
       {
-        name: this.down.name,
+        name: CommandNameEnum.DOWN,
         desc: 'Revokes migration',
         builder: emptyBuilder,
         handler: (): void => void this.down(),
       },
       {
-        name: this.reset.name,
+        name: CommandNameEnum.RESET,
         desc: 'Revokes migration',
         builder: emptyBuilder,
         handler: (): void => void this.reset(),
       },
       {
-        name: 'status',
+        name: CommandNameEnum.STATUS,
         desc: 'Lists all migrations',
         builder: emptyBuilder,
-        handler: (): void => {
-          console.log('Listing migrations...');
-        },
+        handler: (): void => void this.status(),
       },
     ];
   }
@@ -221,11 +222,18 @@ class MigrationMongoClass {
     CodegenHelper.displayMessage('migration', this.up.name);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
-    const logList = await logCollection.find({}, { sort: { _id: 1 } }).toArray();
+    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const migrationList = await collection.find({}, { sort: { _id: 1 } }).toArray();
     const fileList = IoHelper.scanFilesSync(this.configuration.path, { filter: [/\.ts$/, /\.js$/] })
       .map((file) => ParserHelper.excludePath(this.configuration.path, file))
-      .filter((file) => !logList.map((log) => log.fileName).includes(file));
+      .filter(
+        (file) =>
+          !migrationList
+            .map((migration) => {
+              return migration.fileName;
+            })
+            .includes(file),
+      );
     if (fileList.length) {
       for (const file of fileList) {
         await this.executeMigrationUp(file);
@@ -240,10 +248,10 @@ class MigrationMongoClass {
     CodegenHelper.displayMessage('migration', this.down.name);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
-    const log = await logCollection.findOne({}, { sort: { _id: -1 } });
-    if (log) {
-      await this.executeMigrationDown(log);
+    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const migrationList = await collection.findOne({}, { sort: { _id: -1 } });
+    if (migrationList) {
+      await this.executeMigrationDown(migrationList);
     } else {
       CodegenHelper.logSuccess(this.configuration.collection, `No migrations to ${this.down.name}`);
     }
@@ -254,10 +262,10 @@ class MigrationMongoClass {
     CodegenHelper.displayMessage('migration', this.reset.name);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
-    const logList = await logCollection.find({}, { sort: { _id: -1 } }).toArray();
-    if (logList.length) {
-      for (const log of logList) {
+    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const migrationList = await collection.find({}, { sort: { _id: -1 } }).toArray();
+    if (migrationList.length) {
+      for (const log of migrationList) {
         await this.executeMigrationDown(log);
       }
     } else {
@@ -266,6 +274,34 @@ class MigrationMongoClass {
     process.exit(0);
   }
 
+  private async status(): Promise<void> {
+    CodegenHelper.displayMessage('migration', this.status.name);
+    const client = await this.getMongoClient();
+    const db = client.db(this.configuration.database);
+    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const migrationList = await collection.find({}, { sort: { _id: 1 } }).toArray();
+    const migrationsSet = new Set(migrationList.map((log) => log.fileName));
+    const fileList = IoHelper.scanFilesSync(this.configuration.path, { filter: [/\.ts$/, /\.js$/] }).map((file) =>
+      ParserHelper.excludePath(this.configuration.path, file),
+    );
+    if (!fileList.length) {
+      CodegenHelper.logSuccess(this.configuration.collection, 'No migration files found.');
+      process.exit(0);
+    }
+    for (const file of fileList) {
+      const isApplied = migrationsSet.has(file);
+      if (isApplied) {
+        CodegenHelper.logSuccess(file, 'APPLIED');
+      } else {
+        CodegenHelper.logWarning(file, 'PENDING');
+      }
+    }
+    process.exit(0);
+  }
+
+  /**
+   *
+   */
   private getTemplate(timestamp: number, migrationName: string): string {
     const className = `${ConverterHelper.separatorToPascal(migrationName, '-')}_${timestamp}`;
     const collectionName = `${ConverterHelper.separatorToCamel(migrationName, '-')}_${timestamp}`;
@@ -333,10 +369,10 @@ class MigrationMongoClass {
     const migration = await this.getMigration(filePath);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
+    const collection = db.collection<CollectionInterface>(this.configuration.collection);
     try {
       await migration.up(db);
-      await logCollection.insertOne({
+      await collection.insertOne({
         dateTime: new Date(),
         fileName: filePath,
       });
@@ -347,14 +383,14 @@ class MigrationMongoClass {
     }
   }
 
-  private async executeMigrationDown(log: WithId<MigrationLogInterface>): Promise<void> {
+  private async executeMigrationDown(log: WithId<CollectionInterface>): Promise<void> {
     const migration = await this.getMigration(log.fileName);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const logCollection = db.collection<MigrationLogInterface>(this.configuration.collection);
+    const collection = db.collection<CollectionInterface>(this.configuration.collection);
     try {
       await migration.down(db);
-      await logCollection.deleteOne({ _id: log._id });
+      await collection.deleteOne({ _id: log._id });
       CodegenHelper.logSuccess(migration.constructor.name, log.fileName);
     } catch (e) {
       CodegenHelper.logError(migration.constructor.name, e as Error);
