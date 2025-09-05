@@ -20,7 +20,7 @@ class ConverterSingleton {
         const [newKey, newValue] = callback(key as keyof ObjectType, value);
         return [
           newKey,
-          recursive && DataHelper.isPlainObject(newValue)
+          recursive && DataHelper.isObject(newValue)
             ? this.mapObjectKeyValue(newValue as ObjectType, callback, recursive)
             : newValue,
         ];
@@ -38,7 +38,7 @@ class ConverterSingleton {
         const newKey = callback(key);
         return [
           newKey,
-          recursive && DataHelper.isPlainObject(value)
+          recursive && DataHelper.isObject(value)
             ? this.mapObjectKeys(value as ObjectType, callback, recursive)
             : value,
         ];
@@ -56,9 +56,7 @@ class ConverterSingleton {
         const newValue = callback(value);
         return [
           key,
-          recursive && DataHelper.isPlainObject(newValue)
-            ? this.mapDataValues(newValue, callback, recursive)
-            : newValue,
+          recursive && DataHelper.isObject(newValue) ? this.mapDataValues(newValue, callback, recursive) : newValue,
         ];
       }),
     ) as Record<keyof ObjectType, ValueType>;

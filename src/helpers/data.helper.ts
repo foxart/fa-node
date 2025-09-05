@@ -51,31 +51,12 @@ class DataSingleton {
     return result;
   }
 
-  public isInstanceObject(data: unknown): boolean {
-    return this.isPlainObject(data) && Object.getPrototypeOf(data) !== Object.prototype;
+  public isBuffer(data: unknown): boolean {
+    return data instanceof Buffer || Buffer.isBuffer(data);
   }
 
-  public isEmptyObject(data: unknown): boolean {
-    return this.isPlainObject(data) && Object.keys(data as object).length === 0;
-  }
-
-  public isEmptyArray(data: unknown): boolean {
-    return Array.isArray(data) && data.length === 0;
-  }
-
-  public isPlainObject(data: unknown): boolean {
-    if (Array.isArray(data)) {
-      return false;
-    } else if (data instanceof Date) {
-      return false;
-    } else if (data instanceof RegExp) {
-      return false;
-    } else if (data instanceof Object) {
-      /** Check for mongoId instance */
-      return !data.toString().match(/^[0-9a-fA-F]{24}$/);
-    } else {
-      return data instanceof Object && data.constructor === Object;
-    }
+  public isMongoId(data: unknown): boolean {
+    return data instanceof Object ? /^[0-9a-fA-F]{24}$/.test(data.toString()) : false;
   }
 
   public isPrimitive(data: unknown): boolean {
@@ -86,12 +67,41 @@ class DataSingleton {
       typeof data === 'number' ||
       typeof data === 'boolean' ||
       typeof data === 'symbol' ||
-      typeof data === 'bigint' ||
-      Buffer.isBuffer(data)
+      typeof data === 'bigint'
     );
   }
 
-  public isEmpty(data: unknown, options?: IsEmptyKeyValueInterface): boolean {
+  public isInstance(data: unknown): boolean {
+    return this.isObject(data) && Object.getPrototypeOf(data) !== Object.prototype;
+  }
+
+  public isObject(data: unknown): boolean {
+    if (this.isArray(data)) {
+      return false;
+    } else if (this.isMongoId(data) || data instanceof Date || data instanceof RegExp) {
+      return false;
+    } else if (data instanceof Map || data instanceof Set || data instanceof WeakMap || data instanceof WeakSet) {
+      return false;
+    } else if (this.isBuffer(data) || data instanceof Uint8Array) {
+      return false;
+    } else {
+      return data instanceof Object;
+    }
+  }
+
+  public isObjectEmpty(data: unknown | unknown[]): boolean {
+    return this.isObject(data) && Object.keys(data as object).length === 0;
+  }
+
+  public isArray(data: unknown | unknown[]): boolean {
+    return Array.isArray(data);
+  }
+
+  public isArrayEmpty(data: unknown | unknown[]): boolean {
+    return Array.isArray(data) && data.length === 0;
+  }
+
+  public isEmpty(data: unknown | unknown[], options?: IsEmptyKeyValueInterface): boolean {
     if (options?.undefined && data === undefined) {
       return true;
     } else if (options?.nullValue && data === null) {
@@ -100,12 +110,22 @@ class DataSingleton {
       return true;
     } else if (options?.zeroNumber && data === 0) {
       return true;
-    } else if (options?.emptyObject && this.isPlainObject(data)) {
-      return this.isEmptyObject(data);
-    } else if (options?.emptyArray && Array.isArray(data)) {
-      return data.length === 0;
+    } else if (options?.emptyObject && this.isObjectEmpty(data)) {
+      return true;
+    } else if (options?.emptyArray && this.isArrayEmpty(data)) {
+      return true;
     }
     return false;
+  }
+
+  public isValidationFree(data: unknown | unknown[]): boolean {
+    return (
+      !DataHelper.isInstance(data) ||
+      (Array.isArray(data) &&
+        data.some((item) => {
+          return !DataHelper.isInstance(item);
+        }))
+    );
   }
 
   public filterEmpty<DATA>(
@@ -121,14 +141,14 @@ class DataSingleton {
         .filter((item) => {
           return !this.isEmpty(item, options?.array);
         }) as DATA;
-    } else if (this.isPlainObject(data)) {
+    } else if (this.isObject(data)) {
       return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
-        if (this.isPlainObject(value) || Array.isArray(value)) {
+        if (this.isObject(value) || this.isArray(value)) {
           const result = recursive ? this.filterEmpty(value, options, recursive) : value;
-          if (options?.object?.emptyObject && this.isEmptyObject(result)) {
+          if (options?.object?.emptyObject && this.isObjectEmpty(result)) {
             return acc;
           }
-          if (options?.array?.emptyArray && this.isEmptyArray(result)) {
+          if (options?.array?.emptyArray && this.isArrayEmpty(result)) {
             return acc;
           }
           return { ...acc, [key]: result };
@@ -148,9 +168,9 @@ class DataSingleton {
       return data.map((item: DATA) => {
         return this.mapCallback(item, callback, recursive);
       }) as DATA;
-    } else if (this.isPlainObject(data)) {
+    } else if (this.isObject(data)) {
       return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
-        if (this.isPlainObject(value) && recursive) {
+        if (this.isObject(value) && recursive) {
           return { ...acc, [key]: recursive ? this.mapCallback(value, callback, recursive) : value };
         }
         return { ...acc, [key]: callback(key, value) };
@@ -165,12 +185,12 @@ class DataSingleton {
       return data.map((item) => {
         return this.excludeKeys(item as DATA, keys, recursive);
       }) as unknown as Partial<DATA>;
-    } else if (this.isPlainObject(data)) {
+    } else if (this.isObject(data)) {
       return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
         if (keys.includes(key)) {
           return acc;
         }
-        if (this.isPlainObject(value) && recursive) {
+        if (this.isObject(value) && recursive) {
           return { ...acc, [key]: this.excludeKeys(value as DATA, keys, recursive) };
         }
         return { ...acc, [key]: value };
@@ -187,12 +207,12 @@ class DataSingleton {
         .map((item) => {
           return this.excludeValues(item as DATA, values, recursive);
         }) as unknown as Partial<DATA>;
-    } else if (this.isPlainObject(data)) {
+    } else if (this.isObject(data)) {
       return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
         if (values.includes(value)) {
           return acc;
         }
-        if (this.isPlainObject(value) && recursive) {
+        if (this.isObject(value) && recursive) {
           return {
             ...acc,
             [key]: this.excludeValues(value as DATA, values, recursive),

@@ -26,7 +26,7 @@ interface MethodDecoratorInterface {
   afterResultCallback?: MethodAfterResultCallbackMetadataType;
 }
 
-interface MethodCallbackMetadataInterface {
+export interface MethodCallbackMetadataInterface {
   className: string;
   classData?: unknown;
   methodName: string;
@@ -55,7 +55,7 @@ interface ParameterDecoratorInterface {
   callback?: ParameterCallbackMetadataType;
 }
 
-interface ParameterCallbackMetadataInterface extends MethodCallbackMetadataInterface {
+export interface ParameterCallbackMetadataInterface extends MethodCallbackMetadataInterface {
   parameterIndex: number;
   parameterCurrentIndex: number;
   parameterName: string;
