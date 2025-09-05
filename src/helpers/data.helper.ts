@@ -98,9 +98,8 @@ class DataSingleton {
   }
 
   public isArrayEmpty(data: unknown | unknown[]): boolean {
-    return Array.isArray(data) && data.length === 0;
+    return this.isArray(data) && (data as []).length === 0;
   }
-
   public isEmpty(data: unknown | unknown[], options?: IsEmptyKeyValueInterface): boolean {
     if (options?.undefined && data === undefined) {
       return true;
@@ -117,15 +116,12 @@ class DataSingleton {
     }
     return false;
   }
-
   public isValidationFree(data: unknown | unknown[]): boolean {
-    return (
-      !DataHelper.isInstance(data) ||
-      (Array.isArray(data) &&
-        data.some((item) => {
-          return !DataHelper.isInstance(item);
-        }))
-    );
+    return this.isArray(data)
+      ? (data as []).some((item) => {
+          return !this.isInstance(item) && !this.isObject(item);
+        })
+      : !this.isInstance(data) && !this.isObject(data);
   }
 
   public filterEmpty<DATA>(
