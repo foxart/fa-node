@@ -45,7 +45,8 @@ export class ConsoleNestClass {
     if (level === ConsoleLevelEnum.DBG) {
       this.consoleClass.printTrace(
         level,
-        ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+        // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+        ParserHelper.parseStack(new Error().stack),
       );
     }
     this.consoleClass.processStdout('\n');

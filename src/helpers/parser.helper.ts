@@ -60,7 +60,7 @@ class ParserSingleton {
     return ParserSingleton.self;
   }
 
-  public parseStack1(stack = ''): ParserTraceInterface[] {
+  public parseStack(stack = ''): ParserTraceInterface[] {
     const result: ParserTraceInterface[] = [];
     let match;
     while ((match = this.stackRegexp.exec(stack)) !== null) {
@@ -74,7 +74,7 @@ class ParserSingleton {
     return result;
   }
 
-  public parseStack(stack = '', options: ParseStackOptionInterface = {}): ParserTraceInterface[] {
+  public parseStackNew(stack = '', options: ParseStackOptionInterface = {}): ParserTraceInterface[] {
     const result: ParserTraceInterface[] = [];
     let match;
     while ((match = this.stackRegexp.exec(stack)) !== null) {

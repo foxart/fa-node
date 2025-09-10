@@ -54,7 +54,8 @@ export class ConsoleSystemClass {
   public log(...data: unknown[]): void {
     this.print(
       ConsoleLevelEnum.LOG,
-      ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+      // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+      ParserHelper.parseStack(new Error().stack),
       data,
     );
   }
@@ -62,7 +63,8 @@ export class ConsoleSystemClass {
   public info(...data: unknown[]): void {
     this.print(
       ConsoleLevelEnum.INF,
-      ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+      // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+      ParserHelper.parseStack(new Error().stack),
       data,
     );
   }
@@ -70,7 +72,8 @@ export class ConsoleSystemClass {
   public warn(...data: unknown[]): void {
     this.print(
       ConsoleLevelEnum.WRN,
-      ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+      // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+      ParserHelper.parseStack(new Error().stack),
       data,
     );
   }
@@ -78,7 +81,8 @@ export class ConsoleSystemClass {
   public error(...data: unknown[]): void {
     this.print(
       ConsoleLevelEnum.ERR,
-      ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+      // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+      ParserHelper.parseStack(new Error().stack),
       data,
     );
   }
@@ -105,7 +109,8 @@ export class ConsoleSystemClass {
     if (level === ConsoleLevelEnum.DBG && this.options.stackDebug) {
       this.printTrace(
         level,
-        ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+        // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+        ParserHelper.parseStack(new Error().stack),
       );
     }
     this.printPerformance();
@@ -184,7 +189,8 @@ export class ConsoleSystemClass {
     if (this.options.stackError) {
       this.printTrace(
         ConsoleLevelEnum.ERR,
-        ParserHelper.parseStack(error.stack, { excludeNode: true, trimPath: process.cwd() }),
+        // ParserHelper.parseStack(error.stack, { excludeNode: true, trimPath: process.cwd() }),
+        ParserHelper.parseStack(error.stack),
       );
     }
   }
@@ -301,7 +307,8 @@ export class ConsoleSystemClass {
           name: value.name,
           message:
             value instanceof ErrorClass && value.messageIsJson ? DataHelper.fromJson(value.message) : value.message,
-          stack: ParserHelper.parseStack(value.stack, { excludeNode: true, trimPath: process.cwd() }),
+          // stack: ParserHelper.parseStack(value.stack, { excludeNode: true, trimPath: process.cwd() }),
+          stack: ParserHelper.parseStack(value.stack),
         };
       }
       if (typeof value === 'object' && value !== null) {
