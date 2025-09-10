@@ -220,6 +220,7 @@ class DataSingleton {
       return data;
     }
   }
+
   public toJson(data: unknown, indent?: number): string {
     const cache: unknown[] = [];
     return JSON.stringify(
@@ -274,11 +275,15 @@ class DataSingleton {
   //   );
   // }
 
-  public fromJson<T>(data: string): T | undefined {
+  public fromJson<T>(data: string): T | string {
+    // if (typeof data === 'string') {
+    // } else {
+    //   return data as T;
+    // }
     try {
       return JSON.parse(data) as T;
     } catch (e) {
-      return undefined;
+      return data;
     }
   }
 }

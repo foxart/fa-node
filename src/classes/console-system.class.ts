@@ -1,6 +1,7 @@
 import * as process from 'node:process';
 import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
+import { DataHelper } from '../helpers/data.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ErrorClass } from './error.class';
 
@@ -175,13 +176,7 @@ export class ConsoleSystemClass {
     this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.RED]));
     this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.RED]));
     if (error instanceof ErrorClass && error.messageIsJson) {
-      // const data = JSON.parse(error.message) as unknown;
-      // if (typeof data === 'string') {
-      //   this.processStdout(data);
-      // } else {
-      //   this.processStdout(this.dataWrapper(data));
-      // }
-      this.processStdout(this.dataWrapper(JSON.parse(error.message) as unknown));
+      this.processStdout(this.dataWrapper(DataHelper.fromJson(error.message)));
     } else {
       this.processStdout(error.message);
     }
@@ -289,23 +284,50 @@ export class ConsoleSystemClass {
     return ColorHelper.wrapData(data, colors);
   }
 
+  // public dataWrapper(data: unknown): string {
+  //   return util.inspect(data, {
+  //     colors: this.options.color,
+  //     showHidden: this.options.hidden,
+  //     sorted: this.options.sort,
+  //     depth: null,
+  //   });
+  // }
+
   public dataWrapper(data: unknown): string {
-    return util.inspect(data, {
+    const cache: unknown[] = [];
+    const safeData = (value: unknown): unknown => {
+      if (value instanceof Error) {
+        return {
+          name: value.name,
+          message:
+            value instanceof ErrorClass && value.messageIsJson ? DataHelper.fromJson(value.message) : value.message,
+          stack: ParserHelper.parseStack(value.stack, { excludeNode: true, trimPath: process.cwd() }),
+        };
+      }
+      if (typeof value === 'object' && value !== null) {
+        if (cache.includes(value)) {
+          return '[CIRCULAR]';
+        }
+        cache.push(value);
+        if (Array.isArray(value)) {
+          return value.map(safeData);
+        } else {
+          const result: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(value)) {
+            result[k] = safeData(v);
+          }
+          return result;
+        }
+      }
+      return value;
+    };
+
+    return util.inspect(safeData(data), {
       colors: this.options.color,
       showHidden: this.options.hidden,
       sorted: this.options.sort,
       depth: null,
     });
-    // try {
-    //   return util.inspect(data, {
-    //     colors: this.options.color,
-    //     showHidden: this.options.hidden,
-    //     sorted: this.options.sort,
-    //     depth: null,
-    //   });
-    // } catch {
-    //   return util.inspect(JSON.parse(DataHelper.toJson(data)));
-    // }
   }
 
   public processStdout(data: string): void {
