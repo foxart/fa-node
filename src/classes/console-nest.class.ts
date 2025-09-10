@@ -43,7 +43,10 @@ export class ConsoleNestClass {
     }
     this.consoleClass.printPerformance();
     if (level === ConsoleLevelEnum.DBG) {
-      this.consoleClass.printTrace(level, ParserHelper.parseStack(new Error().stack));
+      this.consoleClass.printTrace(
+        level,
+        ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+      );
     }
     this.consoleClass.processStdout('\n');
     this.printLink(level, metadata.file, !info.length);

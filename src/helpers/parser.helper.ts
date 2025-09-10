@@ -10,6 +10,11 @@ interface PathInterface {
   extension: string;
 }
 
+interface ParseStackOptionInterface {
+  excludeNode?: boolean;
+  trimPath?: string;
+}
+
 interface UrlInterface {
   href: string;
   protocol?: string;
@@ -55,7 +60,7 @@ class ParserSingleton {
     return ParserSingleton.self;
   }
 
-  public parseStack(stack = ''): ParserTraceInterface[] {
+  public parseStack1(stack = ''): ParserTraceInterface[] {
     const result: ParserTraceInterface[] = [];
     let match;
     while ((match = this.stackRegexp.exec(stack)) !== null) {
@@ -69,18 +74,27 @@ class ParserSingleton {
     return result;
   }
 
-  public prettifyTrace(basePath: string, trace: ParserTraceInterface[]): ParserTraceInterface[] {
-    return trace
-      .filter((item) => {
-        return !item.file.includes('node_modules/') && !item.file.includes('node:');
-      })
-      .map((item) => {
-        return {
-          method: item.method,
-          file: this.excludePath(basePath, item.file),
-          caller: item.caller,
-        };
-      });
+  public parseStack(stack = '', options: ParseStackOptionInterface = {}): ParserTraceInterface[] {
+    const result: ParserTraceInterface[] = [];
+    let match;
+    while ((match = this.stackRegexp.exec(stack)) !== null) {
+      const context = match[1].includes('.') ? match[1].split('.') : match[1].split(' ');
+      const traceItem: ParserTraceInterface = {
+        caller: context[0] || '',
+        method: context[1] || '',
+        file: match[2] || '',
+      };
+      if (options.excludeNode) {
+        if (traceItem.file.includes('node_modules/') || traceItem.file.includes('node:')) {
+          continue;
+        }
+      }
+      if (options.trimPath) {
+        traceItem.file = this.excludePath(options.trimPath, traceItem.file);
+      }
+      result.push(traceItem);
+    }
+    return result;
   }
 
   public excludePath(basePath: string, targetPath: string): string {

@@ -220,7 +220,6 @@ class DataSingleton {
       return data;
     }
   }
-
   public toJson(data: unknown, indent?: number): string {
     const cache: unknown[] = [];
     return JSON.stringify(
@@ -235,11 +234,50 @@ class DataSingleton {
     );
   }
 
-  public fromJson(data: string): unknown | undefined {
+  // public toJson(data: unknown, indent?: number): string {
+  //   const cache: unknown[] = [];
+  //   const parseStrings = (value: unknown): unknown => {
+  //     if (typeof value === 'string') {
+  //       try {
+  //         const parsed = JSON.parse(value) as unknown;
+  //         if (typeof parsed === 'object' && parsed !== null) {
+  //           return parseStrings(parsed);
+  //         }
+  //         return value; // число, строка, булеан — оставим как есть
+  //       } catch {
+  //         return value; // невалидный JSON — оставим как есть
+  //       }
+  //     } else if (Array.isArray(value)) {
+  //       return value.map(parseStrings);
+  //     } else if (typeof value === 'object' && value !== null) {
+  //       const result: Record<string, unknown> = {};
+  //       for (const [k, v] of Object.entries(value)) {
+  //         result[k] = parseStrings(v);
+  //       }
+  //       return result;
+  //     }
+  //     return value; // примитивы
+  //   };
+  //   const processed = parseStrings(data);
+  //   return JSON.stringify(
+  //     processed,
+  //     (_key, value: unknown) => {
+  //       if (typeof value === 'object' && value !== null) {
+  //         if (cache.includes(value)) {
+  //           return '[CIRCULAR]';
+  //         }
+  //         cache.push(value);
+  //       }
+  //       return value;
+  //     },
+  //     indent ?? 2,
+  //   );
+  // }
+
+  public fromJson<T>(data: string): T | undefined {
     try {
-      return JSON.parse(data);
+      return JSON.parse(data) as T;
     } catch (e) {
-      console.error(e);
       return undefined;
     }
   }

@@ -54,14 +54,14 @@ class CodegenSingleton {
     console.log(result.join(''));
   }
 
-  public async fetchJson(host: string, init: RequestInit): Promise<unknown | null> {
+  public async fetchJson<T>(host: string, init: RequestInit): Promise<T | null> {
     try {
       const response = await fetch(host, init);
       if (!response.ok) {
         this.logError(this.fetchJson.name, new Error(response.statusText));
         return null;
       }
-      const json = await response.json();
+      const json = (await response.json()) as T;
       this.logSuccess(this.fetchJson.name, host);
       return json;
     } catch (e) {
