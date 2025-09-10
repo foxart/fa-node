@@ -60,41 +60,19 @@ class ParserSingleton {
     return ParserSingleton.self;
   }
 
-  public parseStack(stack = ''): ParserTraceInterface[] {
-    const result: ParserTraceInterface[] = [];
-    let match;
-    while ((match = this.stackRegexp.exec(stack)) !== null) {
-      const context = match[1].includes('.') ? match[1].split('.') : match[1].split(' ');
-      result.push({
-        caller: context[0] || '',
-        method: context[1] || '',
-        file: match[2] || '',
-      });
-    }
-    return result;
-  }
-
-  public parseStackNew(stack = '', options: ParseStackOptionInterface = {}): ParserTraceInterface[] {
-    const result: ParserTraceInterface[] = [];
-    let match;
-    while ((match = this.stackRegexp.exec(stack)) !== null) {
+  public parseStack(stack = '', trim?: string): ParserTraceInterface[] {
+    const traceList: ParserTraceInterface[] = [];
+    for (let match; (match = this.stackRegexp.exec(stack)); ) {
       const context = match[1].includes('.') ? match[1].split('.') : match[1].split(' ');
       const traceItem: ParserTraceInterface = {
         caller: context[0] || '',
         method: context[1] || '',
-        file: match[2] || '',
+        // file: match[2] || '',
+        file: trim ? this.excludePath(trim, match[2]) : match[2],
       };
-      if (options.excludeNode) {
-        if (traceItem.file.includes('node_modules/') || traceItem.file.includes('node:')) {
-          continue;
-        }
-      }
-      if (options.trimPath) {
-        traceItem.file = this.excludePath(options.trimPath, traceItem.file);
-      }
-      result.push(traceItem);
+      traceList.push(traceItem);
     }
-    return result;
+    return traceList;
   }
 
   public excludePath(basePath: string, targetPath: string): string {

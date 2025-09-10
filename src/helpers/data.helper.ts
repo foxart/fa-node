@@ -1,3 +1,6 @@
+import { ErrorClass } from '../classes/error.class';
+import { ParserHelper } from './parser.helper';
+
 interface IsEmptyKeyValueInterface {
   undefined?: boolean;
   nullValue?: boolean;
@@ -221,16 +224,46 @@ class DataSingleton {
     }
   }
 
+  public safeCircular(data: unknown, trimStack = ''): unknown {
+    const cache: unknown[] = [];
+    const walk = (item: unknown): unknown => {
+      if (item instanceof Error) {
+        return {
+          name: item.name,
+          message: item instanceof ErrorClass && item.messageIsJson ? DataHelper.fromJson(item.message) : item.message,
+          stack: trimStack ? ParserHelper.parseStack(item.stack, trimStack) : item.stack,
+        };
+      }
+      if (typeof item === 'object' && item !== null) {
+        if (cache.includes(item)) {
+          return '[CIRCULAR]';
+        }
+        cache.push(item);
+        if (Array.isArray(item)) {
+          return item.map(walk);
+        }
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(item)) {
+          result[key] = walk(value);
+        }
+        return result;
+      }
+      return item;
+    };
+    return walk(data);
+  }
+
   public toJson(data: unknown, indent?: number): string {
     const cache: unknown[] = [];
     return JSON.stringify(
       data,
-      (_key, value: unknown) =>
-        typeof value === 'object' && value !== null
+      (_key, value: unknown) => {
+        return typeof value === 'object' && value !== null
           ? cache.includes(value)
-            ? '[CIRCULAR]'
+            ? '[Converting circular structure to JSON]'
             : cache.push(value) && value
-          : value,
+          : value;
+      },
       indent ?? 2,
     );
   }

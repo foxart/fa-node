@@ -52,47 +52,27 @@ export class ConsoleSystemClass {
   }
 
   public log(...data: unknown[]): void {
-    this.print(
-      ConsoleLevelEnum.LOG,
-      // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
-      ParserHelper.parseStack(new Error().stack),
-      data,
-    );
+    this.print(ConsoleLevelEnum.LOG, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
   }
 
   public info(...data: unknown[]): void {
-    this.print(
-      ConsoleLevelEnum.INF,
-      // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
-      ParserHelper.parseStack(new Error().stack),
-      data,
-    );
+    this.print(ConsoleLevelEnum.INF, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
   }
 
   public warn(...data: unknown[]): void {
-    this.print(
-      ConsoleLevelEnum.WRN,
-      // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
-      ParserHelper.parseStack(new Error().stack),
-      data,
-    );
+    this.print(ConsoleLevelEnum.WRN, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
   }
 
   public error(...data: unknown[]): void {
-    this.print(
-      ConsoleLevelEnum.ERR,
-      // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
-      ParserHelper.parseStack(new Error().stack),
-      data,
-    );
+    this.print(ConsoleLevelEnum.ERR, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
   }
 
   public debug(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.DBG, ParserHelper.parseStack(new Error().stack), data);
+    this.print(ConsoleLevelEnum.DBG, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
   }
 
   public custom(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.CST, ParserHelper.parseStack(new Error().stack), data);
+    this.print(ConsoleLevelEnum.CST, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
   }
 
   public print(level: ConsoleLevelEnum, trace: ParserTraceInterface[], args: unknown[]): void {
@@ -109,7 +89,7 @@ export class ConsoleSystemClass {
     if (level === ConsoleLevelEnum.DBG && this.options.stackDebug) {
       this.printTrace(
         level,
-        // ParserHelper.parseStack(new Error().stack, { excludeNode: true, trimPath: process.cwd() }),
+        // ParserHelper.parseStack(new Error().stack, process.cwd()),
         ParserHelper.parseStack(new Error().stack),
       );
     }
@@ -187,11 +167,7 @@ export class ConsoleSystemClass {
     }
     this.processStdout(' ');
     if (this.options.stackError) {
-      this.printTrace(
-        ConsoleLevelEnum.ERR,
-        // ParserHelper.parseStack(error.stack, { excludeNode: true, trimPath: process.cwd() }),
-        ParserHelper.parseStack(error.stack),
-      );
+      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.parseStack(error.stack, process.cwd()));
     }
   }
 
@@ -290,46 +266,8 @@ export class ConsoleSystemClass {
     return ColorHelper.wrapData(data, colors);
   }
 
-  // public dataWrapper(data: unknown): string {
-  //   return util.inspect(data, {
-  //     colors: this.options.color,
-  //     showHidden: this.options.hidden,
-  //     sorted: this.options.sort,
-  //     depth: null,
-  //   });
-  // }
-
   public dataWrapper(data: unknown): string {
-    const cache: unknown[] = [];
-    const safeData = (value: unknown): unknown => {
-      if (value instanceof Error) {
-        return {
-          name: value.name,
-          message:
-            value instanceof ErrorClass && value.messageIsJson ? DataHelper.fromJson(value.message) : value.message,
-          // stack: ParserHelper.parseStack(value.stack, { excludeNode: true, trimPath: process.cwd() }),
-          stack: ParserHelper.parseStack(value.stack),
-        };
-      }
-      if (typeof value === 'object' && value !== null) {
-        if (cache.includes(value)) {
-          return '[CIRCULAR]';
-        }
-        cache.push(value);
-        if (Array.isArray(value)) {
-          return value.map(safeData);
-        } else {
-          const result: Record<string, unknown> = {};
-          for (const [k, v] of Object.entries(value)) {
-            result[k] = safeData(v);
-          }
-          return result;
-        }
-      }
-      return value;
-    };
-
-    return util.inspect(safeData(data), {
+    return util.inspect(DataHelper.safeCircular(data), {
       colors: this.options.color,
       showHidden: this.options.hidden,
       sorted: this.options.sort,
