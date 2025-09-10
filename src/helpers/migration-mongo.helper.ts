@@ -2,10 +2,9 @@ import { MongoClient, WithId } from 'mongodb';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { CodegenHelper } from './codegen.helper';
-import { ColorHelper } from './color.helper';
 import { ConverterHelper } from './converter.helper';
+import { DataHelper } from './data.helper';
 import { IoHelper } from './io.helper';
-import { ParserHelper } from './parser.helper';
 
 export interface MigrationMongoInterface {
   up(db: unknown): Promise<void>;
@@ -44,8 +43,6 @@ interface CommandInterface {
   builder?: (yargs: CommandBuilderYargs) => void;
   handler: (argv: { collection: string }) => void;
 }
-
-const { foreground, effect } = ColorHelper;
 
 class MigrationMongoClass {
   private static self: MigrationMongoClass;
@@ -213,7 +210,7 @@ class MigrationMongoClass {
     IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
     CodegenHelper.logSuccess(
       `${ConverterHelper.separatorToPascal(migrationName, '-')}_${timestamp}`,
-      ParserHelper.excludePath(this.configuration.path, filePath),
+      DataHelper.excludePath(filePath, this.configuration.path),
     );
     process.exit(0);
   }
@@ -225,7 +222,7 @@ class MigrationMongoClass {
     const collection = db.collection<CollectionInterface>(this.configuration.collection);
     const migrationList = await collection.find({}, { sort: { _id: 1 } }).toArray();
     const fileList = IoHelper.scanFilesSync(this.configuration.path, { filter: [/\.ts$/, /\.js$/] })
-      .map((file) => ParserHelper.excludePath(this.configuration.path, file))
+      .map((filePath) => DataHelper.excludePath(filePath, this.configuration.path))
       .filter(
         (file) =>
           !migrationList
@@ -281,8 +278,8 @@ class MigrationMongoClass {
     const collection = db.collection<CollectionInterface>(this.configuration.collection);
     const migrationList = await collection.find({}, { sort: { _id: 1 } }).toArray();
     const migrationsSet = new Set(migrationList.map((log) => log.fileName));
-    const fileList = IoHelper.scanFilesSync(this.configuration.path, { filter: [/\.ts$/, /\.js$/] }).map((file) =>
-      ParserHelper.excludePath(this.configuration.path, file),
+    const fileList = IoHelper.scanFilesSync(this.configuration.path, { filter: [/\.ts$/, /\.js$/] }).map((filePath) =>
+      DataHelper.excludePath(filePath, this.configuration.path),
     );
     if (!fileList.length) {
       CodegenHelper.logSuccess(this.configuration.collection, 'No migration files found.');

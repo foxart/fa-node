@@ -52,27 +52,27 @@ export class ConsoleSystemClass {
   }
 
   public log(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.LOG, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
+    this.print(ConsoleLevelEnum.LOG, this.getStack(new Error().stack), data);
   }
 
   public info(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.INF, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
+    this.print(ConsoleLevelEnum.INF, this.getStack(new Error().stack), data);
   }
 
   public warn(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.WRN, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
+    this.print(ConsoleLevelEnum.WRN, this.getStack(new Error().stack), data);
   }
 
   public error(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.ERR, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
+    this.print(ConsoleLevelEnum.ERR, this.getStack(new Error().stack), data);
   }
 
   public debug(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.DBG, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
+    this.print(ConsoleLevelEnum.DBG, this.getStack(new Error().stack), data);
   }
 
   public custom(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.CST, ParserHelper.parseStack(new Error().stack, process.cwd()), data);
+    this.print(ConsoleLevelEnum.CST, this.getStack(new Error().stack), data);
   }
 
   public print(level: ConsoleLevelEnum, trace: ParserTraceInterface[], args: unknown[]): void {
@@ -87,11 +87,7 @@ export class ConsoleSystemClass {
       }
     });
     if (level === ConsoleLevelEnum.DBG && this.options.stackDebug) {
-      this.printTrace(
-        level,
-        // ParserHelper.parseStack(new Error().stack, process.cwd()),
-        ParserHelper.parseStack(new Error().stack),
-      );
+      this.printTrace(level, this.getStack(new Error().stack));
     }
     this.printPerformance();
     this.printLink(level, trace[this.stackIndex].file);
@@ -129,7 +125,7 @@ export class ConsoleSystemClass {
         } else {
           this.processStdout('    ');
         }
-        this.processStdout(ParserHelper.excludePath(process.cwd(), item.file));
+        this.processStdout(DataHelper.excludePath(item.file, process.cwd()));
       });
     this.processStdout(`\n${this.colorWrapper('}', [effect.BOLD, foreground.CYAN])}`);
     this.processStdout(' ');
@@ -153,7 +149,7 @@ export class ConsoleSystemClass {
         this.processStdout(this.colorWrapper(' at ', this.getBackground(level)));
         this.processStdout(' ');
       }
-      this.processStdout(ParserHelper.excludePath(process.cwd(), link));
+      this.processStdout(DataHelper.excludePath(link, process.cwd()));
     }
   }
 
@@ -167,7 +163,7 @@ export class ConsoleSystemClass {
     }
     this.processStdout(' ');
     if (this.options.stackError) {
-      this.printTrace(ConsoleLevelEnum.ERR, ParserHelper.parseStack(error.stack, process.cwd()));
+      this.printTrace(ConsoleLevelEnum.ERR, this.getStack(error.stack));
     }
   }
 
@@ -225,6 +221,16 @@ export class ConsoleSystemClass {
     return isoTime.replace(TIME_REGEX, formatTime);
   }
 
+  public getStack(stack?: string): ParserTraceInterface[] {
+    return ParserHelper.parseStack(stack).map((item) => {
+      return {
+        caller: item.caller,
+        method: item.method,
+        file: DataHelper.excludePath(item.file, process.cwd()),
+      };
+    });
+  }
+
   public getBackground(level: ConsoleLevelEnum): string {
     switch (level) {
       case ConsoleLevelEnum.LOG:
@@ -267,7 +273,7 @@ export class ConsoleSystemClass {
   }
 
   public dataWrapper(data: unknown): string {
-    return util.inspect(DataHelper.safeCircular(data), {
+    return util.inspect(DataHelper.safeCircular(data, process.cwd()), {
       colors: this.options.color,
       showHidden: this.options.hidden,
       sorted: this.options.sort,

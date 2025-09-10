@@ -91,7 +91,7 @@ console.clear();
 /**
  *
  */
-void import('./helpers/configuration-helper.example').then((module) => module.run());
+// void import('./helpers/configuration-helper.example').then((module) => module.run());
 /**
  *
  */
@@ -101,3 +101,6 @@ void import('./helpers/configuration-helper.example').then((module) => module.ru
 /**
  *
  */
+const error = new Error('Error');
+console.log(error);
+console.log({ error });

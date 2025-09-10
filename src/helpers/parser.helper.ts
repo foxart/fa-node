@@ -10,11 +10,6 @@ interface PathInterface {
   extension: string;
 }
 
-interface ParseStackOptionInterface {
-  excludeNode?: boolean;
-  trimPath?: string;
-}
-
 interface UrlInterface {
   href: string;
   protocol?: string;
@@ -60,27 +55,19 @@ class ParserSingleton {
     return ParserSingleton.self;
   }
 
-  public parseStack(stack = '', trim?: string): ParserTraceInterface[] {
+  public parseStack(stack = ''): ParserTraceInterface[] {
     const traceList: ParserTraceInterface[] = [];
     for (let match; (match = this.stackRegexp.exec(stack)); ) {
       const context = match[1].includes('.') ? match[1].split('.') : match[1].split(' ');
       const traceItem: ParserTraceInterface = {
         caller: context[0] || '',
         method: context[1] || '',
-        // file: match[2] || '',
-        file: trim ? this.excludePath(trim, match[2]) : match[2],
+        file: match[2] || '',
+        // file: excludePath ? DataHelper.excludePath(match[2], excludePath) : match[2],
       };
       traceList.push(traceItem);
     }
     return traceList;
-  }
-
-  public excludePath(basePath: string, targetPath: string): string {
-    if (targetPath.startsWith(basePath)) {
-      const cleanedPath = targetPath.replace(basePath, '').replace(/^\/|\/$/g, '');
-      return cleanedPath || '.';
-    }
-    return targetPath.replace(/^\/|\/$/g, '');
   }
 
   public parsePath(fullPath: string): PathInterface {

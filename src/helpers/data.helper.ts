@@ -224,14 +224,32 @@ class DataSingleton {
     }
   }
 
-  public safeCircular(data: unknown, trimStack = ''): unknown {
+  public excludePath(path: string, exclude: string): string {
+    if (path.startsWith(exclude)) {
+      const cleanedPath = path.replace(exclude, '').replace(/^\/|\/$/g, '');
+      return cleanedPath || '.';
+    }
+    return path.replace(/^\/|\/$/g, '');
+  }
+
+  public safeCircular(data: unknown, excludePath = ''): unknown {
     const cache: unknown[] = [];
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
+        const stack = ParserHelper.parseStack(item.stack)
+          .filter((trace) => {
+            return !trace.file.includes('node_modules/') && !trace.file.includes('node:');
+          })
+          .map((trace) => {
+            return {
+              ...trace,
+              file: excludePath ? DataHelper.excludePath(trace.file, excludePath) : trace.file,
+            };
+          });
         return {
           name: item.name,
           message: item instanceof ErrorClass && item.messageIsJson ? DataHelper.fromJson(item.message) : item.message,
-          stack: trimStack ? ParserHelper.parseStack(item.stack, trimStack) : item.stack,
+          stack: stack,
         };
       }
       if (typeof item === 'object' && item !== null) {

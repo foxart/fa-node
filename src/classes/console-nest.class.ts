@@ -1,4 +1,5 @@
 import { ColorHelper } from '../helpers/color.helper';
+import { DataHelper } from '../helpers/data.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ConsoleLevelEnum, ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.class';
 import { ErrorClass } from './error.class';
@@ -43,7 +44,7 @@ export class ConsoleNestClass {
     }
     this.consoleClass.printPerformance();
     if (level === ConsoleLevelEnum.DBG) {
-      this.consoleClass.printTrace(level, ParserHelper.parseStack(new Error().stack, process.cwd()));
+      this.consoleClass.printTrace(level, ParserHelper.parseStack(new Error().stack));
     }
     this.consoleClass.processStdout('\n');
     this.printLink(level, metadata.file, !info.length);
@@ -135,11 +136,11 @@ export class ConsoleNestClass {
     this.consoleClass.processStdout(' ');
   }
 
-  private printLink(level: ConsoleLevelEnum, file: string | undefined, indent: boolean): void {
+  private printLink(level: ConsoleLevelEnum, filePath: string | undefined, indent: boolean): void {
     if (!this.options.info) {
       return;
     }
-    if (file) {
+    if (filePath) {
       if (this.options.info) {
         this.consoleClass.processStdout(
           this.consoleClass.colorWrapper(indent ? '   at ' : 'at ', [
@@ -148,7 +149,7 @@ export class ConsoleNestClass {
           ]),
         );
       }
-      this.consoleClass.processStdout(ParserHelper.excludePath(process.cwd(), file));
+      this.consoleClass.processStdout(DataHelper.excludePath(filePath, process.cwd()));
       // this.consoleClass.processStdout(file);
       this.consoleClass.processStdout('\n');
     }
