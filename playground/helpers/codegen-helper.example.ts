@@ -6,5 +6,5 @@ export function CodegenHelperExample(): void {
   const message = 'dolor sit amet';
   CodegenHelper.displayMessage(name, message);
   CodegenHelper.logSuccess(name, message);
-  CodegenHelper.logError(name, message, new Error('Custom error'));
+  CodegenHelper.logError(name, new Error('Custom error'));
 }

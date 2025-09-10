@@ -17,7 +17,6 @@ export function run(): void {
   const errorClass = new ErrorClass({
     name: 'Custom name',
     message: 'Custom message',
-    details: { a: 1 },
     status: 500,
   });
   /**
