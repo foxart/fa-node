@@ -1,3 +1,5 @@
+import { DataHelper } from './data.helper';
+
 export interface ParserTraceInterface {
   file: string;
   caller: string;
@@ -63,11 +65,22 @@ class ParserSingleton {
         caller: context[0] || '',
         method: context[1] || '',
         file: match[2] || '',
-        // file: excludePath ? DataHelper.excludePath(match[2], excludePath) : match[2],
       };
       traceList.push(traceItem);
     }
     return traceList;
+  }
+  public filterStack(stack = '', excludePath = ''): ParserTraceInterface[] {
+    return ParserHelper.parseStack(stack)
+      .filter((trace) => {
+        return !trace.file.includes('node_modules/') && !trace.file.includes('node:');
+      })
+      .map((trace) => {
+        return {
+          ...trace,
+          file: excludePath ? DataHelper.excludePath(trace.file, excludePath) : trace.file,
+        };
+      });
   }
 
   public parsePath(fullPath: string): PathInterface {

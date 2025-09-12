@@ -1,4 +1,3 @@
-import { ErrorClass } from '../classes/error.class';
 import { ParserHelper } from './parser.helper';
 
 interface IsEmptyKeyValueInterface {
@@ -246,9 +245,10 @@ class DataSingleton {
               file: excludePath ? DataHelper.excludePath(trace.file, excludePath) : trace.file,
             };
           });
+        const errorClass = item as Error & { messageIsJson?: boolean };
         return {
           name: item.name,
-          message: item instanceof ErrorClass && item.messageIsJson ? DataHelper.fromJson(item.message) : item.message,
+          message: errorClass.messageIsJson ? DataHelper.fromJson(errorClass.message) : errorClass.message,
           stack: stack,
         };
       }

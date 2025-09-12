@@ -223,28 +223,6 @@ export class DecoratorClass {
         };
   }
 
-  // + перенести все reflect-метаданные со старой функции на новую
-  private static copyFunctionMetadata(fromFn: FunctionType, toFn: FunctionType): void {
-    if (typeof Reflect?.getMetadataKeys !== 'function') {
-      return;
-    }
-    const keys = Reflect.getMetadataKeys(fromFn) as (string | symbol)[];
-    for (const k of keys) {
-      const v = Reflect.getMetadata(k, fromFn) as unknown;
-      Reflect.defineMetadata(k, v, toFn);
-    }
-    for (const k of ['design:type', 'design:paramtypes', 'design:returntype'] as const) {
-      try {
-        const v = Reflect.getMetadata?.(k, fromFn) as unknown;
-        if (v !== undefined) {
-          Reflect.defineMetadata?.(k, v, toFn);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }
-
   /** PUBLIC */
   public decorateClass(data?: ClassDecoratorInterface): ClassDecorator {
     return <T>(target: object): T | void => {
@@ -272,40 +250,28 @@ export class DecoratorClass {
         afterResultCallback: data?.afterResultCallback,
       };
       DecoratorClass.setMethodMetadata(symbol, target, propertyKey, methodMetadata);
-
       if (descriptor.value) {
-        const originalFn = descriptor.value as FunctionType;
-        const wrapped: FunctionType = function (...args: unknown[]): unknown {
-          return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, originalFn)(...args);
+        const descriptorValue = descriptor.value as FunctionType;
+        descriptor.value = function (...args: unknown[]): unknown {
+          return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, descriptorValue)(...args);
         };
-
-        // КРИТИЧЕСКОЕ: копируем все метаданные со старой функции на новую
-        DecoratorClass.copyFunctionMetadata(originalFn, wrapped);
-
-        descriptor.value = wrapped;
-
-        // УБРАНО: сломанный блок “копирования” собственных свойств функции
-        // Object.getOwnPropertyNames(originalFn).forEach((property) => {
-        //   Object.defineProperty(descriptor.value, property, {
-        //     value: propertyKey,
-        //   });
-        // });
+        Object.getOwnPropertyNames(descriptorValue).forEach((property) => {
+          Object.defineProperty(descriptor.value, property, {
+            value: propertyKey,
+          });
+        });
       }
       if (descriptor.get) {
-        const originalGet = (descriptor as { get: FunctionType }).get;
-        const wrappedGet: FunctionType = function (...args: unknown[]): unknown {
-          return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, originalGet)(...args);
+        const descriptorGet = (descriptor as { get: FunctionType }).get;
+        descriptor.get = function (...args: unknown[]): unknown {
+          return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, descriptorGet)(...args);
         };
-        DecoratorClass.copyFunctionMetadata(originalGet, wrappedGet);
-        descriptor.get = wrappedGet;
       }
       if (descriptor.set) {
-        const originalSet = (descriptor as { set: FunctionType }).set;
-        const wrappedSet: FunctionType = function (...args: unknown[]): unknown {
-          return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, originalSet)(...args);
+        const descriptorSet = (descriptor as { set: FunctionType }).set;
+        descriptor.set = function (...args: unknown[]): unknown {
+          return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, descriptorSet)(...args);
         };
-        DecoratorClass.copyFunctionMetadata(originalSet, wrappedSet);
-        descriptor.set = wrappedSet;
       }
       return descriptor;
     };
