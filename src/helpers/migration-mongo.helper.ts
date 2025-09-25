@@ -21,7 +21,7 @@ interface ConfigurationInterface {
 
 enum CommandNameEnum {
   DROP = 'drop',
-  CREATE = 'create <collection>`',
+  CREATE = 'create <collection>',
   UP = 'up',
   DOWN = 'down',
   RESET = 'reset',
@@ -29,7 +29,7 @@ enum CommandNameEnum {
 }
 
 interface CollectionInterface {
-  dateTime: Date;
+  appliedAt: Date;
   fileName: string;
 }
 
@@ -125,7 +125,9 @@ class MigrationMongoClass {
             type: 'string',
           });
         },
-        handler: (argv: { collection: string }): void => void this.create(argv.collection),
+        handler: (argv: { collection: string }): void => {
+          void this.create(argv.collection);
+        },
       },
       {
         name: CommandNameEnum.UP,
@@ -370,7 +372,7 @@ class MigrationMongoClass {
     try {
       await migration.up(db);
       await collection.insertOne({
-        dateTime: new Date(),
+        appliedAt: new Date(),
         fileName: filePath,
       });
       CodegenHelper.logSuccess(migration.constructor.name, filePath);

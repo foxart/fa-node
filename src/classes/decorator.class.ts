@@ -181,7 +181,7 @@ export class DecoratorClass {
     symbol: symbol,
     target: ConstructableType,
     propertyKey: string | symbol,
-    context: PropertyDescriptor,
+    context: unknown,
     method: FunctionType,
   ): (...args: unknown[]) => unknown | Promise<unknown> {
     const classMetadata = DecoratorClass.getClassMetadata(symbol, target);
@@ -275,7 +275,7 @@ export class DecoratorClass {
 
       if (descriptor.value) {
         const originalFn = descriptor.value as FunctionType;
-        const wrapped: FunctionType = function (...args: unknown[]): unknown {
+        const wrapped: FunctionType = function (this: unknown, ...args: unknown[]): unknown {
           return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, originalFn)(...args);
         };
 
@@ -293,7 +293,7 @@ export class DecoratorClass {
       }
       if (descriptor.get) {
         const originalGet = (descriptor as { get: FunctionType }).get;
-        const wrappedGet: FunctionType = function (...args: unknown[]): unknown {
+        const wrappedGet: FunctionType = function (this: unknown, ...args: unknown[]): unknown {
           return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, originalGet)(...args);
         };
         DecoratorClass.copyFunctionMetadata(originalGet, wrappedGet);
@@ -301,7 +301,7 @@ export class DecoratorClass {
       }
       if (descriptor.set) {
         const originalSet = (descriptor as { set: FunctionType }).set;
-        const wrappedSet: FunctionType = function (...args: unknown[]): unknown {
+        const wrappedSet: FunctionType = function (this: unknown, ...args: unknown[]): unknown {
           return DecoratorClass.rewriteDescriptor(symbol, target, propertyKey, this, originalSet)(...args);
         };
         DecoratorClass.copyFunctionMetadata(originalSet, wrappedSet);

@@ -95,12 +95,12 @@ console.clear();
 /**
  *
  */
-// setTimeout(() => {
-//   void import('./helpers/migration-mongo-helper.example').then((module) => module.run());
-// }, 500);
+setTimeout(() => {
+  void import('./helpers/migration-mongo-helper.example').then((module) => module.run());
+}, 500);
 /**
  *
  */
-const error = new Error('Error');
-console.log(error);
-console.log({ error });
+// const error = new Error('Error');
+// console.log(error);
+// console.log({ error });

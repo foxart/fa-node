@@ -54,6 +54,7 @@ class DataSingleton {
   }
 
   public isBuffer(data: unknown): boolean {
+    if (typeof Buffer === 'undefined') return false;
     return data instanceof Buffer || Buffer.isBuffer(data);
   }
 
@@ -78,7 +79,7 @@ class DataSingleton {
   }
 
   public isObject(data: unknown): boolean {
-    if (this.isArray(data)) {
+    if (Array.isArray(data)) {
       return false;
     } else if (this.isMongoId(data) || data instanceof Date || data instanceof RegExp) {
       return false;
@@ -95,12 +96,8 @@ class DataSingleton {
     return this.isObject(data) && Object.keys(data as object).length === 0;
   }
 
-  public isArray(data: unknown | unknown[]): boolean {
-    return Array.isArray(data);
-  }
-
   public isArrayEmpty(data: unknown | unknown[]): boolean {
-    return this.isArray(data) && (data as []).length === 0;
+    return Array.isArray(data) && (data as []).length === 0;
   }
   public isEmpty(data: unknown | unknown[], options?: IsEmptyKeyValueInterface): boolean {
     if (options?.undefined && data === undefined) {
@@ -119,7 +116,7 @@ class DataSingleton {
     return false;
   }
   public isValidationFree(data: unknown | unknown[]): boolean {
-    return this.isArray(data)
+    return Array.isArray(data)
       ? (data as []).some((item) => {
           return !this.isInstance(item) && !this.isObject(item);
         })
@@ -141,7 +138,7 @@ class DataSingleton {
         }) as DATA;
     } else if (this.isObject(data)) {
       return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
-        if (this.isObject(value) || this.isArray(value)) {
+        if (this.isObject(value) || Array.isArray(value)) {
           const result = recursive ? this.filterEmpty(value, options, recursive) : value;
           if (options?.object?.emptyObject && this.isObjectEmpty(result)) {
             return acc;
@@ -252,7 +249,11 @@ class DataSingleton {
           stack: stack,
         };
       }
-      if (typeof item === 'object' && item !== null) {
+      // if (item && this.isMongoId(item) && 'toHexString' in (item as { toHexString: () => string })) {
+      //   return item.toString();
+      // }
+      // if (item !== null && typeof item === 'object') {
+      if (this.isObject(item)) {
         if (cache.includes(item)) {
           return '[CIRCULAR]';
         }
@@ -261,7 +262,7 @@ class DataSingleton {
           return item.map(walk);
         }
         const result: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(item)) {
+        for (const [key, value] of Object.entries(item as object)) {
           result[key] = walk(value);
         }
         return result;
@@ -286,51 +287,7 @@ class DataSingleton {
     );
   }
 
-  // public toJson(data: unknown, indent?: number): string {
-  //   const cache: unknown[] = [];
-  //   const parseStrings = (value: unknown): unknown => {
-  //     if (typeof value === 'string') {
-  //       try {
-  //         const parsed = JSON.parse(value) as unknown;
-  //         if (typeof parsed === 'object' && parsed !== null) {
-  //           return parseStrings(parsed);
-  //         }
-  //         return value; // число, строка, булеан — оставим как есть
-  //       } catch {
-  //         return value; // невалидный JSON — оставим как есть
-  //       }
-  //     } else if (Array.isArray(value)) {
-  //       return value.map(parseStrings);
-  //     } else if (typeof value === 'object' && value !== null) {
-  //       const result: Record<string, unknown> = {};
-  //       for (const [k, v] of Object.entries(value)) {
-  //         result[k] = parseStrings(v);
-  //       }
-  //       return result;
-  //     }
-  //     return value; // примитивы
-  //   };
-  //   const processed = parseStrings(data);
-  //   return JSON.stringify(
-  //     processed,
-  //     (_key, value: unknown) => {
-  //       if (typeof value === 'object' && value !== null) {
-  //         if (cache.includes(value)) {
-  //           return '[CIRCULAR]';
-  //         }
-  //         cache.push(value);
-  //       }
-  //       return value;
-  //     },
-  //     indent ?? 2,
-  //   );
-  // }
-
   public fromJson<T>(data: string): T | string {
-    // if (typeof data === 'string') {
-    // } else {
-    //   return data as T;
-    // }
     try {
       return JSON.parse(data) as T;
     } catch (e) {
