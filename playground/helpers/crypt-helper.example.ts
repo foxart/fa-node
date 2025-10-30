@@ -4,41 +4,40 @@ import { CryptClass } from '../../src';
 const CryptHelper = new CryptClass('123');
 
 function encryptDecrypt(): void {
-  const data = 'Иван';
-  const encrypted = CryptHelper.encrypt(data);
-  const decrypted = CryptHelper.decrypt(encrypted);
-  // console.log(encryptDecrypt.name, {
-  //   data,
-  //   encrypted,
-  //   decrypted,
-  // });
-  // 5+VV24sQEGHzBwhK78c6Uw==
-  const acc = [];
-  for (let i = 0; i < 100; i++) {
-    acc.push(0);
-  }
-  console.log(`1${acc.join('-')}`);
-  //
-  const a = 'ШОФЁР';
-  console.log(a);
+  const original = 'ivan@example.com';
+  const encrypted1 = CryptHelper.encrypt(original);
+  const encrypted2 = CryptHelper.encrypt(original);
+  const decrypted1 = CryptHelper.decrypt(encrypted1);
+  const decrypted2 = CryptHelper.decrypt(encrypted2);
+  const hash = CryptHelper.hmac(original);
+  console.log(encryptDecrypt.name, {
+    original,
+    hash,
+    encrypted1,
+    decrypted1,
+    encrypted2,
+    decrypted2,
+  });
 }
 
 function comparePassport(): void {
-  const password = '123';
-  const hash = CryptHelper.passwordCrypt(password);
+  const valid = '123456';
+  const invalid = '12345';
+  const crypted = CryptHelper.passwordCrypt(valid);
   console.log(comparePassport.name, {
-    password,
-    hash,
-    valid: CryptHelper.passwordHashCompare(password, hash),
+    valid: valid,
+    invalid: invalid,
+    crypted,
+    hash: CryptHelper.passwordHashParse(crypted),
+    checkValid: CryptHelper.passwordHashCompare(valid, crypted),
+    checkInvalid: CryptHelper.passwordHashCompare(invalid, crypted),
   });
 }
 
 export function run(): void {
-  encryptDecrypt();
-  // comparePassport();
-  // console.log(CryptHelper.parseHash(CryptHelper.cryptPassword('123')));
+  // encryptDecrypt();
+  comparePassport();
   // console.log(CryptHelper.salt());
   // console.log(CryptHelper.random());
-  // console.log(CryptHelper.md5('1234'));
   // console.log(CryptHelper.md5('123'));
 }

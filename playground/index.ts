@@ -68,6 +68,11 @@ console.clear();
  */
 // void import('./converter-helper.example').then((module) => module.cryptHelperExample());
 /**
+ * Crypt Helper
+ */
+void import('./helpers/crypt-helper.example').then((module) => module.run());
+
+/**
  * Parser Helper
  */
 // void import('./helpers/parser-helper.example').then((module) => module.cryptHelperExample());
@@ -95,9 +100,9 @@ console.clear();
 /**
  *
  */
-setTimeout(() => {
-  void import('./helpers/migration-mongo-helper.example').then((module) => module.run());
-}, 500);
+// setTimeout(() => {
+// void import('./helpers/migration-mongo-helper.example').then((module) => module.run());
+// }, 500);
 /**
  *
  */

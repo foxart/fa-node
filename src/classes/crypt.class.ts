@@ -3,11 +3,16 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes }
 import { v4, V4Options } from 'uuid';
 import { ErrorClass } from './error.class';
 
-// type WordArray = CryptoJS.lib.WordArray;
-export class CryptClass {
-  private readonly algorithm = 'aes-256-cbc';
+interface PayloadInterface {
+  iv: string;
+  tag: string;
+  data: string;
+}
 
+export class CryptClass {
+  private readonly algorithm = 'aes-256-gcm';
   private readonly encoding = 'base64';
+  private readonly ivLength = 12; // рекомендуемый размер IV для GCM
 
   public constructor(private readonly _secret: string) {}
 
@@ -15,84 +20,85 @@ export class CryptClass {
     return this._secret;
   }
 
+  /** AES-256-GCM + случайный IV + аутентификация */
   public encrypt<T>(data: T, throws = true): T {
     if (!data) {
       return data;
     }
     try {
-      // const iv = crypto.randomBytes(16);
-      // const key = crypto.scryptSync(secret, 'salt', 32);
-      // const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-      // let encrypted = cipher.update(data, 'utf8', 'base64');
-      // encrypted += cipher.final('base64');
-      // return iv.toString('base64') + ':' + encrypted;
       const key = createHash('sha256').update(this._secret).digest();
-      const iv = Buffer.from(Array(16).fill(0));
+      const iv = randomBytes(this.ivLength);
       const cipher = createCipheriv(this.algorithm, key, iv);
-      let encrypted = cipher.update(data as string, 'utf8', this.encoding);
-      encrypted += cipher.final(this.encoding);
-      return encrypted as T;
+      const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
+      const encrypted = Buffer.concat([cipher.update(jsonData, 'utf8'), cipher.final()]);
+      const tag = cipher.getAuthTag();
+      const payload: PayloadInterface = {
+        iv: iv.toString(this.encoding),
+        tag: tag.toString(this.encoding),
+        data: encrypted.toString(this.encoding),
+      };
+      return Buffer.from(JSON.stringify(payload)).toString(this.encoding) as T;
     } catch (e) {
       const error = e as Error;
       if (throws) {
         throw error;
-      } else {
-        console.error(
-          new ErrorClass({
-            name: `${this.constructor.name} ${this.encrypt.name}: ${data.toString() || data.constructor.name}`,
-            message: error.message,
-            stack: error.stack,
-          }),
-        );
       }
+      console.error(
+        new ErrorClass({
+          name: `${this.constructor.name} encrypt`,
+          message: error.message,
+          stack: error.stack,
+        }),
+      );
       return data;
     }
   }
 
+  /** Расшифровка AES-256-GCM */
   public decrypt<T>(data: T, throws = true): T {
     if (!data) {
       return data;
     }
     try {
-      // const [ivString, encryptedData] = data.split(':');
-      // const iv = Buffer.from(ivString, 'base64');
-      // const key = crypto.scryptSync(secret, 'salt', 32);
-      // const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-      // let decrypted = decipher.update(encryptedData, 'base64', 'utf8');
-      // decrypted += decipher.final('utf8');
-      // return decrypted;
       const key = createHash('sha256').update(this._secret).digest();
-      const iv = Buffer.from(Array(16).fill(0));
-      const decipher = createDecipheriv(this.algorithm, key, iv);
-      let decrypted = decipher.update(data as string, this.encoding, 'utf8');
-      decrypted += decipher.final('utf8');
-      return decrypted as T;
+      const decoded = Buffer.from(data as string, this.encoding).toString('utf8');
+      const { iv, tag, data: encryptedData } = JSON.parse(decoded) as PayloadInterface;
+      const decipher = createDecipheriv(this.algorithm, key, Buffer.from(iv, this.encoding));
+      decipher.setAuthTag(Buffer.from(tag, this.encoding));
+      const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedData, this.encoding)), decipher.final()]);
+      const text = decrypted.toString('utf8');
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        return text as T;
+      }
     } catch (e) {
       const error = e as Error;
       if (throws) {
         throw error;
-      } else {
-        console.error(
-          new ErrorClass({
-            name: `${this.constructor.name} ${this.decrypt.name}: ${data.toString() || data.constructor.name}`,
-            message: error.message,
-            stack: error.stack,
-          }),
-        );
       }
+      console.error(
+        new ErrorClass({
+          name: `${this.constructor.name} decrypt`,
+          message: error.message,
+          stack: error.stack,
+        }),
+      );
       return data;
     }
   }
 
+  /** HMAC для поиска (детерминированное, но безопасное) */
+  public hmac(value: string): string {
+    return createHmac('sha256', this._secret).update(value).digest('hex');
+  }
+
+  /** Прочие утилиты — оставляем без изменений */
   public md5(message: string, key?: string): string {
-    if (key) {
-      return createHmac('md5', key).update(message).digest('hex');
-    }
-    return createHash('md5').update(message).digest('hex');
+    return key ? createHmac('md5', key).update(message).digest('hex') : createHash('md5').update(message).digest('hex');
   }
 
   public random(nBytes = 16): string {
-    // return CryptoJS.lib.WordArray.random(nBytes ? nBytes : 16).toString();
     return randomBytes(nBytes).toString('hex');
   }
 
