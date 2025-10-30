@@ -43,57 +43,153 @@ function testEncryptDecrypt(original: string): void {
 }
 
 function testHash(): void {
+  const normalize = CryptHelper.normalizeValueForSearch.bind(CryptHelper);
+  const tokenize = CryptHelper.getSearchTokenList.bind(CryptHelper);
+  const hmac = CryptHelper.hmac.bind(CryptHelper);
+
+  // === BASE INPUTS ===
   const input = 'Привет 你好 مرحبا Hello Grüß 😊';
+  const inputAgain = input;
   const inputLower = input.toLowerCase();
   const inputExtraSpaces = `   ${input}   `;
   const inputPartial = 'Прив Hello مرح';
+  const inputEmpty = '';
+
   // === TOKENIZATION ===
-  const tokens = CryptHelper.getSearchTokenList(CryptHelper.normalizeValueForSearch(input));
-  const tokensAgain = CryptHelper.getSearchTokenList(CryptHelper.normalizeValueForSearch(input));
-  const tokensLower = CryptHelper.getSearchTokenList(CryptHelper.normalizeValueForSearch(inputLower));
-  const tokensExtraSpaces = CryptHelper.getSearchTokenList(CryptHelper.normalizeValueForSearch(inputExtraSpaces));
-  const tokensPartial = CryptHelper.getSearchTokenList(CryptHelper.normalizeValueForSearch(inputPartial));
-  // === CHECKS ===
+  const tokens = tokenize(normalize(input));
+  const tokensAgain = tokenize(normalize(inputAgain));
+  const tokensLower = tokenize(normalize(inputLower));
+  const tokensExtraSpaces = tokenize(normalize(inputExtraSpaces));
+  const tokensPartial = tokenize(normalize(inputPartial));
+
+  // === BASE CHECKS ===
   const repeatability = JSON.stringify(tokens) === JSON.stringify(tokensAgain);
   const caseInsensitivity = JSON.stringify(tokens) === JSON.stringify(tokensLower);
   const whitespaceInsensitive = JSON.stringify(tokens) === JSON.stringify(tokensExtraSpaces);
   const partialMatch = tokensPartial.every((t) => tokens.includes(t));
-  // === STRUCTURED OUTPUT (один объект) ===
+  const uniqueTokens = tokens.length === new Set(tokens).size;
+
+  // === EDGE CASES ===
+  const emptyTokens = tokenize(inputEmpty);
+  const invisibleNormalized = normalize('\uFEFFIvan\u200B');
+  const invisibleTokens = tokenize(invisibleNormalized);
+
+  const punctuationInput = "O'Neill, Jean-Luc!";
+  const punctuationTokens = tokenize(normalize(punctuationInput));
+
+  const numericInput = 'Room 42B';
+  const numericTokens = tokenize(normalize(numericInput));
+
+  const emojiInput = '😊';
+  const emojiTokens = tokenize(normalize(emojiInput));
+
+  const combiningInput = 'e\u0301'; // é decomposed
+  const combiningNormalized = normalize(combiningInput);
+  const combiningTokens = tokenize(combiningNormalized);
+
+  const localeInput = 'Straße İstanbul Σίσυφος';
+  const localeTokens = tokenize(normalize(localeInput));
+
+  // === N-GRAM TEST ===
+  const ngramWord = 'hello';
+  const ngramTokens = tokenize(normalize(ngramWord), 2);
+  const expectedPrefixes = ['he', 'hel', 'hell', 'hello'];
+  const ngramCoverage = expectedPrefixes.every((p) => ngramTokens.includes(hmac(p)));
+
+  // === STRUCTURED RESULTS ===
   const tokenizationResults = {
+    base: {
+      description: 'Базовая многоязычная строка с эмодзи',
+      input: input,
+      tokenCount: tokens.length,
+    },
     repeatability: {
       description: 'Повторная генерация даёт тот же результат',
-      input,
-      tokens: tokensAgain.length,
+      input: inputAgain,
+      tokenCount: tokensAgain.length,
     },
     caseInsensitivity: {
-      description: 'Lower-case путь: normalize(original) == normalize(original.toLowerCase())',
-      inputLower,
-      tokens: tokensLower.length,
+      description: 'Нормализация и lower-case дают тот же набор токенов (нечувствительность к регистру)',
+      input: inputLower,
+      tokenCount: tokensLower.length,
     },
     whitespaceInsensitive: {
-      description: 'Лишние пробелы игнорируются',
-      inputExtraSpaces,
-      tokens: tokensExtraSpaces.length,
+      description: 'Лишние пробелы игнорируются при нормализации',
+      input: inputExtraSpaces,
+      tokenCount: tokensExtraSpaces.length,
     },
     partialMatch: {
-      description: 'Частичные подстроки дают подмножество токенов',
-      inputPartial,
-      tokens: tokensPartial.length,
+      description: 'Частичный ввод порождает подмножество токенов полного текста',
+      input: inputPartial,
+      tokenCount: tokensPartial.length,
+    },
+    uniqueTokens: {
+      description: 'Все токены уникальны (дубликаты отсутствуют)',
+      input: input,
+      tokenCount: tokens.length,
+    },
+    empty: {
+      description: 'Пустая строка не порождает токенов',
+      input: inputEmpty,
+      tokenCount: emptyTokens.length,
+    },
+    invisibleChars: {
+      description: 'Zero-width символы удаляются при нормализации',
+      input: invisibleNormalized,
+      tokenCount: invisibleTokens.length,
+    },
+    punctuation: {
+      description: 'Пунктуация и апострофы корректно токенизируются',
+      input: punctuationInput,
+      tokenCount: punctuationTokens.length,
+    },
+    numeric: {
+      description: 'Слова с числами токенизируются корректно',
+      input: numericInput,
+      tokenCount: numericTokens.length,
+    },
+    emoji: {
+      description: 'Эмодзи не порождают шумных токенов',
+      input: emojiInput,
+      tokenCount: emojiTokens.length,
+    },
+    combining: {
+      description: 'Комбинированные Unicode-символы корректно нормализуются',
+      input: combiningInput,
+      normalized: combiningNormalized,
+      tokenCount: combiningTokens.length,
+    },
+    localeSpecific: {
+      description: 'Локалеспецифичные буквы (ß, İ, Σ) корректно обрабатываются',
+      input: localeInput,
+      tokenCount: localeTokens.length,
+    },
+    ngramCoverage: {
+      description: 'Для слова hello генерируются ожидаемые префиксы (he, hel, hell, hello)',
+      input: ngramWord,
+      prefixes: expectedPrefixes,
+      coverage: ngramCoverage,
+      tokenCount: ngramTokens.length,
     },
   };
-  // Финальный единый лог
+
+  // === SUMMARY CHECK FLAGS ===
+  const checks = {
+    repeatability,
+    caseInsensitivity,
+    whitespaceInsensitive,
+    partialMatch,
+    uniqueTokens,
+    ngramCoverage,
+    emptyInputOK: emptyTokens.length === 0,
+    invisibleOK: invisibleNormalized === 'ivan' && invisibleTokens.length > 0,
+    emojiOK: emojiTokens.length === 0,
+  };
+
+  // === FINAL LOG ===
   console.log({
-    input,
-    inputLower,
-    inputExtraSpaces,
-    inputPartial,
     ...tokenizationResults,
-    checks: {
-      repeatability,
-      caseInsensitivity,
-      whitespaceInsensitive,
-      partialMatch,
-    },
+    checks,
   });
 }
 

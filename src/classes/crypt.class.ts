@@ -109,6 +109,7 @@ export class CryptClass {
   /** Универсальная Unicode-нормализация */
   public normalizeValueForSearch(value: string): string {
     // return value.normalize('NFKC').toLocaleLowerCase('und').trim();
+    if (!value) return '';
     return value
       .normalize('NFKC') // Сведение всех форм Unicode
       .replace(/\p{Cf}/gu, '') // Удаляем невидимые control-символы (zero-width, etc.)
@@ -117,18 +118,41 @@ export class CryptClass {
       .toLocaleLowerCase('und'); // Unicode-aware lowercasing
   }
 
-  /** Токенизация строки для LIKE-поиска (HMAC n-gram слов) */
-  public getSearchTokenList(value: string, ngramMin = 2): string[] {
+  /** Токенизация строки для LIKE-поиска (HMAC n-gram слов)
+   *  ngramMin — минимальная длина префикса для генерации n-gram (рекомендуется 2 или 3)
+   *  ngramMax — максимальная длина префикса (ограничивает раздувание числа токенов), по умолчанию 6
+   */
+  public getSearchTokenList(value: string, ngramMin = 2, ngramMax = 6): string[] {
     if (!value) return [];
     const normalized = this.normalizeValueForSearch(value);
+    if (!normalized) return [];
     const tokens: string[] = [];
-    const wordList = Array.from(normalized.matchAll(/\p{L}+\p{N}*|\p{N}+/gu), (m) => {
-      return m[0];
-    });
+    const seen = new Set<string>();
+    // Регекс: слова из букв (поддерживает внутренние апострофы/дефисы), либо числа
+    // пример покрывает: O'Neill, Jean-Luc, 王五, 42
+    const wordIter = normalized.matchAll(/\p{L}+(?:['’\-]\p{L}+)*\p{N}*|\p{N}+/gu);
+    const wordList = Array.from(wordIter, (m) => m[0]);
     for (const word of wordList) {
-      tokens.push(this.hmac(word)); // полное слово
-      for (let index = ngramMin; index < word.length; index++) {
-        tokens.push(this.hmac(word.slice(0, index))); // n-граммы
+      // Пропускаем чисто эмодзи/символы (если по каким-то причинам попали)
+      if (!word || word.trim() === '') continue;
+      // full word token
+      const fullH = this.hmac(word);
+      if (!seen.has(fullH)) {
+        tokens.push(fullH);
+        seen.add(fullH);
+      }
+      // generate n-grams (prefixes) — только если слово длиннее ngramMin
+      const maxPrefix = Math.min(word.length - 1, ngramMax); // -1 потому что full word уже добавлен
+      if (word.length > ngramMin) {
+        for (let len = ngramMin; len <= maxPrefix; len++) {
+          const prefix = word.slice(0, len);
+          if (!prefix) continue;
+          const h = this.hmac(prefix);
+          if (!seen.has(h)) {
+            tokens.push(h);
+            seen.add(h);
+          }
+        }
       }
     }
     return tokens;
