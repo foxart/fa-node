@@ -88,16 +88,55 @@ export class CryptClass {
     }
   }
 
-  /** HMAC для поиска (детерминированное, но безопасное) */
+  // ===========================================================
+  // 🧩 HASH / HMAC
+  // ===========================================================
+
+  /** HMAC-SHA256 — для детерминированного безопасного поиска */
   public hmac(value: string): string {
     return createHmac('sha256', this._secret).update(value).digest('hex');
   }
 
-  /** Прочие утилиты — оставляем без изменений */
+  /** Простой MD5 (или HMAC-MD5) */
   public md5(message: string, key?: string): string {
     return key ? createHmac('md5', key).update(message).digest('hex') : createHash('md5').update(message).digest('hex');
   }
 
+  // ===========================================================
+  // 🔍 SEARCH / TOKENIZATION
+  // ===========================================================
+
+  /** Универсальная Unicode-нормализация */
+  public normalizeValueForSearch(value: string): string {
+    // return value.normalize('NFKC').toLocaleLowerCase('und').trim();
+    return value
+      .normalize('NFKC') // Сведение всех форм Unicode
+      .replace(/\p{Cf}/gu, '') // Удаляем невидимые control-символы (zero-width, etc.)
+      .replace(/\s+/g, ' ') // Схлопываем пробелы
+      .trim()
+      .toLocaleLowerCase('und'); // Unicode-aware lowercasing
+  }
+
+  /** Токенизация строки для LIKE-поиска (HMAC n-gram слов) */
+  public getSearchTokenList(value: string, ngramMin = 2): string[] {
+    if (!value) return [];
+    const normalized = this.normalizeValueForSearch(value);
+    const tokens: string[] = [];
+    const wordList = Array.from(normalized.matchAll(/\p{L}+\p{N}*|\p{N}+/gu), (m) => {
+      return m[0];
+    });
+    for (const word of wordList) {
+      tokens.push(this.hmac(word)); // полное слово
+      for (let index = ngramMin; index < word.length; index++) {
+        tokens.push(this.hmac(word.slice(0, index))); // n-граммы
+      }
+    }
+    return tokens;
+  }
+
+  // ===========================================================
+  // 🔧 MISC / UTILITIES
+  // ===========================================================
   public random(nBytes = 16): string {
     return randomBytes(nBytes).toString('hex');
   }
