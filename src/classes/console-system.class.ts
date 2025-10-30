@@ -38,15 +38,12 @@ export interface ConsoleOptionsInterface {
 export class ConsoleSystemClass {
   public readonly console: Console;
 
-  public readonly stackIndex: number;
-
   private readonly pid: string;
 
   private readonly performance: number;
 
   public constructor(private readonly options: ConsoleOptionsInterface) {
     this.console = Object.assign({}, console);
-    this.stackIndex = options.linkIndex || 1;
     this.pid = process.pid.toString();
     this.performance = performance.now();
   }
@@ -90,7 +87,7 @@ export class ConsoleSystemClass {
       this.printTrace(level, this.getStack(new Error().stack));
     }
     this.printPerformance();
-    this.printLink(level, trace[this.stackIndex].file);
+    this.printLink(level, trace[this.options.linkIndex ?? 1].file);
     this.processStdout('\n');
   }
 

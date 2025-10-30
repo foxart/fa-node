@@ -39,24 +39,6 @@ export class ValidatorClass {
     return instance;
   }
 
-  //todo remove in advance of DataHelper.isPrimitive
-  // public toValidateType(type: unknown): boolean {
-  //   const types: unknown[] = [String, Boolean, Number, Array, Object];
-  //   return !types.includes(type);
-  // }
-  //todo remove in advance of DataHelper.isPrimitive
-  // public toValidateValue(value: unknown, instances?: unknown[]): boolean {
-  //   // !(instances || []).some((instance) => {
-  //   //   return typeof instance === 'function' && value instanceof instance;
-  //   // });
-  //   return (
-  //     DataHelper.isInstanceObject(value) &&
-  //     !Buffer.isBuffer(value) &&
-  //     !(instances || []).some((instance) => {
-  //       return value instanceof (instance as ClassConstructor<unknown>);
-  //     })
-  //   );
-  // }
   private getError(errorList: ValidationError[]): ErrorInterface[] | null {
     const result: ErrorInterface[] = [];
     const mapConstraints = (constraints: Record<string, string>): Array<Record<string, string>> => {

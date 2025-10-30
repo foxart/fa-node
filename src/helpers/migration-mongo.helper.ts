@@ -44,8 +44,8 @@ interface CommandInterface {
   handler: (argv: { collection: string }) => void;
 }
 
-class MigrationMongoClass {
-  private static self: MigrationMongoClass;
+class MigrationMongoSingleton {
+  private static self: MigrationMongoSingleton;
 
   private client!: MongoClient;
 
@@ -60,11 +60,11 @@ class MigrationMongoClass {
     this.commandList = this.getCommandList();
   }
 
-  public static getInstance(): MigrationMongoClass {
-    if (!MigrationMongoClass.self) {
-      MigrationMongoClass.self = new MigrationMongoClass();
+  public static getInstance(): MigrationMongoSingleton {
+    if (!MigrationMongoSingleton.self) {
+      MigrationMongoSingleton.self = new MigrationMongoSingleton();
     }
-    return MigrationMongoClass.self;
+    return MigrationMongoSingleton.self;
   }
 
   public async migrate(configuration: ConfigurationInterface): Promise<void> {
@@ -398,4 +398,4 @@ class MigrationMongoClass {
   }
 }
 
-export const MigrationMongoHelper = MigrationMongoClass.getInstance();
+export const MigrationMongoHelper = MigrationMongoSingleton.getInstance();

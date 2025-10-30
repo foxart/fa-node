@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'crypto';
 import { v4, V4Options } from 'uuid';
+import { ErrorClass } from './error.class';
 
 // type WordArray = CryptoJS.lib.WordArray;
 export class CryptClass {
@@ -31,9 +32,18 @@ export class CryptClass {
       let encrypted = cipher.update(data as string, 'utf8', this.encoding);
       encrypted += cipher.final(this.encoding);
       return encrypted as T;
-    } catch (error) {
+    } catch (e) {
+      const error = e as Error;
       if (throws) {
         throw error;
+      } else {
+        console.error(
+          new ErrorClass({
+            name: `${this.constructor.name} ${this.encrypt.name}: ${data.toString() || data.constructor.name}`,
+            message: error.message,
+            stack: error.stack,
+          }),
+        );
       }
       return data;
     }
@@ -57,9 +67,18 @@ export class CryptClass {
       let decrypted = decipher.update(data as string, this.encoding, 'utf8');
       decrypted += decipher.final('utf8');
       return decrypted as T;
-    } catch (error) {
+    } catch (e) {
+      const error = e as Error;
       if (throws) {
         throw error;
+      } else {
+        console.error(
+          new ErrorClass({
+            name: `${this.constructor.name} ${this.decrypt.name}: ${data.toString() || data.constructor.name}`,
+            message: error.message,
+            stack: error.stack,
+          }),
+        );
       }
       return data;
     }

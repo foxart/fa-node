@@ -35,6 +35,10 @@ class DataSingleton {
     return DataSingleton.self;
   }
 
+  public randomBoolean(): boolean {
+    return Math.random() < 0.5;
+  }
+
   public randomFloat(min: number, max: number): number {
     return Math.random() * (max - min + 1) + min;
   }
@@ -43,7 +47,25 @@ class DataSingleton {
     return Math.floor(Math.random() * (max - min + 1) + min);
   }
 
-  public randomString(length: number): string {
+  public randomDate(startDate: Date, endDate: Date): Date {
+    // function isLeapYear(year: number): boolean {
+    //   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    // }
+    // const year = this.randomInteger(startYear, endYear);
+    // const month = this.randomInteger(0, 11);
+    // const daysInMonth = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    // const day = this.randomInteger(1, daysInMonth[month]);
+    // const hour = this.randomInteger(0, 23);
+    // const minute = this.randomInteger(0, 59);
+    // const second = this.randomInteger(0, 59);
+    // return new Date(year, month, day, hour, minute, second);
+    const startMs = startDate.getTime();
+    const endMs = endDate.getTime();
+    const randomMs = this.randomInteger(startMs, endMs);
+    return new Date(randomMs);
+  }
+
+  public randomString(length = 10): string {
     let counter = 0;
     let result = '';
     while (counter < length) {
@@ -51,6 +73,20 @@ class DataSingleton {
       counter++;
     }
     return result;
+  }
+
+  public randomWord(length = 5): string {
+    const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
+    const consonants = ['b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'w', 'x', 'z'];
+    let word = '';
+    let useVowel = Math.random() > 0.5;
+    for (let i = 0; i < length; i++) {
+      const letters = useVowel ? vowels : consonants;
+      const randomChar = letters[Math.floor(Math.random() * letters.length)];
+      word += randomChar;
+      useVowel = !useVowel;
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1);
   }
 
   public isBuffer(data: unknown): boolean {
@@ -115,13 +151,13 @@ class DataSingleton {
     }
     return false;
   }
-  public isValidationFree(data: unknown | unknown[]): boolean {
-    return Array.isArray(data)
-      ? (data as []).some((item) => {
-          return !this.isInstance(item) && !this.isObject(item);
-        })
-      : !this.isInstance(data) && !this.isObject(data);
-  }
+  // public isValidationFree(data: unknown | unknown[]): boolean {
+  //   return Array.isArray(data)
+  //     ? (data as []).some((item) => {
+  //         return !this.isInstance(item) && !this.isObject(item);
+  //       })
+  //     : !this.isInstance(data) && !this.isObject(data);
+  // }
 
   public filterEmpty<DATA>(
     data: DATA,
@@ -229,7 +265,7 @@ class DataSingleton {
   }
 
   public safeCircular(data: unknown, excludePath = ''): unknown {
-    const cache: unknown[] = [];
+    const cache = new WeakSet();
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
         const stack = ParserHelper.parseStack(item.stack)
@@ -244,31 +280,42 @@ class DataSingleton {
           });
         const errorClass = item as Error & { messageIsJson?: boolean };
         return {
+          // __className: item.constructor.name,
           name: item.name,
           message: errorClass.messageIsJson ? DataHelper.fromJson(errorClass.message) : errorClass.message,
-          stack: stack,
+          stack,
         };
       }
-      // if (item && this.isMongoId(item) && 'toHexString' in (item as { toHexString: () => string })) {
-      //   return item.toString();
-      // }
-      // if (item !== null && typeof item === 'object') {
-      if (this.isObject(item)) {
-        if (cache.includes(item)) {
-          return '[CIRCULAR]';
-        }
-        cache.push(item);
-        if (Array.isArray(item)) {
-          return item.map(walk);
-        }
-        const result: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(item as object)) {
-          result[key] = walk(value);
-        }
-        return result;
+
+      if (!this.isObject(item)) {
+        return item;
       }
-      return item;
+      // Циклическая проверка
+      if (cache.has(item as object)) {
+        return '[CIRCULAR]';
+      }
+      cache.add(item as object);
+      if (this.isInstance(item)) {
+        return item;
+      }
+      if (Array.isArray(item)) {
+        return item.map(walk);
+      }
+      // Объект/класс
+      const result: Record<string, unknown> = {};
+      // if (
+      //   (item as object).constructor &&
+      //   (item as object).constructor.name &&
+      //   (item as object).constructor.name !== 'Object'
+      // ) {
+      //   result.__className = (item as object).constructor.name;
+      // }
+      for (const [key, value] of Object.entries(item as object)) {
+        result[key] = walk(value);
+      }
+      return result;
     };
+
     return walk(data);
   }
 
