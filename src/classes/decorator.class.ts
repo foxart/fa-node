@@ -17,12 +17,12 @@ interface ClassDecoratorInterface {
 }
 interface MethodDecoratorInterface {
   data?: unknown;
-  beforeParameterCallback?: MethodBeforeParameterCallbackType;
-  afterResultCallback?: MethodAfterResultCallbackType;
+  methodBeforeCallback?: MethodBeforeCallType;
+  methodAfterCallback?: MethodAfterCallType;
 }
 interface ParameterDecoratorInterface {
   data?: unknown;
-  callback?: ParameterCallbackType;
+  parameterBeforeCallback?: ParameterCallbackType;
 }
 
 /**
@@ -35,8 +35,8 @@ interface MethodMetadataInterface {
   accessor: 'GET' | 'SET' | 'VAL';
   type: ConstructableType;
   data?: unknown;
-  beforeParameterCallback?: MethodBeforeParameterCallbackType;
-  afterResultCallback?: MethodAfterResultCallbackType;
+  beforeCall?: MethodBeforeCallType;
+  afterCall?: MethodAfterCallType;
 }
 interface ParameterMetadataInterface {
   name: string;
@@ -56,11 +56,8 @@ export interface MethodCallbackMetadataInterface {
   methodData?: unknown;
 }
 
-type MethodBeforeParameterCallbackType = (
-  metadata: MethodCallbackMetadataInterface,
-  ...parameters: unknown[]
-) => unknown[];
-type MethodAfterResultCallbackType = (
+type MethodBeforeCallType = (metadata: MethodCallbackMetadataInterface, ...parameters: unknown[]) => unknown[];
+type MethodAfterCallType = (
   metadata: MethodCallbackMetadataInterface,
   result: unknown | unknown[],
 ) => unknown | unknown[];
@@ -197,28 +194,28 @@ export class DecoratorClass {
     return isReturnTypePromise
       ? async (...args: unknown[]): Promise<unknown> => {
           const beforeArgs =
-            methodMetadata?.beforeParameterCallback && methodMetadata?.accessor !== 'GET'
-              ? methodMetadata.beforeParameterCallback(methodCallbackMetadata, ...args)
+            methodMetadata?.beforeCall && methodMetadata?.accessor !== 'GET'
+              ? methodMetadata.beforeCall(methodCallbackMetadata, ...args)
               : args;
           const result = await method.apply(
             context,
             DecoratorClass.handleParameters(symbol, target, propertyKey, beforeArgs),
           );
-          return methodMetadata?.afterResultCallback && methodMetadata?.accessor !== 'SET'
-            ? methodMetadata.afterResultCallback(methodCallbackMetadata, result)
+          return methodMetadata?.afterCall && methodMetadata?.accessor !== 'SET'
+            ? methodMetadata.afterCall(methodCallbackMetadata, result)
             : result;
         }
       : (...args: unknown[]): unknown => {
           const beforeArgs =
-            methodMetadata?.beforeParameterCallback && methodMetadata?.accessor !== 'GET'
-              ? methodMetadata.beforeParameterCallback(methodCallbackMetadata, ...args)
+            methodMetadata?.beforeCall && methodMetadata?.accessor !== 'GET'
+              ? methodMetadata.beforeCall(methodCallbackMetadata, ...args)
               : args;
           const result = method.apply(
             context,
             DecoratorClass.handleParameters(symbol, target, propertyKey, beforeArgs),
           );
-          return methodMetadata?.afterResultCallback && methodMetadata?.accessor !== 'SET'
-            ? methodMetadata.afterResultCallback(methodCallbackMetadata, result)
+          return methodMetadata?.afterCall && methodMetadata?.accessor !== 'SET'
+            ? methodMetadata.afterCall(methodCallbackMetadata, result)
             : result;
         };
   }
@@ -264,12 +261,12 @@ export class DecoratorClass {
       const symbol = this.symbol;
       const designMetadata = DecoratorClass.getDesignMetadata(target, propertyKey); // <-- читаем design метаданные
       const methodMetadata: MethodMetadataInterface = {
-        accessor: descriptor.value ? 'VAL' : descriptor.get ? 'GET' : 'SET',
+        accessor: descriptor.set ? 'SET' : descriptor.get ? 'GET' : 'VAL',
         // name: designMetadata.returntype.name,
         type: designMetadata?.returntype,
         data: data?.data,
-        beforeParameterCallback: data?.beforeParameterCallback,
-        afterResultCallback: data?.afterResultCallback,
+        beforeCall: data?.methodBeforeCallback,
+        afterCall: data?.methodAfterCallback,
       };
       DecoratorClass.setMethodMetadata(symbol, target, propertyKey, methodMetadata);
 
@@ -319,7 +316,7 @@ export class DecoratorClass {
             name: designMetadata.paramtypes[parameterIndex].name,
             type: designMetadata.paramtypes[parameterIndex],
             data: data.data,
-            callback: data.callback,
+            callback: data.parameterBeforeCallback,
           }
         : {
             name: designMetadata.paramtypes[parameterIndex].name,

@@ -1,5 +1,6 @@
 .DS_STORE
 /.idea
+/coverage
 /dist
 /packages
 /node_modules
