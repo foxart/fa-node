@@ -1,190 +1,147 @@
 import { CryptClass } from '../index';
 
 describe('CryptClass', () => {
-  const secret = 'test-secret';
-  const CryptHelper = new CryptClass(secret);
+  let crypt: CryptClass;
+  beforeEach(() => {
+    crypt = new CryptClass('secret');
+  });
 
   // ===========================================================
-  // 🔍 Tokenization & Normalization Tests
+  // 🔹 normalizeValueForSearch
   // ===========================================================
-  describe('Tokenization & Normalization', () => {
-    const normalize = CryptHelper.normalizeValueForSearch.bind(CryptHelper);
-    const tokenize = CryptHelper.getSearchTokenList.bind(CryptHelper);
-    const hmac = CryptHelper.hmac.bind(CryptHelper);
-
-    // === BASE INPUTS ===
-    const input = 'Привет 你好 مرحبا Hello Grüß 😊';
-    const inputLower = input.toLowerCase();
-    const inputExtraSpaces = `   ${input}   `;
-    const inputPartial = 'Прив Hello مرح';
-    const inputEmpty = '';
-
-    it('should produce repeatable tokens for the same input', () => {
-      const tokens = tokenize(normalize(input));
-      const tokensAgain = tokenize(normalize(input));
-      expect(tokens).toEqual(tokensAgain);
+  describe('normalizeValueForSearch', () => {
+    it('should normalize case, whitespace, and invisible chars', () => {
+      const input = '   Привет \u200B ';
+      expect(crypt.normalizeValueForSearch(input)).toBe('привет');
     });
 
-    it('should be case-insensitive', () => {
-      const tokens = tokenize(normalize(input));
-      const tokensLower = tokenize(normalize(inputLower));
-      expect(tokens).toEqual(tokensLower);
-    });
-
-    it('should ignore extra whitespace', () => {
-      const tokens = tokenize(normalize(input));
-      const tokensExtraSpaces = tokenize(normalize(inputExtraSpaces));
-      expect(tokens).toEqual(tokensExtraSpaces);
-    });
-
-    it('should match partial input tokens', () => {
-      const tokens = tokenize(normalize(input));
-      const tokensPartial = tokenize(normalize(inputPartial));
-      tokensPartial.forEach((t) => expect(tokens).toContain(t));
-    });
-
-    it('should produce unique tokens', () => {
-      const tokens = tokenize(normalize(input));
-      expect(tokens.length).toEqual(new Set(tokens).size);
-    });
-
-    // === EDGE CASES ===
-    it('should handle empty input', () => {
-      const tokensEmpty = tokenize(inputEmpty);
-      expect(tokensEmpty).toHaveLength(0);
-    });
-
-    it('should remove zero-width / invisible characters', () => {
-      const invisible = '\uFEFFIvan\u200B';
-      const normalized = normalize(invisible);
-      const tokensInvisible = tokenize(normalized);
-      expect(normalized).toBe('ivan');
-      expect(tokensInvisible.length).toBeGreaterThan(0);
-    });
-
-    it('should handle punctuation and apostrophes', () => {
-      const punctuationInput = "O'Neill, Jean-Luc!";
-      const tokens = tokenize(normalize(punctuationInput));
-      expect(tokens.length).toBeGreaterThan(0);
-    });
-
-    it('should handle numeric tokens', () => {
-      const numericInput = 'Room 42B';
-      const tokens = tokenize(normalize(numericInput));
-      expect(tokens.length).toBeGreaterThan(0);
-    });
-
-    it('should ignore emoji in tokenization', () => {
-      const emojiInput = '😊';
-      const tokens = tokenize(normalize(emojiInput));
-      expect(tokens).toHaveLength(0);
-    });
-
-    it('should normalize combining characters', () => {
-      const combiningInput = 'e\u0301'; // é decomposed
-      const normalized = normalize(combiningInput);
-      const tokens = tokenize(normalized);
-      expect(normalized).toBe('é');
-      expect(tokens.length).toBeGreaterThan(0);
+    it('should normalize combining characters (é)', () => {
+      const input = 'e\u0301';
+      expect(crypt.normalizeValueForSearch(input)).toBe('é');
     });
 
     it('should handle locale-specific letters', () => {
-      const localeInput = 'Straße İstanbul Σίσυφος';
-      const tokens = tokenize(normalize(localeInput));
-      expect(tokens.length).toBeGreaterThan(0);
+      const input = 'Straße İstanbul Σίσυφος';
+      const normalized = crypt.normalizeValueForSearch(input);
+      expect(normalized.includes('straße')).toBe(true);
+      expect(normalized.includes('i̇stanbul')).toBe(true); // i + dot
+      expect(normalized.includes('σίσυφος')).toBe(true);
     });
 
-    // === N-GRAM TEST ===
-    it('should generate correct n-gram tokens for "hello"', () => {
-      const ngramWord = 'hello';
-      const tokens = tokenize(normalize(ngramWord), 2);
-      const expectedPrefixes = ['he', 'hel', 'hell', 'hello'];
-      expectedPrefixes.forEach((p) => {
-        expect(tokens).toContain(hmac(p));
-      });
+    it('should handle multiple combining diacritics', () => {
+      const input = 'o\u0308\u0301'; // o + diaeresis + acute
+      expect(crypt.normalizeValueForSearch(input)).toBe('ö́');
+    });
+
+    it('should handle zero-width joiners', () => {
+      const input = 'a\u200Db';
+      expect(crypt.normalizeValueForSearch(input)).toBe('ab'); // схлопываются пробелы
     });
   });
 
   // ===========================================================
-  // 🔐 Encryption / Decryption Tests
+  // 🔹 getSearchTokenList - n-grams
   // ===========================================================
-  describe('AES-256-GCM Encryption & Decryption', () => {
-    it('should encrypt and decrypt string correctly', () => {
-      const text = 'Hello world';
-      const encrypted = CryptHelper.encrypt(text);
-      const decrypted = CryptHelper.decrypt(encrypted);
-      expect(decrypted).toBe(text);
+  describe('getSearchTokenList', () => {
+    const hmac = (value: string): string => crypt.hmac(value);
+
+    it('should generate correct n-gram prefixes for a single word', () => {
+      const word = 'hello';
+      const tokens = crypt.getSearchTokenList(word, 2, 4);
+      ['he', 'hel', 'hell'].forEach((p) => expect(tokens).toContain(hmac(p)));
+      expect(tokens).toContain(hmac(word));
+      expect(tokens.length).toBe(new Set(tokens).size);
+    });
+
+    it('should handle multiple words correctly', () => {
+      const text = 'Hello World';
+      const tokens = crypt.getSearchTokenList(text, 2, 4);
+      ['hello', 'world'].forEach((word) => {
+        expect(tokens).toContain(hmac(word));
+        const len = Math.min(word.length - 1, 4);
+        for (let l = 2; l <= len; l++) {
+          expect(tokens).toContain(hmac(word.slice(0, l)));
+        }
+      });
+      expect(tokens.length).toBe(new Set(tokens).size);
+    });
+
+    it('should generate tokens with correct structure', () => {
+      const text = "O'Neill Jean-Luc 42";
+      const tokens = crypt.getSearchTokenList(text, 2, 4);
+      // проверяем, что токены не пустые
+      expect(tokens.length).toBeGreaterThan(0);
+      // уникальные токены
+      expect(tokens.length).toBe(new Set(tokens).size);
+      // проверяем формат SHA256 hex
+      tokens.forEach((t) => expect(t).toMatch(/^[a-f0-9]{64}$/));
+    });
+
+    it('should handle words with numbers', () => {
+      const text = 'abc123 42';
+      const tokens = crypt.getSearchTokenList(text, 2, 4);
+      ['abc123', '42'].forEach((word) => expect(tokens).toContain(hmac(word)));
+    });
+
+    it('should skip invalid/emoji-only words', () => {
+      expect(crypt.getSearchTokenList('😊 🚀')).toHaveLength(0);
+    });
+
+    it('should return empty array for empty string', () => {
+      expect(crypt.getSearchTokenList('')).toHaveLength(0);
+    });
+  });
+
+  // ===========================================================
+  // 🔹 encrypt / decrypt
+  // ===========================================================
+  describe('encrypt & decrypt', () => {
+    it('should encrypt and decrypt strings correctly', () => {
+      const input = 'Hello world';
+      const encrypted = crypt.encrypt(input);
+      expect(crypt.decrypt(encrypted)).toBe(input);
     });
 
     it('should encrypt and decrypt objects correctly', () => {
-      const obj = { a: 1, b: 'text' };
-      const encrypted = CryptHelper.encrypt(obj);
-      const decrypted = CryptHelper.decrypt(encrypted);
-      expect(decrypted).toEqual(obj);
+      const obj = { a: 1, b: 'text', nested: { x: 42 } };
+      const encrypted = crypt.encrypt(obj);
+      expect(crypt.decrypt(encrypted)).toEqual(obj);
     });
 
-    it('should return input if empty or null', () => {
-      expect(CryptHelper.encrypt('')).toBe('');
-      expect(CryptHelper.decrypt('')).toBe('');
-      expect(CryptHelper.encrypt(null)).toBeNull();
-      expect(CryptHelper.decrypt(null)).toBeNull();
-    });
-  });
-
-  // ===========================================================
-  // 🧩 HMAC / MD5 Tests
-  // ===========================================================
-  describe('HMAC / MD5', () => {
-    it('should produce deterministic HMAC', () => {
-      const value = 'test';
-      const h1 = CryptHelper.hmac(value);
-      const h2 = CryptHelper.hmac(value);
-      expect(h1).toBe(h2);
+    it('should produce different encrypted values for same input (due to random IV)', () => {
+      const input = 'repeat';
+      const e1 = crypt.encrypt(input);
+      const e2 = crypt.encrypt(input);
+      expect(e1).not.toBe(e2);
+      expect(crypt.decrypt(e1)).toBe(input);
+      expect(crypt.decrypt(e2)).toBe(input);
     });
 
-    it('should produce MD5 hash correctly', () => {
-      const value = 'test';
-      const hash = CryptHelper.md5(value);
-      expect(hash).toHaveLength(32);
+    it('should throw on invalid data if throws=true', () => {
+      expect(() => crypt.decrypt('invalid', true)).toThrow();
     });
 
-    it('should produce keyed MD5 hash correctly', () => {
-      const value = 'test';
-      const key = 'secret';
-      const hash = CryptHelper.md5(value, key);
-      expect(hash).toHaveLength(32);
+    it('should not throw and return input if throws=false', () => {
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      expect(crypt.decrypt('invalid', false)).toBe('invalid');
     });
   });
 
   // ===========================================================
-  // 🔧 Utilities Tests
+  // 🔹 HMAC
   // ===========================================================
-  describe('Utilities', () => {
-    it('should generate random hex string', () => {
-      const rand = CryptHelper.random(16);
-      expect(rand).toHaveLength(32); // 16 байт → 32 hex символа
+  describe('hmac', () => {
+    it('should produce deterministic HMAC for same input', () => {
+      expect(crypt.hmac('test')).toBe(crypt.hmac('test'));
     });
 
-    it('should generate valid bcrypt hash and compare', () => {
-      const password = 'password123';
-      const hash = CryptHelper.passwordCrypt(password);
-      expect(CryptHelper.passwordHashCompare(password, hash)).toBe(true);
-      expect(CryptHelper.passwordHashCompare('wrong', hash)).toBe(false);
+    it('should produce different HMAC for different input', () => {
+      expect(crypt.hmac('test1')).not.toBe(crypt.hmac('test2'));
     });
 
-    it('should parse bcrypt hash correctly', () => {
-      const password = 'password123';
-      const hash = CryptHelper.passwordCrypt(password);
-      const parsed = CryptHelper.passwordHashParse(hash);
-      // expect(parsed.algorithm).toBe('2b');
-      expect(['2a', '2b']).toContain(parsed.algorithm);
-      expect(parsed.hash.length).toBeGreaterThan(0);
-      expect(parsed.hash.length).toBeGreaterThan(0);
-    });
-
-    it('should generate valid UUID v4', () => {
-      const id = CryptHelper.uuidV4();
-      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    it('should produce HMAC for empty string', () => {
+      expect(typeof crypt.hmac('')).toBe('string');
+      expect(crypt.hmac('')).toHaveLength(64); // sha256 hex length
     });
   });
 });

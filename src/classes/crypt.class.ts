@@ -1,6 +1,4 @@
-import bcrypt from 'bcryptjs';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'crypto';
-import { v4, V4Options } from 'uuid';
 import { ErrorClass } from './error.class';
 
 interface PayloadInterface {
@@ -22,9 +20,6 @@ export class CryptClass {
 
   /** AES-256-GCM + случайный IV + аутентификация */
   public encrypt<T>(data: T, throws = true): T {
-    if (!data) {
-      return data;
-    }
     try {
       const key = createHash('sha256').update(this._secret).digest();
       const iv = randomBytes(this.ivLength);
@@ -56,9 +51,6 @@ export class CryptClass {
 
   /** Расшифровка AES-256-GCM */
   public decrypt<T>(data: T, throws = true): T {
-    if (!data) {
-      return data;
-    }
     try {
       const key = createHash('sha256').update(this._secret).digest();
       const decoded = Buffer.from(data as string, this.encoding).toString('utf8');
@@ -97,19 +89,12 @@ export class CryptClass {
     return createHmac('sha256', this._secret).update(value).digest('hex');
   }
 
-  /** Простой MD5 (или HMAC-MD5) */
-  public md5(message: string, key?: string): string {
-    return key ? createHmac('md5', key).update(message).digest('hex') : createHash('md5').update(message).digest('hex');
-  }
-
   // ===========================================================
   // 🔍 SEARCH / TOKENIZATION
   // ===========================================================
 
   /** Универсальная Unicode-нормализация */
   public normalizeValueForSearch(value: string): string {
-    // return value.normalize('NFKC').toLocaleLowerCase('und').trim();
-    if (!value) return '';
     return value
       .normalize('NFKC') // Сведение всех форм Unicode
       .replace(/\p{Cf}/gu, '') // Удаляем невидимые control-символы (zero-width, etc.)
@@ -123,7 +108,6 @@ export class CryptClass {
    *  ngramMax — максимальная длина префикса (ограничивает раздувание числа токенов), по умолчанию 6
    */
   public getSearchTokenList(value: string, ngramMin = 2, ngramMax = 6): string[] {
-    if (!value) return [];
     const normalized = this.normalizeValueForSearch(value);
     if (!normalized) return [];
     const tokens: string[] = [];
@@ -161,28 +145,34 @@ export class CryptClass {
   // ===========================================================
   // 🔧 MISC / UTILITIES
   // ===========================================================
+
+  /** MD5-хэш (обычный или с HMAC) */
+  public md5(message: string, key?: string): string {
+    if (key) {
+      return createHmac('md5', key).update(message).digest(this.encoding);
+    }
+    return createHash('md5').update(message).digest(this.encoding);
+  }
+
+  /** Генерация случайного байтового значения */
   public random(nBytes = 16): string {
-    return randomBytes(nBytes).toString('hex');
+    return randomBytes(nBytes).toString(this.encoding);
   }
 
+  /** Генерация salt для пароля (альтернатива bcrypt.genSaltSync) */
   public salt(rounds = 10): string {
-    return bcrypt.genSaltSync(rounds);
+    const random = this.random(16); // 128-битный случайный salt
+    return `${rounds}$${random}`;
   }
 
-  public uuidV4(options?: V4Options): string {
-    return v4(options);
-  }
-
-  public passwordCrypt(password: string, rounds = 10): string {
-    return bcrypt.hashSync(password, rounds);
-  }
-
-  public passwordHashCompare(password: string, hash: string): boolean {
-    return bcrypt.compareSync(password, hash);
-  }
-
-  public passwordHashParse(hash: string): { algorithm: string; cost: string; salt: string; hash: string } {
-    const [, algorithm, cost, data] = hash.split('$');
-    return { algorithm, cost, salt: data.slice(0, 22), hash: data.slice(22) };
+  /** UUID v4 через crypto.randomBytes */
+  public uuidV4(): string {
+    const bytes = randomBytes(16);
+    // версия 4
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    // вариант
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = bytes.toString('hex');
+    return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20, 32)].join('-');
   }
 }

@@ -135,6 +135,7 @@ class DataSingleton {
   public isArrayEmpty(data: unknown | unknown[]): boolean {
     return Array.isArray(data) && (data as []).length === 0;
   }
+
   public isEmpty(data: unknown | unknown[], options?: IsEmptyKeyValueInterface): boolean {
     if (options?.undefined && data === undefined) {
       return true;
@@ -150,65 +151,6 @@ class DataSingleton {
       return true;
     }
     return false;
-  }
-  // public isValidationFree(data: unknown | unknown[]): boolean {
-  //   return Array.isArray(data)
-  //     ? (data as []).some((item) => {
-  //         return !this.isInstance(item) && !this.isObject(item);
-  //       })
-  //     : !this.isInstance(data) && !this.isObject(data);
-  // }
-
-  public filterEmpty<DATA>(
-    data: DATA,
-    options: FilterEmptyInterface = { array: { undefined: true }, object: { undefined: true } },
-    recursive = true,
-  ): DATA {
-    if (Array.isArray(data)) {
-      return data
-        .map((item: DATA) => {
-          return this.filterEmpty(item, options, recursive);
-        })
-        .filter((item) => {
-          return !this.isEmpty(item, options?.array);
-        }) as DATA;
-    } else if (this.isObject(data)) {
-      return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
-        if (this.isObject(value) || Array.isArray(value)) {
-          const result = recursive ? this.filterEmpty(value, options, recursive) : value;
-          if (options?.object?.emptyObject && this.isObjectEmpty(result)) {
-            return acc;
-          }
-          if (options?.array?.emptyArray && this.isArrayEmpty(result)) {
-            return acc;
-          }
-          return { ...acc, [key]: result };
-        }
-        if (this.isEmpty(value, options?.object)) {
-          return acc;
-        }
-        return { ...acc, [key]: value };
-      }, {} as DATA);
-    } else {
-      return data;
-    }
-  }
-
-  public mapCallback<DATA>(data: DATA, callback: MapCallback, recursive = false): DATA {
-    if (Array.isArray(data)) {
-      return data.map((item: DATA) => {
-        return this.mapCallback(item, callback, recursive);
-      }) as DATA;
-    } else if (this.isObject(data)) {
-      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
-        if (this.isObject(value) && recursive) {
-          return { ...acc, [key]: recursive ? this.mapCallback(value, callback, recursive) : value };
-        }
-        return { ...acc, [key]: callback(key, value) };
-      }, {} as DATA);
-    } else {
-      return data;
-    }
   }
 
   public excludeKeys<DATA>(data: DATA, keys: string[], recursive = false): Partial<DATA> {
@@ -262,6 +204,58 @@ class DataSingleton {
       return cleanedPath || '.';
     }
     return path.replace(/^\/|\/$/g, '');
+  }
+
+  public filterEmpty<DATA>(
+    data: DATA,
+    options: FilterEmptyInterface = { array: { undefined: true }, object: { undefined: true } },
+    recursive = true,
+  ): DATA {
+    if (Array.isArray(data)) {
+      return data
+        .map((item: DATA) => {
+          return this.filterEmpty(item, options, recursive);
+        })
+        .filter((item) => {
+          return !this.isEmpty(item, options?.array);
+        }) as DATA;
+    } else if (this.isObject(data)) {
+      return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
+        if (this.isObject(value) || Array.isArray(value)) {
+          const result = recursive ? this.filterEmpty(value, options, recursive) : value;
+          if (options?.object?.emptyObject && this.isObjectEmpty(result)) {
+            return acc;
+          }
+          if (options?.array?.emptyArray && this.isArrayEmpty(result)) {
+            return acc;
+          }
+          return { ...acc, [key]: result };
+        }
+        if (this.isEmpty(value, options?.object)) {
+          return acc;
+        }
+        return { ...acc, [key]: value };
+      }, {} as DATA);
+    } else {
+      return data;
+    }
+  }
+
+  public mapCallback<DATA>(data: DATA, callback: MapCallback, recursive = false): DATA {
+    if (Array.isArray(data)) {
+      return data.map((item: DATA) => {
+        return this.mapCallback(item, callback, recursive);
+      }) as DATA;
+    } else if (this.isObject(data)) {
+      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
+        if (this.isObject(value) && recursive) {
+          return { ...acc, [key]: recursive ? this.mapCallback(value, callback, recursive) : value };
+        }
+        return { ...acc, [key]: callback(key, value) };
+      }, {} as DATA);
+    } else {
+      return data;
+    }
   }
 
   public safeCircular(data: unknown, excludePath = ''): unknown {
@@ -319,6 +313,14 @@ class DataSingleton {
     return walk(data);
   }
 
+  public fromJson<T>(data: string): T | string {
+    try {
+      return JSON.parse(data) as T;
+    } catch (e) {
+      return data;
+    }
+  }
+
   public toJson(data: unknown, indent?: number): string {
     const cache: unknown[] = [];
     return JSON.stringify(
@@ -332,14 +334,6 @@ class DataSingleton {
       },
       indent ?? 2,
     );
-  }
-
-  public fromJson<T>(data: string): T | string {
-    try {
-      return JSON.parse(data) as T;
-    } catch (e) {
-      return data;
-    }
   }
 }
 

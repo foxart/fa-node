@@ -1,19 +1,19 @@
 import * as console from 'node:console';
-import { CryptClass, DataHelper } from '../../src';
+import { CryptClass, DataHelper, PasswordHelper } from '../../src';
 
 const CryptHelper = new CryptClass('123');
 
 function testPassport(password: string): void {
   const original = password;
   const random = DataHelper.randomString();
-  const originalEncrypted = CryptHelper.passwordCrypt(original);
-  const originalCompare = CryptHelper.passwordHashCompare(original, originalEncrypted);
-  const randomCompare = CryptHelper.passwordHashCompare(random, originalEncrypted);
+  const originalEncrypted = PasswordHelper.encrypt(original);
+  const originalCompare = PasswordHelper.compareSync(original, originalEncrypted);
+  const randomCompare = PasswordHelper.compareSync(random, originalEncrypted);
   console.log({
     original,
     random,
     originalEncrypted,
-    originalEncryptedHash: CryptHelper.passwordHashParse(originalEncrypted),
+    originalEncryptedHash: PasswordHelper.parse(originalEncrypted),
     checks: {
       originalCompare,
       randomCompare,
