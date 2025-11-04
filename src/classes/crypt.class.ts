@@ -31,16 +31,15 @@ export class CryptClass {
    * @param data Строка или объект для шифрования
    * @param throws Бросать ошибку или логировать и возвращать исходные данные
    */
-  public encrypt<T>(data: T | undefined, throws = true): string {
+  public encrypt(data: string, throws = true): string {
     if (!data) {
-      return data as string;
+      return data;
     }
     try {
       const key = this.deriveKey();
       const iv = randomBytes(this.ivLength);
       const cipher = createCipheriv(this.algorithm, key, iv);
-      const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
-      const encrypted = Buffer.concat([cipher.update(jsonData, 'utf8'), cipher.final()]);
+      const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
       const tag = cipher.getAuthTag();
       const payload: PayloadInterface = {
         iv: iv.toString(this.encoding),
@@ -62,29 +61,39 @@ export class CryptClass {
    * @param data Строка, закодированная в base64 после encrypt
    * @param throws Бросать ошибку или логировать и возвращать исходные данные
    */
-  public decrypt<T>(data: string | undefined, throws = true): T {
+  public decrypt(data: string, throws = true): string {
     if (!data) {
-      return data as T;
+      return data;
     }
     try {
+      // const decoded = Buffer.from(data, this.encoding).toString('utf8');
+      // const { iv, tag, data: encryptedData } = JSON.parse(decoded) as PayloadInterface;
+      // const key = this.deriveKey();
+      // const decipher = createDecipheriv(this.algorithm, key, Buffer.from(iv, this.encoding));
+      // decipher.setAuthTag(Buffer.from(tag, this.encoding));
+      // const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedData, this.encoding)), decipher.final()]);
+      // const text = decrypted.toString('utf8');
       const decoded = Buffer.from(data, this.encoding).toString('utf8');
-      const { iv, tag, data: encryptedData } = JSON.parse(decoded) as PayloadInterface;
+      const parsed = JSON.parse(decoded) as PayloadInterface;
       const key = this.deriveKey();
-      const decipher = createDecipheriv(this.algorithm, key, Buffer.from(iv, this.encoding));
-      decipher.setAuthTag(Buffer.from(tag, this.encoding));
-      const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedData, this.encoding)), decipher.final()]);
-      const text = decrypted.toString('utf8');
-      try {
-        return JSON.parse(text) as T;
-      } catch {
-        return text as T;
-      }
+      const ivBuf = Buffer.from(parsed.iv, this.encoding);
+      const tagBuf = Buffer.from(parsed.tag, this.encoding);
+      const encryptedBuf = Buffer.from(parsed.data, this.encoding);
+      const decipher = createDecipheriv(this.algorithm, key, ivBuf);
+      decipher.setAuthTag(tagBuf);
+      const decrypted = Buffer.concat([decipher.update(encryptedBuf), decipher.final()]);
+      return decrypted.toString('utf8');
+      // try {
+      //   return JSON.parse(text) as T;
+      // } catch {
+      //   return text as T;
+      // }
     } catch (e) {
       if (throws) throw e;
       console.error(
         new ErrorClass({ name: 'CryptClass decrypt', message: (e as Error).message, stack: (e as Error).stack }),
       );
-      return data as unknown as T;
+      return data;
     }
   }
 
