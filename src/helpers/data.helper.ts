@@ -19,14 +19,44 @@ type MapCallback = (key: string, value: unknown) => unknown;
 class DataSingleton {
   private static self: DataSingleton;
 
-  private readonly characters: string;
+  private readonly characters = [
+    Array.from({ length: 26 }, (_, i) => String.fromCharCode(i + 65)).join(''),
+    Array.from({ length: 26 }, (_, i) => String.fromCharCode(i + 97)).join(''),
+    Array.from({ length: 10 }, (_, i) => i).join(''),
+  ].join('');
 
-  private constructor() {
-    const upper = Array.from({ length: 26 }, (_, i) => String.fromCharCode(i + 65)).join('');
-    const lower = Array.from({ length: 26 }, (_, i) => String.fromCharCode(i + 97)).join('');
-    const numbers = Array.from({ length: 10 }, (_, i) => i).join('');
-    this.characters = [upper, lower, numbers].join('');
-  }
+  private readonly colorList = [
+    '#A47864',
+    '#C9B27C',
+    '#DCCCBD',
+    '#EDE3D9',
+    '#F1E3BC',
+    '#31231A',
+    '#52361E',
+    '#9E7967',
+    '#EDEAB1',
+    '#512C3A',
+    '#71ADBA',
+    '#FF654F',
+    '#4C5578',
+    '#B2456E',
+    '#FBEAE7',
+    '#552619',
+    '#EDF4F2',
+    '#7C8363',
+    '#31473A',
+    '#E9E0D4',
+    '#B8CCD0',
+    '#6C767E',
+    '#56615D',
+    '#E5DADA',
+    '#FFF2EF',
+    '#FFDBB6',
+    '#F7A5A5',
+    '#D3DAD9',
+    '#715A5A',
+    '#44444E',
+  ];
 
   public static getInstance(): DataSingleton {
     if (!DataSingleton.self) {
@@ -41,6 +71,17 @@ class DataSingleton {
 
   public randomFloat(min: number, max: number): number {
     return Math.random() * (max - min + 1) + min;
+  }
+
+  public randomColor(delta = 20): string {
+    const random = (base: number): number => {
+      const shift = this.randomInteger(-delta, delta);
+      const v = base + shift;
+      return Math.max(0, Math.min(255, v));
+    };
+    const base = this.colorList[this.randomInteger(0, this.colorList.length - 1)];
+    const [r, g, b] = this.convertHexToRgb(base);
+    return this.convertRgbToHex(random(r), random(g), random(b));
   }
 
   public randomInteger(min: number, max: number): number {
@@ -153,6 +194,69 @@ class DataSingleton {
     return false;
   }
 
+  public applyCallback<DATA>(data: DATA, callback: MapCallback, recursive = false): DATA {
+    if (Array.isArray(data)) {
+      return data.map((item: DATA) => {
+        return this.applyCallback(item, callback, recursive);
+      }) as DATA;
+    } else if (this.isObject(data)) {
+      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
+        if (this.isObject(value) && recursive) {
+          return { ...acc, [key]: recursive ? this.applyCallback(value, callback, recursive) : value };
+        }
+        return { ...acc, [key]: callback(key, value) };
+      }, {} as DATA);
+    } else {
+      return data;
+    }
+  }
+
+  public convertFromJson<T>(data: string): T | string {
+    try {
+      return JSON.parse(data) as T;
+    } catch (e) {
+      return data;
+    }
+  }
+
+  public convertToJson(data: unknown, indent?: number): string {
+    const cache: unknown[] = [];
+    return JSON.stringify(
+      data,
+      (_key, value: unknown) => {
+        return typeof value === 'object' && value !== null
+          ? cache.includes(value)
+            ? '[Converting circular structure to JSON]'
+            : cache.push(value) && value
+          : value;
+      },
+      indent ?? 2,
+    );
+  }
+
+  public convertHexToRgb(hex: string): [number, number, number] {
+    const clean = hex.replace('#', '');
+    let r: number, g: number, b: number;
+    if (clean.length === 6) {
+      r = parseInt(clean.slice(0, 2), 16);
+      g = parseInt(clean.slice(2, 4), 16);
+      b = parseInt(clean.slice(4, 6), 16);
+    } else {
+      r = 0;
+      g = 0;
+      b = 0;
+    }
+    return [r, g, b];
+  }
+
+  public convertRgbToHex(r: number, g: number, b: number): string {
+    const to2 = (n: number): string => {
+      const h = n.toString(16);
+      return h.length === 1 ? '0' + h : h;
+    };
+    return `#${to2(r)}${to2(g)}${to2(b)}`;
+  }
+
   public excludeKeys<DATA>(data: DATA, keys: string[], recursive = false): Partial<DATA> {
     if (Array.isArray(data)) {
       return data.map((item) => {
@@ -241,24 +345,7 @@ class DataSingleton {
     }
   }
 
-  public mapCallback<DATA>(data: DATA, callback: MapCallback, recursive = false): DATA {
-    if (Array.isArray(data)) {
-      return data.map((item: DATA) => {
-        return this.mapCallback(item, callback, recursive);
-      }) as DATA;
-    } else if (this.isObject(data)) {
-      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
-        if (this.isObject(value) && recursive) {
-          return { ...acc, [key]: recursive ? this.mapCallback(value, callback, recursive) : value };
-        }
-        return { ...acc, [key]: callback(key, value) };
-      }, {} as DATA);
-    } else {
-      return data;
-    }
-  }
-
-  public safeCircular(data: unknown, excludePath = ''): unknown {
+  public filterCircular(data: unknown, excludePath = ''): unknown {
     const cache = new WeakSet();
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
@@ -276,11 +363,10 @@ class DataSingleton {
         return {
           // __className: item.constructor.name,
           name: item.name,
-          message: errorClass.messageIsJson ? DataHelper.fromJson(errorClass.message) : errorClass.message,
+          message: errorClass.messageIsJson ? DataHelper.convertFromJson(errorClass.message) : errorClass.message,
           stack,
         };
       }
-
       if (!this.isObject(item)) {
         return item;
       }
@@ -309,31 +395,7 @@ class DataSingleton {
       }
       return result;
     };
-
     return walk(data);
-  }
-
-  public fromJson<T>(data: string): T | string {
-    try {
-      return JSON.parse(data) as T;
-    } catch (e) {
-      return data;
-    }
-  }
-
-  public toJson(data: unknown, indent?: number): string {
-    const cache: unknown[] = [];
-    return JSON.stringify(
-      data,
-      (_key, value: unknown) => {
-        return typeof value === 'object' && value !== null
-          ? cache.includes(value)
-            ? '[Converting circular structure to JSON]'
-            : cache.push(value) && value
-          : value;
-      },
-      indent ?? 2,
-    );
   }
 }
 

@@ -154,7 +154,7 @@ export class ConsoleSystemClass {
     this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.RED]));
     this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.RED]));
     if (error instanceof ErrorClass && error.messageIsJson) {
-      this.processStdout(this.dataWrapper(DataHelper.fromJson(error.message)));
+      this.processStdout(this.dataWrapper(DataHelper.convertFromJson(error.message)));
     } else {
       this.processStdout(error.message);
     }
@@ -270,7 +270,7 @@ export class ConsoleSystemClass {
   }
 
   public dataWrapper(data: unknown): string {
-    return util.inspect(DataHelper.safeCircular(data, process.cwd()), {
+    return util.inspect(DataHelper.filterCircular(data, process.cwd()), {
       colors: this.options.color,
       showHidden: this.options.hidden,
       sorted: this.options.sort,

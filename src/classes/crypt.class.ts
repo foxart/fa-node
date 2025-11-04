@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, pbkdf2Sync, randomBytes } from 'crypto';
 import { ErrorClass } from './error.class';
 
 interface PayloadInterface {
@@ -7,21 +7,36 @@ interface PayloadInterface {
   data: string;
 }
 
+/**
+ * Класс для криптографических операций: шифрование/дешифрование AES-256-GCM,
+ * HMAC, MD5, генерация случайных значений, UUID и токенизация текста.
+ */
 export class CryptClass {
   private readonly algorithm = 'aes-256-gcm';
   private readonly encoding = 'base64';
   private readonly ivLength = 12; // рекомендуемый размер IV для GCM
+  private readonly pbkdf2Iterations = 100_000; // безопасный минимум итераций PBKDF2
+  private readonly pbkdf2KeyLen = 32; // 256-бит ключ
+  private readonly pbkdf2Digest = 'sha256';
 
   public constructor(private readonly _secret: string) {}
 
+  /** Секрет ключа */
   public get secret(): string {
     return this._secret;
   }
 
-  /** AES-256-GCM + случайный IV + аутентификация */
-  public encrypt<T>(data: T, throws = true): T {
+  /**
+   * Шифрование AES-256-GCM с случайным IV и тегом аутентификации
+   * @param data Строка или объект для шифрования
+   * @param throws Бросать ошибку или логировать и возвращать исходные данные
+   */
+  public encrypt<T>(data: T | undefined, throws = true): string {
+    if (!data) {
+      return data as string;
+    }
     try {
-      const key = createHash('sha256').update(this._secret).digest();
+      const key = this.deriveKey();
       const iv = randomBytes(this.ivLength);
       const cipher = createCipheriv(this.algorithm, key, iv);
       const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
@@ -32,29 +47,29 @@ export class CryptClass {
         tag: tag.toString(this.encoding),
         data: encrypted.toString(this.encoding),
       };
-      return Buffer.from(JSON.stringify(payload)).toString(this.encoding) as T;
+      return Buffer.from(JSON.stringify(payload)).toString(this.encoding);
     } catch (e) {
-      const error = e as Error;
-      if (throws) {
-        throw error;
-      }
+      if (throws) throw e;
       console.error(
-        new ErrorClass({
-          name: `${this.constructor.name} encrypt`,
-          message: error.message,
-          stack: error.stack,
-        }),
+        new ErrorClass({ name: 'CryptClass encrypt', message: (e as Error).message, stack: (e as Error).stack }),
       );
-      return data;
+      return data as unknown as string;
     }
   }
 
-  /** Расшифровка AES-256-GCM */
-  public decrypt<T>(data: T, throws = true): T {
+  /**
+   * Дешифрование AES-256-GCM
+   * @param data Строка, закодированная в base64 после encrypt
+   * @param throws Бросать ошибку или логировать и возвращать исходные данные
+   */
+  public decrypt<T>(data: string | undefined, throws = true): T {
+    if (!data) {
+      return data as T;
+    }
     try {
-      const key = createHash('sha256').update(this._secret).digest();
-      const decoded = Buffer.from(data as string, this.encoding).toString('utf8');
+      const decoded = Buffer.from(data, this.encoding).toString('utf8');
       const { iv, tag, data: encryptedData } = JSON.parse(decoded) as PayloadInterface;
+      const key = this.deriveKey();
       const decipher = createDecipheriv(this.algorithm, key, Buffer.from(iv, this.encoding));
       decipher.setAuthTag(Buffer.from(tag, this.encoding));
       const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedData, this.encoding)), decipher.final()]);
@@ -65,69 +80,46 @@ export class CryptClass {
         return text as T;
       }
     } catch (e) {
-      const error = e as Error;
-      if (throws) {
-        throw error;
-      }
+      if (throws) throw e;
       console.error(
-        new ErrorClass({
-          name: `${this.constructor.name} decrypt`,
-          message: error.message,
-          stack: error.stack,
-        }),
+        new ErrorClass({ name: 'CryptClass decrypt', message: (e as Error).message, stack: (e as Error).stack }),
       );
-      return data;
+      return data as unknown as T;
     }
   }
 
-  // ===========================================================
-  // 🧩 HASH / HMAC
-  // ===========================================================
-
-  /** HMAC-SHA256 — для детерминированного безопасного поиска */
+  /** HMAC-SHA256 для безопасного детерминированного хэширования */
   public hmac(value: string): string {
     return createHmac('sha256', this._secret).update(value).digest('hex');
   }
 
-  // ===========================================================
-  // 🔍 SEARCH / TOKENIZATION
-  // ===========================================================
-
-  /** Универсальная Unicode-нормализация */
+  /** Unicode-нормализация для поиска и сравнения текста */
   public normalizeValueForSearch(value: string): string {
     return value
-      .normalize('NFKC') // Сведение всех форм Unicode
-      .replace(/\p{Cf}/gu, '') // Удаляем невидимые control-символы (zero-width, etc.)
-      .replace(/\s+/g, ' ') // Схлопываем пробелы
+      .normalize('NFKC')
+      .replace(/\p{Cf}/gu, '')
+      .replace(/\s+/g, ' ')
       .trim()
-      .toLocaleLowerCase('und'); // Unicode-aware lowercasing
+      .toLocaleLowerCase('und');
   }
 
-  /** Токенизация строки для LIKE-поиска (HMAC n-gram слов)
-   *  ngramMin — минимальная длина префикса для генерации n-gram (рекомендуется 2 или 3)
-   *  ngramMax — максимальная длина префикса (ограничивает раздувание числа токенов), по умолчанию 6
-   */
+  /** Генерация токенов для LIKE-поиска с HMAC и n-gram */
   public getSearchTokenList(value: string, ngramMin = 2, ngramMax = 6): string[] {
     const normalized = this.normalizeValueForSearch(value);
     if (!normalized) return [];
     const tokens: string[] = [];
     const seen = new Set<string>();
-    // Регекс: слова из букв (поддерживает внутренние апострофы/дефисы), либо числа
-    // пример покрывает: O'Neill, Jean-Luc, 王五, 42
     const wordIter = normalized.matchAll(/\p{L}+(?:['’\-]\p{L}+)*\p{N}*|\p{N}+/gu);
     const wordList = Array.from(wordIter, (m) => m[0]);
     for (const word of wordList) {
-      // Пропускаем чисто эмодзи/символы (если по каким-то причинам попали)
       if (!word || word.trim() === '') continue;
-      // full word token
       const fullH = this.hmac(word);
       if (!seen.has(fullH)) {
         tokens.push(fullH);
         seen.add(fullH);
       }
-      // generate n-grams (prefixes) — только если слово длиннее ngramMin
-      const maxPrefix = Math.min(word.length - 1, ngramMax); // -1 потому что full word уже добавлен
-      if (word.length > ngramMin) {
+      const maxPrefix = Math.min(word.length - 1, ngramMax);
+      if (word.length > ngramMin)
         for (let len = ngramMin; len <= maxPrefix; len++) {
           const prefix = word.slice(0, len);
           if (!prefix) continue;
@@ -137,42 +129,42 @@ export class CryptClass {
             seen.add(h);
           }
         }
-      }
     }
     return tokens;
   }
 
-  // ===========================================================
-  // 🔧 MISC / UTILITIES
-  // ===========================================================
-
   /** MD5-хэш (обычный или с HMAC) */
   public md5(message: string, key?: string): string {
-    if (key) {
-      return createHmac('md5', key).update(message).digest(this.encoding);
-    }
-    return createHash('md5').update(message).digest(this.encoding);
+    return key
+      ? createHmac('md5', key).update(message).digest(this.encoding)
+      : createHash('md5').update(message).digest(this.encoding);
   }
 
-  /** Генерация случайного байтового значения */
-  public random(nBytes = 16): string {
-    return randomBytes(nBytes).toString(this.encoding);
+  /** Генерация salt для пароля с указанием количества итераций */
+  public salt(rounds = 100_000): string {
+    return `${rounds}$${randomBytes(16).toString('hex')}`;
   }
 
-  /** Генерация salt для пароля (альтернатива bcrypt.genSaltSync) */
-  public salt(rounds = 10): string {
-    const random = this.random(16); // 128-битный случайный salt
-    return `${rounds}$${random}`;
+  /** Генерация безопасного токена (по умолчанию 32 байт / 256 бит) */
+  public token(lengthBytes = 32): string {
+    const buffer = randomBytes(lengthBytes);
+    // base64url: заменяем + на -, / на _, убираем =
+    return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
   }
 
   /** UUID v4 через crypto.randomBytes */
   public uuidV4(): string {
     const bytes = randomBytes(16);
-    // версия 4
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    // вариант
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
     const hex = bytes.toString('hex');
     return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20, 32)].join('-');
+  }
+
+  /** Генерация ключа AES-256 из пароля через PBKDF2 */
+  private deriveKey(saltBuffer?: Buffer): Buffer {
+    const salt = saltBuffer ?? Buffer.from('default_salt', 'utf8');
+    // fallback, лучше передавать реальный salt
+    return pbkdf2Sync(this._secret, salt, this.pbkdf2Iterations, this.pbkdf2KeyLen, this.pbkdf2Digest);
   }
 }

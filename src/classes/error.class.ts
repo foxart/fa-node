@@ -20,7 +20,7 @@ export class ErrorClass extends Error {
       this.message = error.message.toString();
       this.messageIsJson = false;
     } else {
-      this.message = DataHelper.toJson(error.message);
+      this.message = DataHelper.convertToJson(error.message);
       this.messageIsJson = true;
     }
     this.stack = error.stack ? error.stack : this.stack;

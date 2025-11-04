@@ -124,7 +124,7 @@ class ExceptionSingleton {
     }
     return {
       name: error.name,
-      message: DataHelper.toJson(message),
+      message: DataHelper.convertToJson(message),
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: this.codeFromHttpStatus(HttpStatus.INTERNAL_SERVER_ERROR),
       type: ExceptionResponseTypeEnum.MONGO_ERROR,
@@ -157,7 +157,7 @@ class ExceptionSingleton {
   private castUnknown(error: unknown): ExceptionInterface {
     return {
       name: ExceptionSingleton.name,
-      message: typeof error === 'object' ? DataHelper.toJson(error) : '',
+      message: typeof error === 'object' ? DataHelper.convertToJson(error) : '',
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: this.codeFromHttpStatus(HttpStatus.INTERNAL_SERVER_ERROR),
       type: ExceptionResponseTypeEnum.UNKNOWN,

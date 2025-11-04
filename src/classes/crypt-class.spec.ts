@@ -1,14 +1,8 @@
 import { CryptClass } from '../index';
 
 describe('CryptClass', () => {
-  let crypt: CryptClass;
-  beforeEach(() => {
-    crypt = new CryptClass('secret');
-  });
+  const crypt = new CryptClass('secret');
 
-  // ===========================================================
-  // 🔹 normalizeValueForSearch
-  // ===========================================================
   describe('normalizeValueForSearch', () => {
     it('should normalize case, whitespace, and invisible chars', () => {
       const input = '   Привет \u200B ';
@@ -39,9 +33,6 @@ describe('CryptClass', () => {
     });
   });
 
-  // ===========================================================
-  // 🔹 getSearchTokenList - n-grams
-  // ===========================================================
   describe('getSearchTokenList', () => {
     const hmac = (value: string): string => crypt.hmac(value);
 
@@ -92,9 +83,6 @@ describe('CryptClass', () => {
     });
   });
 
-  // ===========================================================
-  // 🔹 encrypt / decrypt
-  // ===========================================================
   describe('encrypt & decrypt', () => {
     it('should encrypt and decrypt strings correctly', () => {
       const input = 'Hello world';
@@ -127,9 +115,6 @@ describe('CryptClass', () => {
     });
   });
 
-  // ===========================================================
-  // 🔹 HMAC
-  // ===========================================================
   describe('hmac', () => {
     it('should produce deterministic HMAC for same input', () => {
       expect(crypt.hmac('test')).toBe(crypt.hmac('test'));
@@ -142,6 +127,87 @@ describe('CryptClass', () => {
     it('should produce HMAC for empty string', () => {
       expect(typeof crypt.hmac('')).toBe('string');
       expect(crypt.hmac('')).toHaveLength(64); // sha256 hex length
+    });
+  });
+
+  describe('md5', () => {
+    it('should produce consistent MD5 hash without key', () => {
+      const hash1 = crypt.md5('test');
+      const hash2 = crypt.md5('test');
+      expect(hash1).toBe(hash2);
+    });
+
+    it('should produce different MD5 hash for different inputs', () => {
+      expect(crypt.md5('test1')).not.toBe(crypt.md5('test2'));
+    });
+
+    it('should produce consistent HMAC-MD5 with key', () => {
+      const hash1 = crypt.md5('test', 'key');
+      const hash2 = crypt.md5('test', 'key');
+      expect(hash1).toBe(hash2);
+    });
+
+    it('should produce different HMAC-MD5 for different keys', () => {
+      const hash1 = crypt.md5('test', 'key1');
+      const hash2 = crypt.md5('test', 'key2');
+      expect(hash1).not.toBe(hash2);
+    });
+  });
+
+  describe('salt', () => {
+    it('should produce a string with rounds prefix', () => {
+      const s = crypt.salt(5000);
+      expect(s.startsWith('5000$')).toBe(true);
+    });
+
+    it('should produce different salts on consecutive calls', () => {
+      const s1 = crypt.salt();
+      const s2 = crypt.salt();
+      expect(s1).not.toBe(s2);
+    });
+  });
+
+  describe('token', () => {
+    it('should generate a non-empty token', () => {
+      const token = crypt.token();
+      expect(token).toBeDefined();
+      expect(token.length).toBeGreaterThan(0);
+    });
+
+    it('should generate different tokens on consecutive calls', () => {
+      const token1 = crypt.token();
+      const token2 = crypt.token();
+      expect(token1).not.toBe(token2);
+    });
+
+    it('should generate a base64url-safe token', () => {
+      const token = crypt.token();
+      expect(token).toMatch(/^[A-Za-z0-9\-_]+$/);
+    });
+
+    it('should allow custom length in bytes', () => {
+      const token = crypt.token(16); // 128 бит
+      const decoded = Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+      expect(decoded.length).toBe(16);
+    });
+
+    it('should default to 32 bytes (256 bits)', () => {
+      const token = crypt.token();
+      const decoded = Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+      expect(decoded.length).toBe(32);
+    });
+  });
+
+  describe('uuidV4', () => {
+    it('should produce valid UUID v4', () => {
+      const uuid = crypt.uuidV4();
+      expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    });
+
+    it('should produce unique UUIDs on consecutive calls', () => {
+      const u1 = crypt.uuidV4();
+      const u2 = crypt.uuidV4();
+      expect(u1).not.toBe(u2);
     });
   });
 });
