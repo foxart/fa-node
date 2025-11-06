@@ -9,7 +9,7 @@ interface IsEmptyKeyValueInterface {
   emptyObject?: boolean;
 }
 
-interface FilterEmptyInterface {
+interface EmptyOptionsInterface {
   array?: IsEmptyKeyValueInterface;
   object?: IsEmptyKeyValueInterface;
 }
@@ -65,71 +65,12 @@ class DataSingleton {
     return DataSingleton.self;
   }
 
-  public randomBoolean(): boolean {
-    return Math.random() < 0.5;
+  /**
+   * CHECK FUNCTIONS
+   */
+  public isNull(data: unknown): boolean {
+    return data === null;
   }
-
-  public randomFloat(min: number, max: number): number {
-    return Math.random() * (max - min + 1) + min;
-  }
-
-  public randomColor(delta = 20): string {
-    const random = (base: number): number => {
-      const shift = this.randomInteger(-delta, delta);
-      const v = base + shift;
-      return Math.max(0, Math.min(255, v));
-    };
-    const base = this.colorList[this.randomInteger(0, this.colorList.length - 1)];
-    const [r, g, b] = this.convertHexToRgb(base);
-    return this.convertRgbToHex(random(r), random(g), random(b));
-  }
-
-  public randomInteger(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1) + min);
-  }
-
-  public randomDate(startDate: Date, endDate: Date): Date {
-    // function isLeapYear(year: number): boolean {
-    //   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    // }
-    // const year = this.randomInteger(startYear, endYear);
-    // const month = this.randomInteger(0, 11);
-    // const daysInMonth = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    // const day = this.randomInteger(1, daysInMonth[month]);
-    // const hour = this.randomInteger(0, 23);
-    // const minute = this.randomInteger(0, 59);
-    // const second = this.randomInteger(0, 59);
-    // return new Date(year, month, day, hour, minute, second);
-    const startMs = startDate.getTime();
-    const endMs = endDate.getTime();
-    const randomMs = this.randomInteger(startMs, endMs);
-    return new Date(randomMs);
-  }
-
-  public randomString(length = 10): string {
-    let counter = 0;
-    let result = '';
-    while (counter < length) {
-      result += this.characters.charAt(Math.floor(Math.random() * this.characters.length));
-      counter++;
-    }
-    return result;
-  }
-
-  public randomWord(length = 5): string {
-    const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
-    const consonants = ['b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'w', 'x', 'z'];
-    let word = '';
-    let useVowel = Math.random() > 0.5;
-    for (let i = 0; i < length; i++) {
-      const letters = useVowel ? vowels : consonants;
-      const randomChar = letters[Math.floor(Math.random() * letters.length)];
-      word += randomChar;
-      useVowel = !useVowel;
-    }
-    return word.charAt(0).toUpperCase() + word.slice(1);
-  }
-
   public isBuffer(data: unknown): boolean {
     if (typeof Buffer === 'undefined') return false;
     return data instanceof Buffer || Buffer.isBuffer(data);
@@ -194,23 +135,9 @@ class DataSingleton {
     return false;
   }
 
-  public applyCallback<DATA>(data: DATA, callback: MapCallback, recursive = false): DATA {
-    if (Array.isArray(data)) {
-      return data.map((item: DATA) => {
-        return this.applyCallback(item, callback, recursive);
-      }) as DATA;
-    } else if (this.isObject(data)) {
-      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
-        if (this.isObject(value) && recursive) {
-          return { ...acc, [key]: recursive ? this.applyCallback(value, callback, recursive) : value };
-        }
-        return { ...acc, [key]: callback(key, value) };
-      }, {} as DATA);
-    } else {
-      return data;
-    }
-  }
-
+  /**
+   * CONVERT FUNCTIONS
+   */
   public convertFromJson<T>(data: string): T | string {
     try {
       return JSON.parse(data) as T;
@@ -257,6 +184,9 @@ class DataSingleton {
     return `#${to2(r)}${to2(g)}${to2(b)}`;
   }
 
+  /**
+   * EXCLUDE FUNCTIONS
+   */
   public excludeKeys<DATA>(data: DATA, keys: string[], recursive = false): Partial<DATA> {
     if (Array.isArray(data)) {
       return data.map((item) => {
@@ -310,35 +240,20 @@ class DataSingleton {
     return path.replace(/^\/|\/$/g, '');
   }
 
-  public filterEmpty<DATA>(
-    data: DATA,
-    options: FilterEmptyInterface = { array: { undefined: true }, object: { undefined: true } },
-    recursive = true,
-  ): DATA {
+  /**
+   * HELPER FUNCTIONS
+   */
+  public applyCallback<DATA>(data: DATA, callback: MapCallback, recursive = false): DATA {
     if (Array.isArray(data)) {
-      return data
-        .map((item: DATA) => {
-          return this.filterEmpty(item, options, recursive);
-        })
-        .filter((item) => {
-          return !this.isEmpty(item, options?.array);
-        }) as DATA;
+      return data.map((item: DATA) => {
+        return this.applyCallback(item, callback, recursive);
+      }) as DATA;
     } else if (this.isObject(data)) {
-      return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
-        if (this.isObject(value) || Array.isArray(value)) {
-          const result = recursive ? this.filterEmpty(value, options, recursive) : value;
-          if (options?.object?.emptyObject && this.isObjectEmpty(result)) {
-            return acc;
-          }
-          if (options?.array?.emptyArray && this.isArrayEmpty(result)) {
-            return acc;
-          }
-          return { ...acc, [key]: result };
+      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
+        if (this.isObject(value) && recursive) {
+          return { ...acc, [key]: recursive ? this.applyCallback(value, callback, recursive) : value };
         }
-        if (this.isEmpty(value, options?.object)) {
-          return acc;
-        }
-        return { ...acc, [key]: value };
+        return { ...acc, [key]: callback(key, value) };
       }, {} as DATA);
     } else {
       return data;
@@ -396,6 +311,146 @@ class DataSingleton {
       return result;
     };
     return walk(data);
+  }
+
+  public omitEmpty<DATA>(
+    data: DATA,
+    options: EmptyOptionsInterface = { array: { undefined: true }, object: { undefined: true } },
+    recursive = true,
+  ): DATA {
+    if (Array.isArray(data)) {
+      return data
+        .map((item: DATA) => {
+          return this.omitEmpty(item, options, recursive);
+        })
+        .filter((item) => {
+          return !this.isEmpty(item, options?.array);
+        }) as DATA;
+    } else if (this.isObject(data)) {
+      return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
+        if (this.isObject(value) || Array.isArray(value)) {
+          const result = recursive ? this.omitEmpty(value, options, recursive) : value;
+          if (options?.object?.emptyObject && this.isObjectEmpty(result)) {
+            return acc;
+          }
+          if (options?.array?.emptyArray && this.isArrayEmpty(result)) {
+            return acc;
+          }
+          return { ...acc, [key]: result };
+        }
+        if (this.isEmpty(value, options?.object)) {
+          return acc;
+        }
+        return { ...acc, [key]: value };
+      }, {} as DATA);
+    } else {
+      return data;
+    }
+  }
+
+  public pickEmpty<DATA>(
+    data: DATA,
+    options: EmptyOptionsInterface = { array: { undefined: true }, object: { undefined: true } },
+    recursive = true,
+  ): DATA {
+    if (Array.isArray(data)) {
+      return data
+        .map((item: DATA) => this.pickEmpty(item, options, recursive))
+        .filter((item) => this.isEmpty(item, options?.array)) as DATA;
+    } else if (this.isObject(data)) {
+      return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
+        if (this.isObject(value) || Array.isArray(value)) {
+          const result = recursive ? this.pickEmpty(value, options, recursive) : value;
+          // Если в объекте или массиве всё пустое — считаем его пустым и включаем
+          if (options?.object?.emptyObject && this.isObjectEmpty(result)) {
+            return { ...acc, [key]: result };
+          }
+          if (options?.array?.emptyArray && this.isArrayEmpty(result)) {
+            return { ...acc, [key]: result };
+          }
+          // Если результат НЕ пустой, пропускаем
+          if (!this.isEmpty(result, options?.object)) {
+            return acc;
+          }
+          return { ...acc, [key]: result };
+        }
+        // Оставляем только пустые значения
+        if (this.isEmpty(value, options?.object)) {
+          return { ...acc, [key]: value };
+        }
+        return acc;
+      }, {} as DATA);
+    } else {
+      return this.isEmpty(data, options?.object) ? data : ({} as DATA);
+    }
+  }
+
+  /**
+   * RANDOM FUNCTIONS
+   */
+  public randomBoolean(): boolean {
+    return Math.random() < 0.5;
+  }
+
+  public randomFloat(min: number, max: number): number {
+    return Math.random() * (max - min + 1) + min;
+  }
+
+  public randomColor(delta = 20): string {
+    const random = (base: number): number => {
+      const shift = this.randomInteger(-delta, delta);
+      const v = base + shift;
+      return Math.max(0, Math.min(255, v));
+    };
+    const base = this.colorList[this.randomInteger(0, this.colorList.length - 1)];
+    const [r, g, b] = this.convertHexToRgb(base);
+    return this.convertRgbToHex(random(r), random(g), random(b));
+  }
+
+  public randomInteger(min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+  }
+
+  public randomDate(startDate: Date, endDate: Date): Date {
+    // function isLeapYear(year: number): boolean {
+    //   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    // }
+    // const year = this.randomInteger(startYear, endYear);
+    // const month = this.randomInteger(0, 11);
+    // const daysInMonth = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    // const day = this.randomInteger(1, daysInMonth[month]);
+    // const hour = this.randomInteger(0, 23);
+    // const minute = this.randomInteger(0, 59);
+    // const second = this.randomInteger(0, 59);
+    // return new Date(year, month, day, hour, minute, second);
+    const startMs = startDate.getTime();
+    const endMs = endDate.getTime();
+    const randomMs = this.randomInteger(startMs, endMs);
+    return new Date(randomMs);
+  }
+
+  public randomString(length = 10): string {
+    let counter = 0;
+    let result = '';
+    while (counter < length) {
+      result += this.characters.charAt(Math.floor(Math.random() * this.characters.length));
+      counter++;
+    }
+    return result;
+  }
+
+  public randomWord(length = 5): string {
+    const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
+    const consonants = ['b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'w', 'x', 'z'];
+    let word = '';
+    let useVowel = Math.random() > 0.5;
+    for (let i = 0; i < length; i++) {
+      const letters = useVowel ? vowels : consonants;
+      const randomChar = letters[Math.floor(Math.random() * letters.length)];
+      word += randomChar;
+      useVowel = !useVowel;
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1);
   }
 }
 

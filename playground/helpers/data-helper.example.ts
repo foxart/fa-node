@@ -68,7 +68,7 @@ function testFilter(): object {
     ...objectEmptyValues,
     valueObject: { ...objectEmptyValues, ...objectValues },
   };
-  return DataHelper.filterEmpty(data);
+  return DataHelper.omitEmpty(data);
 }
 
 function testIsClass(): object {
