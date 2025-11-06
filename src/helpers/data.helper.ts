@@ -1,17 +1,20 @@
 import { ParserHelper } from './parser.helper';
+// interface IsEmptyKeyValueInterface {
+//   undefined?: boolean;
+//   nullValue?: boolean;
+//   emptyString?: boolean;
+//   zeroNumber?: boolean;
+//   emptyArray?: boolean;
+//   emptyObject?: boolean;
+// }
 
-interface IsEmptyKeyValueInterface {
+interface EmptyOptionsInterface {
   undefined?: boolean;
   nullValue?: boolean;
   emptyString?: boolean;
   zeroNumber?: boolean;
   emptyArray?: boolean;
   emptyObject?: boolean;
-}
-
-interface EmptyOptionsInterface {
-  array?: IsEmptyKeyValueInterface;
-  object?: IsEmptyKeyValueInterface;
 }
 
 type MapCallback = (key: string, value: unknown) => unknown;
@@ -118,7 +121,7 @@ class DataSingleton {
     return Array.isArray(data) && (data as []).length === 0;
   }
 
-  public isEmpty(data: unknown | unknown[], options?: IsEmptyKeyValueInterface): boolean {
+  public isEmpty(data: unknown | unknown[], options?: EmptyOptionsInterface): boolean {
     if (options?.undefined && data === undefined) {
       return true;
     } else if (options?.nullValue && data === null) {
@@ -313,32 +316,28 @@ class DataSingleton {
     return walk(data);
   }
 
-  public omitEmpty<DATA>(
-    data: DATA,
-    options: EmptyOptionsInterface = { array: { undefined: true }, object: { undefined: true } },
-    recursive = true,
-  ): DATA {
+  public omitEmpty<DATA>(data: DATA, options: EmptyOptionsInterface = {}, recursive = true): DATA {
     if (Array.isArray(data)) {
       return data
         .map((item: DATA) => {
           return this.omitEmpty(item, options, recursive);
         })
         .filter((item) => {
-          return !this.isEmpty(item, options?.array);
+          return !this.isEmpty(item, options);
         }) as DATA;
     } else if (this.isObject(data)) {
       return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
         if (this.isObject(value) || Array.isArray(value)) {
           const result = recursive ? this.omitEmpty(value, options, recursive) : value;
-          if (options?.object?.emptyObject && this.isObjectEmpty(result)) {
+          if (options?.emptyObject && this.isObjectEmpty(result)) {
             return acc;
           }
-          if (options?.array?.emptyArray && this.isArrayEmpty(result)) {
+          if (options?.emptyArray && this.isArrayEmpty(result)) {
             return acc;
           }
           return { ...acc, [key]: result };
         }
-        if (this.isEmpty(value, options?.object)) {
+        if (this.isEmpty(value, options)) {
           return acc;
         }
         return { ...acc, [key]: value };
@@ -348,40 +347,46 @@ class DataSingleton {
     }
   }
 
-  public pickEmpty<DATA>(
-    data: DATA,
-    options: EmptyOptionsInterface = { array: { undefined: true }, object: { undefined: true } },
-    recursive = true,
-  ): DATA {
+  public pickEmpty<DATA>(data: DATA, options: EmptyOptionsInterface = {}, recursive = true): DATA {
     if (Array.isArray(data)) {
-      return data
-        .map((item: DATA) => this.pickEmpty(item, options, recursive))
-        .filter((item) => this.isEmpty(item, options?.array)) as DATA;
+      const mapped = data.map((item) => this.pickEmpty(item as DATA, options, recursive));
+      return mapped.filter((item) => {
+        if (Array.isArray(item)) {
+          // включаем массив, если он не пустой или emptyArray разрешен
+          return !this.isArrayEmpty(item) || options?.emptyArray;
+        }
+        if (this.isObject(item)) {
+          // включаем объект, если он не пустой или emptyObject разрешен
+          return !this.isObjectEmpty(item) || options?.emptyObject;
+        }
+        // скаляры включаем только если пустые по options
+        return this.isEmpty(item, options);
+      }) as DATA;
     } else if (this.isObject(data)) {
-      return Object.entries(data as Record<string, DATA>).reduce((acc, [key, value]) => {
-        if (this.isObject(value) || Array.isArray(value)) {
-          const result = recursive ? this.pickEmpty(value, options, recursive) : value;
-          // Если в объекте или массиве всё пустое — считаем его пустым и включаем
-          if (options?.object?.emptyObject && this.isObjectEmpty(result)) {
-            return { ...acc, [key]: result };
-          }
-          if (options?.array?.emptyArray && this.isArrayEmpty(result)) {
-            return { ...acc, [key]: result };
-          }
-          // Если результат НЕ пустой, пропускаем
-          if (!this.isEmpty(result, options?.object)) {
-            return acc;
-          }
-          return { ...acc, [key]: result };
+      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
+        let v = value;
+        if ((Array.isArray(value) || this.isObject(value)) && recursive) {
+          v = this.pickEmpty(value as DATA, options, recursive);
         }
-        // Оставляем только пустые значения
-        if (this.isEmpty(value, options?.object)) {
-          return { ...acc, [key]: value };
+        if (Array.isArray(v)) {
+          if (!this.isArrayEmpty(v) || options?.emptyArray) {
+            return { ...acc, [key]: v };
+          }
+          return acc;
         }
-        return acc;
+        if (this.isObject(v)) {
+          if (!this.isObjectEmpty(v) || options?.emptyObject) {
+            return { ...acc, [key]: v };
+          }
+          return acc;
+        }
+        if (this.isEmpty(v, options)) {
+          return { ...acc, [key]: v };
+        }
+        return acc; // пропускаем непустые скаляры
       }, {} as DATA);
     } else {
-      return this.isEmpty(data, options?.object) ? data : ({} as DATA);
+      return this.isEmpty(data, options) ? data : ({} as DATA);
     }
   }
 

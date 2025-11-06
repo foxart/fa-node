@@ -28,29 +28,118 @@ describe('DataHelper', () => {
   });
 
   describe('omitEmpty / pickEmpty', () => {
-    const obj = {
-      a: '',
-      b: null,
-      c: undefined,
-      d: 0,
-      e: 'ok',
-      f: [],
-      g: {},
-      h: { i: '', j: 'x' },
+    const object = {
+      null: null,
+      number: 123,
+      numberEmpty: 0,
+      string: 'string',
+      stringEmpty: '',
+      undefined: undefined,
+      arrayEmpty: [],
+      objectEmpty: {},
+    };
+    const objectRecursive = { ...object };
+    const arrayRecursive = [{ ...object }];
+    const data = {
+      ...object,
+      array: [object],
+      object,
+      arrayRecursive,
+      objectRecursive,
     };
 
     it('should omit empty fields', () => {
-      const result = DataHelper.omitEmpty(obj, {
-        object: { emptyString: true, nullValue: true, undefined: true, emptyObject: true, emptyArray: true },
+      const result = DataHelper.omitEmpty(data, {
+        emptyArray: true,
+        emptyObject: true,
+        emptyString: true,
+        nullValue: true,
+        undefined: true,
+        zeroNumber: true,
       });
-      expect(result).toEqual({ e: 'ok', h: { j: 'x' } });
+      expect(result).toStrictEqual({
+        number: 123,
+        string: 'string',
+        array: [
+          {
+            number: 123,
+            string: 'string',
+          },
+        ],
+        object: {
+          number: 123,
+          string: 'string',
+        },
+        arrayRecursive: [
+          {
+            number: 123,
+            string: 'string',
+          },
+        ],
+        objectRecursive: {
+          number: 123,
+          string: 'string',
+        },
+      });
     });
 
     it('should pick only empty fields', () => {
-      const result = DataHelper.pickEmpty(obj, {
-        object: { emptyString: true, nullValue: true, undefined: true, emptyObject: true, emptyArray: true },
+      const result = DataHelper.pickEmpty(
+        data,
+        {
+          emptyArray: true,
+          emptyObject: true,
+          emptyString: true,
+          nullValue: true,
+          undefined: true,
+          zeroNumber: true,
+        },
+        true,
+      );
+      expect(result).toStrictEqual({
+        null: null,
+        numberEmpty: 0,
+        stringEmpty: '',
+        undefined: undefined,
+        arrayEmpty: [],
+        objectEmpty: {},
+        array: [
+          {
+            null: null,
+            numberEmpty: 0,
+            stringEmpty: '',
+            undefined: undefined,
+            arrayEmpty: [],
+            objectEmpty: {},
+          },
+        ],
+        arrayRecursive: [
+          {
+            null: null,
+            numberEmpty: 0,
+            stringEmpty: '',
+            undefined: undefined,
+            arrayEmpty: [],
+            objectEmpty: {},
+          },
+        ],
+        object: {
+          null: null,
+          numberEmpty: 0,
+          stringEmpty: '',
+          undefined: undefined,
+          arrayEmpty: [],
+          objectEmpty: {},
+        },
+        objectRecursive: {
+          null: null,
+          numberEmpty: 0,
+          stringEmpty: '',
+          undefined: undefined,
+          arrayEmpty: [],
+          objectEmpty: {},
+        },
       });
-      expect(result).toEqual({ a: '', b: null, c: undefined, f: [], g: {}, h: { i: '' } });
     });
   });
 
