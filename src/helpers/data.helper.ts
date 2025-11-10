@@ -9,9 +9,9 @@ import { ParserHelper } from './parser.helper';
 // }
 
 interface EmptyOptionsInterface {
+  blankString?: boolean;
+  null?: boolean;
   undefined?: boolean;
-  nullValue?: boolean;
-  emptyString?: boolean;
   zeroNumber?: boolean;
   emptyArray?: boolean;
   emptyObject?: boolean;
@@ -124,9 +124,9 @@ class DataSingleton {
   public isEmpty(data: unknown | unknown[], options?: EmptyOptionsInterface): boolean {
     if (options?.undefined && data === undefined) {
       return true;
-    } else if (options?.nullValue && data === null) {
+    } else if (options?.null && data === null) {
       return true;
-    } else if (options?.emptyString && data === '') {
+    } else if (options?.blankString && data === '') {
       return true;
     } else if (options?.zeroNumber && data === 0) {
       return true;

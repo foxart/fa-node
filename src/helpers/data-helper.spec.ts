@@ -4,15 +4,15 @@ describe('DataHelper', () => {
   describe('isEmpty / isObject / isArray', () => {
     it('should detect empty values correctly', () => {
       expect(DataHelper.isEmpty(undefined, { undefined: true })).toBe(true);
-      expect(DataHelper.isEmpty(null, { nullValue: true })).toBe(true);
-      expect(DataHelper.isEmpty('', { emptyString: true })).toBe(true);
+      expect(DataHelper.isEmpty(null, { null: true })).toBe(true);
+      expect(DataHelper.isEmpty('', { blankString: true })).toBe(true);
       expect(DataHelper.isEmpty(0, { zeroNumber: true })).toBe(true);
       expect(DataHelper.isEmpty([], { emptyArray: true })).toBe(true);
       expect(DataHelper.isEmpty({}, { emptyObject: true })).toBe(true);
     });
 
     it('should detect non-empty values correctly', () => {
-      expect(DataHelper.isEmpty('x', { emptyString: true })).toBe(false);
+      expect(DataHelper.isEmpty('x', { blankString: true })).toBe(false);
       expect(DataHelper.isEmpty(1, { zeroNumber: true })).toBe(false);
       expect(DataHelper.isEmpty([1], { emptyArray: true })).toBe(false);
       expect(DataHelper.isEmpty({ a: 1 }, { emptyObject: true })).toBe(false);
@@ -52,8 +52,8 @@ describe('DataHelper', () => {
       const result = DataHelper.omitEmpty(data, {
         emptyArray: true,
         emptyObject: true,
-        emptyString: true,
-        nullValue: true,
+        blankString: true,
+        null: true,
         undefined: true,
         zeroNumber: true,
       });
@@ -89,8 +89,8 @@ describe('DataHelper', () => {
         {
           emptyArray: true,
           emptyObject: true,
-          emptyString: true,
-          nullValue: true,
+          blankString: true,
+          null: true,
           undefined: true,
           zeroNumber: true,
         },
