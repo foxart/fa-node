@@ -1,7 +1,7 @@
 import { CryptClass } from '../index';
 
 describe('CryptClass', () => {
-  const crypt = new CryptClass('secret');
+  const crypt = new CryptClass('secret', 'pepper');
 
   describe('encrypt & decrypt', () => {
     it('should encrypt and decrypt strings correctly', () => {
