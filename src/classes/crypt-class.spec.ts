@@ -3,53 +3,6 @@ import { CryptClass } from '../index';
 describe('CryptClass', () => {
   const crypt = new CryptClass('secret');
 
-  describe('hmacList', () => {
-    const hmac = (value: string): string => crypt.hmac(value);
-
-    it('should generate correct n-gram prefixes for a single word', () => {
-      const word = 'hello';
-      const tokens = crypt.hmacList(word, 2, 4);
-      ['he', 'hel', 'hell'].forEach((p) => expect(tokens).toContain(hmac(p)));
-      expect(tokens).toContain(hmac(word));
-      expect(tokens.length).toBe(new Set(tokens).size);
-    });
-
-    it('should handle multiple words correctly', () => {
-      const text = 'Hello World';
-      const tokens = crypt.hmacList(text, 2, 4);
-      ['hello', 'world'].forEach((word) => {
-        expect(tokens).toContain(hmac(word));
-        const len = Math.min(word.length - 1, 4);
-        for (let l = 2; l <= len; l++) {
-          expect(tokens).toContain(hmac(word.slice(0, l)));
-        }
-      });
-      expect(tokens.length).toBe(new Set(tokens).size);
-    });
-
-    it('should generate tokens with correct base64url structure', () => {
-      const text = "O'Neill Jean-Luc 42";
-      const tokens = crypt.hmacList(text, 2, 4);
-      expect(tokens.length).toBeGreaterThan(0);
-      expect(tokens.length).toBe(new Set(tokens).size);
-      tokens.forEach((t) => expect(t).toMatch(/^[A-Za-z0-9\-_]+$/));
-    });
-
-    it('should handle words with numbers', () => {
-      const text = 'abc123 42';
-      const tokens = crypt.hmacList(text, 2, 4);
-      ['abc123', '42'].forEach((word) => expect(tokens).toContain(hmac(word)));
-    });
-
-    it('should skip invalid/emoji-only words', () => {
-      expect(crypt.hmacList('😊 🚀')).toHaveLength(0);
-    });
-
-    it('should return empty array for empty string', () => {
-      expect(crypt.hmacList('')).toHaveLength(0);
-    });
-  });
-
   describe('encrypt & decrypt', () => {
     it('should encrypt and decrypt strings correctly', () => {
       const input = 'Hello world';
@@ -156,6 +109,38 @@ describe('CryptClass', () => {
       const u1 = crypt.uuidV4();
       const u2 = crypt.uuidV4();
       expect(u1).not.toBe(u2);
+    });
+  });
+
+  describe('nGramPrefixList', () => {
+    it('should generate correct prefix n-grams for a single word', () => {
+      const word = 'hello';
+      const tokens = crypt.nGramPrefixList(word, 2, 3).sort();
+      expect(tokens).toStrictEqual(['hello', 'he', 'hel'].sort());
+      expect(tokens.length).toBe(new Set(tokens).size);
+    });
+
+    it('should handle multiple words', () => {
+      const text = 'hello world';
+      const tokens = crypt.nGramPrefixList(text, 2, 3).sort();
+      expect(tokens).toStrictEqual(['hello', 'he', 'hel', 'world', 'wo', 'wor'].sort());
+      expect(tokens.length).toBe(new Set(tokens).size);
+    });
+  });
+
+  describe('nGramSlideList', () => {
+    it('should generate correct sliding n-grams for a single word', () => {
+      const word = 'hello';
+      const tokens = crypt.nGramSlideList(word, 2, 3).sort();
+      expect(tokens).toStrictEqual(['hello', 'he', 'el', 'hel'].sort());
+      expect(tokens.length).toBe(new Set(tokens).size);
+    });
+
+    it('should handle multiple words', () => {
+      const text = 'abc def';
+      const tokens = crypt.nGramSlideList(text, 2, 3).sort();
+      expect(tokens).toStrictEqual(['abc', 'ab', 'bc', 'def', 'de', 'ef'].sort());
+      expect(tokens.length).toBe(new Set(tokens).size);
     });
   });
 });
