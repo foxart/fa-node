@@ -60,10 +60,6 @@ console.clear();
  */
 // void import('./services/console-service.example').then((module) => module.run());
 /**
- *
- */
-// void import('./helpers/crypt-helper.example').then((module) => module.run());
-/**
  * Converter Helper
  */
 // void import('./converter-helper.example').then((module) => module.cryptHelperExample());

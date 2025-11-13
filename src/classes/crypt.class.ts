@@ -1,63 +1,58 @@
-import { createCipheriv, createDecipheriv, createHash, createHmac, pbkdf2Sync, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'crypto';
 import { ErrorClass } from './error.class';
-
-interface PayloadInterface {
-  iv: string;
-  tag: string;
-  data: string;
-  salt: string;
-}
 
 /**
  * Класс для криптографических операций: шифрование/дешифрование AES-256-GCM,
  * HMAC, MD5, генерация случайных значений, UUID и токенизация текста.
  */
 export class CryptClass {
+  private readonly digest = 'sha256';
   private readonly algorithm = 'aes-256-gcm';
   private readonly encoding = 'base64';
-  private readonly ivLength = 12;
+  private readonly ivLength = 12; // AES-GCM стандарт
+  private readonly tagLength = 16; // AES-GCM стандарт
   private readonly normalizeRegExp = /\p{L}+(?:['’\-]\p{L}+)*\p{N}*|\p{N}+/gu;
-  private readonly pbkdf2Digest = 'sha256';
-  private readonly pbkdf2Iterations = 100000;
-  private readonly pbkdf2KeyLen = 32;
+  private readonly kmsHash: Buffer;
+  private readonly hmacHash: Buffer;
 
-  /**
-   * @param cryptSecret Секрет для генерации ключей AES
-   * @param hmacSecret Секрет для HMAC
-   */
   public constructor(
-    private readonly cryptSecret: string,
+    private readonly kmsSecret: string,
     private readonly hmacSecret: string,
-  ) {}
+  ) {
+    this.kmsHash = createHash(this.digest).update(this.kmsSecret).digest();
+    this.hmacHash = createHash(this.digest).update(this.hmacSecret).digest();
+  }
 
-  // /** Возвращает секретный ключ */
-  // public get secret(): string {
-  //   return this._secret;
-  // }
-  /**
-   * Шифрует строку с использованием AES-256-GCM.
-   * @param data Строка для шифрования
-   * @param throws Если true, ошибки выбрасываются, иначе логируются и возвращается исходная строка
-   * @returns Зашифрованная строка в base64 или исходная строка при ошибке
-   */
-  public encrypt(data: string | null | undefined, throws = true): string | null | undefined {
-    if (!data) {
-      return data;
+  public encrypt(value: string | null | undefined, throws = true): string | null | undefined {
+    if (!value) {
+      return value;
     }
     try {
-      const salt = randomBytes(16);
-      const key = pbkdf2Sync(this.cryptSecret, salt, this.pbkdf2Iterations, this.pbkdf2KeyLen, this.pbkdf2Digest);
-      const iv = randomBytes(this.ivLength);
-      const cipher = createCipheriv(this.algorithm, key, iv);
-      const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
-      const tag = cipher.getAuthTag();
-      const payload: PayloadInterface = {
-        iv: iv.toString(this.encoding),
-        tag: tag.toString(this.encoding),
-        data: encrypted.toString(this.encoding),
-        salt: salt.toString(this.encoding),
-      };
-      return Buffer.from(JSON.stringify(payload)).toString(this.encoding);
+      // 1️⃣ Генерация DEK
+      const dek = randomBytes(32);
+      // 2️⃣ Шифруем DEK KMS ключом
+      const ivDek = randomBytes(this.ivLength);
+      const cipherDek = createCipheriv(this.algorithm, this.kmsHash, ivDek);
+      const encDek = Buffer.concat([cipherDek.update(dek), cipherDek.final()]);
+      const tagDek = cipherDek.getAuthTag();
+      // 3️⃣ Шифруем данные DEK
+      const ivData = randomBytes(this.ivLength);
+      const cipherData = createCipheriv(this.algorithm, dek, ivData);
+      const encData = Buffer.concat([cipherData.update(value, 'utf8'), cipherData.final()]);
+      const tagData = cipherData.getAuthTag();
+      // 4️⃣ Компактная упаковка: IV/tag/DEK length + DEK + data + tag
+      const dekLengthBuf = Buffer.alloc(2); // 2 байта для длины DEK
+      dekLengthBuf.writeUInt16BE(encDek.length, 0);
+      const combined = Buffer.concat([
+        ivDek, // 12 байт
+        tagDek, // 16 байт
+        dekLengthBuf, // 2 байта
+        encDek, // variable
+        ivData, // 12 байт
+        tagData, // 16 байт
+        encData, // variable
+      ]);
+      return combined.toString(this.encoding);
     } catch (e) {
       if (throws) {
         throw e;
@@ -65,35 +60,39 @@ export class CryptClass {
       if (e instanceof Error) {
         console.error(new ErrorClass({ name: 'CryptClass encrypt', message: e.message, stack: e.stack }));
       }
-      return data;
+      return value;
     }
   }
 
-  /**
-   * Дешифрует строку, зашифрованную методом encrypt.
-   * @param data Зашифрованная строка в base64
-   * @param throws Если true, ошибки выбрасываются, иначе логируются и возвращается исходная строка
-   * @returns Расшифрованная строка или исходная строка при ошибке
-   */
-  public decrypt(data: string | null | undefined, throws = true): string | null | undefined {
-    if (!data) {
-      return data;
+  public decrypt(value: string | null | undefined, throws = true): string | null | undefined {
+    if (!value) {
+      return value;
     }
     try {
-      const payload = JSON.parse(Buffer.from(data, this.encoding).toString('utf8')) as PayloadInterface;
-      const key = pbkdf2Sync(
-        this.cryptSecret,
-        Buffer.from(payload.salt, this.encoding),
-        this.pbkdf2Iterations,
-        this.pbkdf2KeyLen,
-        this.pbkdf2Digest,
-      );
-      const ivBuf = Buffer.from(payload.iv, this.encoding);
-      const tagBuf = Buffer.from(payload.tag, this.encoding);
-      const encryptedBuf = Buffer.from(payload.data, this.encoding);
-      const decipher = createDecipheriv(this.algorithm, key, ivBuf);
-      decipher.setAuthTag(tagBuf);
-      return Buffer.concat([decipher.update(encryptedBuf), decipher.final()]).toString('utf8');
+      const buf = Buffer.from(value, this.encoding);
+      // 1️⃣ Распаковка DEK
+      let offset = 0;
+      const ivDek = buf.subarray(offset, offset + this.ivLength);
+      offset += this.ivLength;
+      const tagDek = buf.subarray(offset, offset + this.tagLength);
+      offset += this.tagLength;
+      const dekLength = buf.readUInt16BE(offset);
+      offset += 2;
+      const encDek = buf.subarray(offset, offset + dekLength);
+      offset += dekLength;
+      const decipherDek = createDecipheriv(this.algorithm, this.kmsHash, ivDek);
+      decipherDek.setAuthTag(tagDek);
+      const dek = Buffer.concat([decipherDek.update(encDek), decipherDek.final()]);
+      // 2️⃣ Распаковка данных
+      const ivData = buf.subarray(offset, offset + this.ivLength);
+      offset += this.ivLength;
+      const tagData = buf.subarray(offset, offset + this.tagLength);
+      offset += this.tagLength;
+      const encData = buf.subarray(offset);
+      const decipherData = createDecipheriv(this.algorithm, dek, ivData);
+      decipherData.setAuthTag(tagData);
+      const decrypted = Buffer.concat([decipherData.update(encData), decipherData.final()]);
+      return decrypted.toString('utf8');
     } catch (e) {
       if (throws) {
         throw e;
@@ -101,17 +100,10 @@ export class CryptClass {
       if (e instanceof Error) {
         console.error(new ErrorClass({ name: 'CryptClass decrypt', message: e.message, stack: e.stack }));
       }
-      return data;
+      return value;
     }
   }
 
-  /**
-   * Генерация префиксных n-грамм для слов.
-   * @param value Входная строка
-   * @param ngramMin Минимальная длина n-граммы
-   * @param ngramMax Максимальная длина n-граммы
-   * @returns Массив уникальных n-грамм и полного слова
-   */
   public nGramPrefixList(value: string, ngramMin = 2, ngramMax = 6): string[] {
     const normalized = this.normalizeValue(value);
     if (!normalized) {
@@ -141,13 +133,6 @@ export class CryptClass {
     return result;
   }
 
-  /**
-   * Генерация скользящих n-грамм для слов.
-   * @param value Входная строка
-   * @param ngramMin Минимальная длина n-граммы
-   * @param ngramMax Максимальная длина n-граммы
-   * @returns Массив уникальных скользящих n-грамм и полного слова
-   */
   public nGramSlideList(value: string, ngramMin = 2, ngramMax = 6): string[] {
     const normalized = this.normalizeValue(value);
     if (!normalized) {
@@ -179,22 +164,11 @@ export class CryptClass {
     return result;
   }
 
-  /**
-   * Создает HMAC-SHA256 для строки с использованием секретного ключа.
-   * @param value Входная строка
-   * @returns HMAC в формате base64url
-   */
   public hmac(value: string): string {
-    const hmac = createHmac('sha256', this.hmacSecret).update(value).digest(this.encoding);
+    const hmac = createHmac(this.digest, this.hmacHash).update(value).digest(this.encoding);
     return this.base64ToBase64Url(hmac);
   }
 
-  /**
-   * Создает MD5-хэш или HMAC-MD5 строки.
-   * @param message Входная строка
-   * @param key Ключ для HMAC-MD5 (необязательный)
-   * @returns Хэш в формате base64url
-   */
   public md5(message: string, key?: string): string {
     const digest: string = key
       ? createHmac('md5', key).update(message).digest(this.encoding)
@@ -202,19 +176,10 @@ export class CryptClass {
     return this.base64ToBase64Url(digest);
   }
 
-  /**
-   * Генерация безопасного токена.
-   * @param lengthBytes Длина токена в байтах (по умолчанию 32)
-   * @returns Токен в формате base64url
-   */
   public token(lengthBytes = 32): string {
     return this.base64ToBase64Url(randomBytes(lengthBytes).toString(this.encoding));
   }
 
-  /**
-   * Генерация UUID v4.
-   * @returns Строка UUID v4
-   */
   public uuidV4(): string {
     const bytes = randomBytes(16);
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
@@ -223,12 +188,13 @@ export class CryptClass {
     return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20, 32)].join('-');
   }
 
-  /** Конвертация base64 → base64url */
+  /**
+   * PRIVATE
+   */
   private base64ToBase64Url(base64: string): string {
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
   }
 
-  /** Unicode-нормализация для поиска и сравнения текста */
   private normalizeValue(value: string): string {
     return value
       .normalize('NFKC')
