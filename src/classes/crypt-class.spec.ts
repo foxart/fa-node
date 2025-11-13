@@ -3,42 +3,12 @@ import { CryptClass } from '../index';
 describe('CryptClass', () => {
   const crypt = new CryptClass('secret');
 
-  describe('normalizeValueForSearch', () => {
-    it('should normalize case, whitespace, and invisible chars', () => {
-      const input = '   Привет \u200B ';
-      expect(crypt.normalizeValueForSearch(input)).toBe('привет');
-    });
-
-    it('should normalize combining characters (é)', () => {
-      const input = 'e\u0301';
-      expect(crypt.normalizeValueForSearch(input)).toBe('é');
-    });
-
-    it('should handle locale-specific letters', () => {
-      const input = 'Straße İstanbul Σίσυφος';
-      const normalized = crypt.normalizeValueForSearch(input);
-      expect(normalized.includes('straße')).toBe(true);
-      expect(normalized.includes('i̇stanbul')).toBe(true); // i + dot
-      expect(normalized.includes('σίσυφος')).toBe(true);
-    });
-
-    it('should handle multiple combining diacritics', () => {
-      const input = 'o\u0308\u0301'; // o + diaeresis + acute
-      expect(crypt.normalizeValueForSearch(input)).toBe('ö́');
-    });
-
-    it('should handle zero-width joiners', () => {
-      const input = 'a\u200Db';
-      expect(crypt.normalizeValueForSearch(input)).toBe('ab'); // схлопываются пробелы
-    });
-  });
-
-  describe('getSearchTokenList', () => {
+  describe('hmacList', () => {
     const hmac = (value: string): string => crypt.hmac(value);
 
     it('should generate correct n-gram prefixes for a single word', () => {
       const word = 'hello';
-      const tokens = crypt.getSearchTokenList(word, 2, 4);
+      const tokens = crypt.hmacList(word, 2, 4);
       ['he', 'hel', 'hell'].forEach((p) => expect(tokens).toContain(hmac(p)));
       expect(tokens).toContain(hmac(word));
       expect(tokens.length).toBe(new Set(tokens).size);
@@ -46,7 +16,7 @@ describe('CryptClass', () => {
 
     it('should handle multiple words correctly', () => {
       const text = 'Hello World';
-      const tokens = crypt.getSearchTokenList(text, 2, 4);
+      const tokens = crypt.hmacList(text, 2, 4);
       ['hello', 'world'].forEach((word) => {
         expect(tokens).toContain(hmac(word));
         const len = Math.min(word.length - 1, 4);
@@ -57,29 +27,26 @@ describe('CryptClass', () => {
       expect(tokens.length).toBe(new Set(tokens).size);
     });
 
-    it('should generate tokens with correct structure', () => {
+    it('should generate tokens with correct base64url structure', () => {
       const text = "O'Neill Jean-Luc 42";
-      const tokens = crypt.getSearchTokenList(text, 2, 4);
-      // проверяем, что токены не пустые
+      const tokens = crypt.hmacList(text, 2, 4);
       expect(tokens.length).toBeGreaterThan(0);
-      // уникальные токены
       expect(tokens.length).toBe(new Set(tokens).size);
-      // проверяем формат SHA256 hex
-      tokens.forEach((t) => expect(t).toMatch(/^[a-f0-9]{64}$/));
+      tokens.forEach((t) => expect(t).toMatch(/^[A-Za-z0-9\-_]+$/));
     });
 
     it('should handle words with numbers', () => {
       const text = 'abc123 42';
-      const tokens = crypt.getSearchTokenList(text, 2, 4);
+      const tokens = crypt.hmacList(text, 2, 4);
       ['abc123', '42'].forEach((word) => expect(tokens).toContain(hmac(word)));
     });
 
     it('should skip invalid/emoji-only words', () => {
-      expect(crypt.getSearchTokenList('😊 🚀')).toHaveLength(0);
+      expect(crypt.hmacList('😊 🚀')).toHaveLength(0);
     });
 
     it('should return empty array for empty string', () => {
-      expect(crypt.getSearchTokenList('')).toHaveLength(0);
+      expect(crypt.hmacList('')).toHaveLength(0);
     });
   });
 
@@ -89,12 +56,6 @@ describe('CryptClass', () => {
       const encrypted = crypt.encrypt(input);
       expect(crypt.decrypt(encrypted)).toBe(input);
     });
-
-    // it('should encrypt and decrypt objects correctly', () => {
-    //   const obj = { a: 1, b: 'text', nested: { x: 42 } };
-    //   const encrypted = crypt.encrypt(obj);
-    //   expect(crypt.decrypt(encrypted)).toEqual(obj);
-    // });
 
     it('should produce different encrypted values for same input (due to random IV)', () => {
       const input = 'repeat';
@@ -124,9 +85,9 @@ describe('CryptClass', () => {
       expect(crypt.hmac('test1')).not.toBe(crypt.hmac('test2'));
     });
 
-    it('should produce HMAC for empty string', () => {
-      expect(typeof crypt.hmac('')).toBe('string');
-      expect(crypt.hmac('')).toHaveLength(64); // sha256 hex length
+    it('should produce URL-safe base64 string', () => {
+      const result = crypt.hmac('some');
+      expect(result).toMatch(/^[A-Za-z0-9\-_]+$/);
     });
   });
 
@@ -154,19 +115,6 @@ describe('CryptClass', () => {
     });
   });
 
-  describe('salt', () => {
-    it('should produce a string with rounds prefix', () => {
-      const s = crypt.salt(5000);
-      expect(s.startsWith('5000$')).toBe(true);
-    });
-
-    it('should produce different salts on consecutive calls', () => {
-      const s1 = crypt.salt();
-      const s2 = crypt.salt();
-      expect(s1).not.toBe(s2);
-    });
-  });
-
   describe('token', () => {
     it('should generate a non-empty token', () => {
       const token = crypt.token();
@@ -186,7 +134,7 @@ describe('CryptClass', () => {
     });
 
     it('should allow custom length in bytes', () => {
-      const token = crypt.token(16); // 128 бит
+      const token = crypt.token(16);
       const decoded = Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
       expect(decoded.length).toBe(16);
     });
