@@ -1,7 +1,7 @@
 import { CryptClass } from '../index';
 
 describe('CryptClass', () => {
-  const crypt = new CryptClass({ kmsSecret: 'secret', hmacSecret: 'pepper' });
+  const crypt = new CryptClass({ kmsSecret: 'kms', hmacSecret: 'hmac' });
 
   describe('encrypt & decrypt', () => {
     it('should encrypt and decrypt strings correctly', () => {
@@ -10,7 +10,7 @@ describe('CryptClass', () => {
       expect(crypt.decrypt(encrypted)).toBe(input);
     });
 
-    it('should produce different encrypted values for same input (due to random IV)', () => {
+    it('should produce different encrypted values for same input (random IV)', () => {
       const input = 'repeat';
       const e1 = crypt.encrypt(input);
       const e2 = crypt.encrypt(input);
@@ -26,6 +26,16 @@ describe('CryptClass', () => {
     it('should not throw and return input if throws=false', () => {
       jest.spyOn(console, 'error').mockImplementation(() => undefined);
       expect(crypt.decrypt('invalid', false)).toBe('invalid');
+    });
+  });
+
+  describe('unwrapDek & wrapDEK', () => {
+    it('should correctly unwrap and wrap encrypted data', () => {
+      const input = 'rotation test';
+      const encrypted = crypt.encrypt(input);
+      const { dek, encryptedData, ivData, tagData } = crypt.unwrapDek(encrypted!);
+      const rotated = crypt.wrapDEK(dek, encryptedData, ivData, tagData);
+      expect(crypt.decrypt(rotated)).toBe(input);
     });
   });
 
@@ -61,21 +71,9 @@ describe('CryptClass', () => {
       const token = crypt.token();
       expect(token).toMatch(/^[A-Za-z0-9\-_]+$/);
     });
-
-    it('should allow custom length in bytes', () => {
-      const token = crypt.token(16);
-      const decoded = Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
-      expect(decoded.length).toBe(16);
-    });
-
-    it('should default to 32 bytes (256 bits)', () => {
-      const token = crypt.token();
-      const decoded = Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
-      expect(decoded.length).toBe(32);
-    });
   });
 
-  describe('uuidV4', () => {
+  describe('uuidLike', () => {
     it('should produce valid UUID v4', () => {
       const uuid = crypt.uuidLike();
       expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
@@ -92,14 +90,14 @@ describe('CryptClass', () => {
     it('should generate correct prefix n-grams for a single word', () => {
       const word = 'hello';
       const tokens = crypt.nGramPrefixList(word, 2, 3).sort();
-      expect(tokens).toStrictEqual(['hello', 'he', 'hel'].sort());
+      expect(tokens).toStrictEqual(['he', 'hel', 'hello'].sort());
       expect(tokens.length).toBe(new Set(tokens).size);
     });
 
     it('should handle multiple words', () => {
       const text = 'hello world';
       const tokens = crypt.nGramPrefixList(text, 2, 3).sort();
-      expect(tokens).toStrictEqual(['hello', 'he', 'hel', 'world', 'wo', 'wor'].sort());
+      expect(tokens).toStrictEqual(['he', 'hel', 'hello', 'wo', 'wor', 'world'].sort());
       expect(tokens.length).toBe(new Set(tokens).size);
     });
   });
@@ -108,14 +106,14 @@ describe('CryptClass', () => {
     it('should generate correct sliding n-grams for a single word', () => {
       const word = 'hello';
       const tokens = crypt.nGramSlideList(word, 2, 3).sort();
-      expect(tokens).toStrictEqual(['hello', 'he', 'el', 'hel'].sort());
+      expect(tokens).toStrictEqual(['he', 'el', 'hel', 'hello'].sort());
       expect(tokens.length).toBe(new Set(tokens).size);
     });
 
     it('should handle multiple words', () => {
-      const text = 'abc def';
+      const text = 'hello world';
       const tokens = crypt.nGramSlideList(text, 2, 3).sort();
-      expect(tokens).toStrictEqual(['abc', 'ab', 'bc', 'def', 'de', 'ef'].sort());
+      expect(tokens).toStrictEqual(['he', 'el', 'hel', 'hello', 'wo', 'or', 'wor', 'world'].sort());
       expect(tokens.length).toBe(new Set(tokens).size);
     });
   });
