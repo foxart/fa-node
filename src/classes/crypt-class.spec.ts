@@ -44,30 +44,6 @@ describe('CryptClass', () => {
     });
   });
 
-  describe('md5', () => {
-    it('should produce consistent MD5 hash without key', () => {
-      const hash1 = crypt.md5('test');
-      const hash2 = crypt.md5('test');
-      expect(hash1).toBe(hash2);
-    });
-
-    it('should produce different MD5 hash for different inputs', () => {
-      expect(crypt.md5('test1')).not.toBe(crypt.md5('test2'));
-    });
-
-    it('should produce consistent HMAC-MD5 with key', () => {
-      const hash1 = crypt.md5('test', 'key');
-      const hash2 = crypt.md5('test', 'key');
-      expect(hash1).toBe(hash2);
-    });
-
-    it('should produce different HMAC-MD5 for different keys', () => {
-      const hash1 = crypt.md5('test', 'key1');
-      const hash2 = crypt.md5('test', 'key2');
-      expect(hash1).not.toBe(hash2);
-    });
-  });
-
   describe('token', () => {
     it('should generate a non-empty token', () => {
       const token = crypt.token();

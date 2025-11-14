@@ -12,15 +12,20 @@ export class CryptClass {
   private readonly ivLength = 12; // AES-GCM стандарт
   private readonly tagLength = 16; // AES-GCM стандарт
   private readonly normalizeRegExp = /\p{L}+(?:['’\-]\p{L}+)*\p{N}*|\p{N}+/gu;
-  private readonly kmsHash: Buffer;
-  private readonly hmacHash: Buffer;
+  private readonly kmsKey: Buffer;
+  private readonly hmacKey: Buffer;
 
-  public constructor(
-    private readonly kmsSecret: string,
-    private readonly hmacSecret: string,
-  ) {
-    this.kmsHash = createHash(this.digest).update(this.kmsSecret).digest();
-    this.hmacHash = createHash(this.digest).update(this.hmacSecret).digest();
+  public constructor(kmsSecret: string | Buffer, hmacSecret: string | Buffer) {
+    // this.kmsHash = createHash(this.digest).update(this.kmsSecret).digest();
+    // this.hmacHash = createHash(this.digest).update(this.hmacSecret).digest();
+    this.kmsKey =
+      Buffer.isBuffer(kmsSecret) && kmsSecret.length === 32
+        ? kmsSecret
+        : createHash(this.digest).update(kmsSecret).digest();
+    this.hmacKey =
+      Buffer.isBuffer(hmacSecret) && hmacSecret.length === 32
+        ? hmacSecret
+        : createHash(this.digest).update(hmacSecret).digest();
   }
 
   public encrypt(value: string | null | undefined, throws = true): string | null | undefined {
@@ -32,7 +37,7 @@ export class CryptClass {
       const dek = randomBytes(32);
       // 2️⃣ Шифруем DEK KMS ключом
       const ivDek = randomBytes(this.ivLength);
-      const cipherDek = createCipheriv(this.algorithm, this.kmsHash, ivDek);
+      const cipherDek = createCipheriv(this.algorithm, this.kmsKey, ivDek);
       const encDek = Buffer.concat([cipherDek.update(dek), cipherDek.final()]);
       const tagDek = cipherDek.getAuthTag();
       // 3️⃣ Шифруем данные DEK
@@ -80,7 +85,7 @@ export class CryptClass {
       offset += 2;
       const encDek = buf.subarray(offset, offset + dekLength);
       offset += dekLength;
-      const decipherDek = createDecipheriv(this.algorithm, this.kmsHash, ivDek);
+      const decipherDek = createDecipheriv(this.algorithm, this.kmsKey, ivDek);
       decipherDek.setAuthTag(tagDek);
       const dek = Buffer.concat([decipherDek.update(encDek), decipherDek.final()]);
       // 2️⃣ Распаковка данных
@@ -165,15 +170,8 @@ export class CryptClass {
   }
 
   public hmac(value: string): string {
-    const hmac = createHmac(this.digest, this.hmacHash).update(value).digest(this.encoding);
+    const hmac = createHmac(this.digest, this.hmacKey).update(value).digest(this.encoding);
     return this.base64ToBase64Url(hmac);
-  }
-
-  public md5(message: string, key?: string): string {
-    const digest: string = key
-      ? createHmac('md5', key).update(message).digest(this.encoding)
-      : createHash('md5').update(message).digest(this.encoding);
-    return this.base64ToBase64Url(digest);
   }
 
   public token(lengthBytes = 32): string {
