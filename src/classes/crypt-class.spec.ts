@@ -1,7 +1,7 @@
 import { CryptClass } from '../index';
 
 describe('CryptClass', () => {
-  const crypt = new CryptClass('secret', 'pepper');
+  const crypt = new CryptClass({ kmsSecret: 'secret', hmacSecret: 'pepper' });
 
   describe('encrypt & decrypt', () => {
     it('should encrypt and decrypt strings correctly', () => {
@@ -77,13 +77,13 @@ describe('CryptClass', () => {
 
   describe('uuidV4', () => {
     it('should produce valid UUID v4', () => {
-      const uuid = crypt.uuidV4();
+      const uuid = crypt.uuidLike();
       expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
     });
 
     it('should produce unique UUIDs on consecutive calls', () => {
-      const u1 = crypt.uuidV4();
-      const u2 = crypt.uuidV4();
+      const u1 = crypt.uuidLike();
+      const u2 = crypt.uuidLike();
       expect(u1).not.toBe(u2);
     });
   });
