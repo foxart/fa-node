@@ -9,8 +9,6 @@ interface EmptyOptionsInterface {
   emptyObject?: boolean;
 }
 
-type MapCallback = (key: string, value: unknown) => unknown;
-
 class DataSingleton {
   private static self: DataSingleton;
 
@@ -243,7 +241,7 @@ class DataSingleton {
       }
       // Циклическая проверка
       if (cache.has(item as object)) {
-        return '[CIRCULAR]';
+        return '[Circular]';
       }
       cache.add(item as object);
       if (this.isInstance(item)) {

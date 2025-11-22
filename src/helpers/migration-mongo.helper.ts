@@ -207,13 +207,11 @@ class MigrationMongoSingleton {
   private create(migration: string): Promise<void> {
     CodegenHelper.displayMessage('migration', this.create.name);
     const timestamp = new Date().getTime();
-    const migrationName = ConverterHelper.upperToSeparator(migration.replace(/[^a-zA-Z0-9-]/g, ''), '-').toLowerCase();
-    const filePath = `${this.configuration.path}/${timestamp}_${migrationName}.ts`;
+    const migrationName = ConverterHelper.separateWords(migration.replace(/[^a-zA-Z0-9-]/g, ''), '-').toLowerCase();
+    const fileName = `${timestamp}_${migrationName}`;
+    const filePath = `${this.configuration.path}/${fileName}.ts`;
     IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
-    CodegenHelper.logSuccess(
-      `${ConverterHelper.separatorToPascal(migrationName, '-')}_${timestamp}`,
-      DataHelper.excludePath(filePath, this.configuration.path),
-    );
+    CodegenHelper.logSuccess(`${fileName}`, DataHelper.excludePath(filePath, this.configuration.path));
     process.exit(0);
   }
 
@@ -302,9 +300,11 @@ class MigrationMongoSingleton {
    *
    */
   private getTemplate(timestamp: number, migrationName: string): string {
-    const className = `${ConverterHelper.separatorToPascal(migrationName, '-')}_${timestamp}`;
-    const collectionName = `${ConverterHelper.separatorToCamel(migrationName, '-')}_${timestamp}`;
-    const fieldName = `${ConverterHelper.separatorToCamel(migrationName, '-')}_${timestamp}`;
+    const pascalCase = ConverterHelper.toPascalCase(migrationName, '-');
+    const camelCase = ConverterHelper.toCamelCase(migrationName, '-');
+    const className = `${pascalCase}_${timestamp}`;
+    const collectionName = `${camelCase}_${timestamp}`;
+    const fieldName = `${camelCase}_${timestamp}`;
     const indexName = `${migrationName.replace(/-/g, '_')}_${timestamp}`;
     try {
       const template = !this.configuration.template
