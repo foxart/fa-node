@@ -1,4 +1,4 @@
-import { DataHelper } from './data.helper';
+import { ConverterHelper } from './converter.helper';
 
 class RandomSingleton {
   private static self: RandomSingleton;
@@ -67,8 +67,8 @@ class RandomSingleton {
       return Math.max(0, Math.min(255, v));
     };
     const base = this.colorList[this.integer(0, this.colorList.length - 1)];
-    const [r, g, b] = DataHelper.convertHexToRgb(base);
-    return DataHelper.convertRgbToHex(random(r), random(g), random(b));
+    const [r, g, b] = ConverterHelper.hexToRgb(base);
+    return ConverterHelper.rgbToHex(random(r), random(g), random(b));
   }
 
   public integer(min: number, max: number): number {

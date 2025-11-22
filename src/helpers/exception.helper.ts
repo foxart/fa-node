@@ -8,7 +8,7 @@ import {
   ExceptionResponseInterface,
   ExceptionResponseTypeEnum,
 } from '../declarations/exception-response.interface';
-import { DataHelper } from './data.helper';
+import { ConverterHelper } from './converter.helper';
 
 export interface ExceptionInterface {
   name: string;
@@ -124,7 +124,7 @@ class ExceptionSingleton {
     }
     return {
       name: error.name,
-      message: DataHelper.convertToJson(message),
+      message: ConverterHelper.toJson(message),
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: this.codeFromHttpStatus(HttpStatus.INTERNAL_SERVER_ERROR),
       type: ExceptionResponseTypeEnum.MONGO_ERROR,
@@ -157,7 +157,7 @@ class ExceptionSingleton {
   private castUnknown(error: unknown): ExceptionInterface {
     return {
       name: ExceptionSingleton.name,
-      message: typeof error === 'object' ? DataHelper.convertToJson(error) : '',
+      message: typeof error === 'object' ? ConverterHelper.toJson(error) : '',
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: this.codeFromHttpStatus(HttpStatus.INTERNAL_SERVER_ERROR),
       type: ExceptionResponseTypeEnum.UNKNOWN,

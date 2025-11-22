@@ -1,4 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
+import { ConverterHelper } from '../helpers/converter.helper';
 import { DataHelper } from '../helpers/data.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 
@@ -18,7 +19,7 @@ export class ErrorClass extends Error {
 
   public constructor(error: ErrorClassInterface) {
     const messageIsJson = DataHelper.isPrimitive(error.message);
-    const message = messageIsJson ? error.message.toString() : DataHelper.convertToJson(error.message);
+    const message = messageIsJson ? error.message.toString() : ConverterHelper.toJson(error.message);
     super(message);
     this.name = error.name || 'ErrorClass';
     this.message = message;

@@ -159,24 +159,6 @@ describe('DataHelper', () => {
     });
   });
 
-  describe('convert functions', () => {
-    it('should convert JSON safely', () => {
-      const obj = { x: 1 };
-      const json = DataHelper.convertToJson(obj);
-      expect(DataHelper.convertFromJson(json)).toEqual(obj);
-    });
-
-    it('should handle invalid JSON safely', () => {
-      expect(DataHelper.convertFromJson('not-json')).toBe('not-json');
-    });
-
-    it('should convert hex to RGB and back', () => {
-      const rgb = DataHelper.convertHexToRgb('#ff00ff');
-      expect(rgb).toEqual([255, 0, 255]);
-      expect(DataHelper.convertRgbToHex(255, 0, 255)).toBe('#ff00ff');
-    });
-  });
-
   describe('filterCircular', () => {
     it('should replace circular refs with placeholder', () => {
       const obj: { a: number; self: unknown } = { a: 1, self: undefined };
