@@ -12,7 +12,7 @@
     "migrator": "nodemon -e ts --watch src --watch playground --ignore node_modules -x ts-node playground/index.ts new my-test",
     "migrator-help": "ts-node playground/index.ts new --help",
     "prebuild": "rimraf dist",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && cp src/helpers/*.template dist/helpers",
     "lint": "eslint -c .eslintrc.js \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "prepack": "npm run build",

@@ -207,7 +207,7 @@ class MigrationMongoSingleton {
   private create(migration: string): Promise<void> {
     CodegenHelper.displayMessage('migration', this.create.name);
     const timestamp = new Date().getTime();
-    const migrationName = ConverterHelper.separateWords(migration.replace(/[^a-zA-Z0-9-]/g, ''), '-').toLowerCase();
+    const migrationName = ConverterHelper.separateWords(migration.replace(/[^a-zA-Z0-9]/g, '-'), '-').toLowerCase();
     const fileName = `${timestamp}_${migrationName}`;
     const filePath = `${this.configuration.path}/${fileName}.ts`;
     IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
@@ -302,41 +302,43 @@ class MigrationMongoSingleton {
   private getTemplate(timestamp: number, migrationName: string): string {
     const pascalCase = ConverterHelper.toPascalCase(migrationName, '-');
     const camelCase = ConverterHelper.toCamelCase(migrationName, '-');
+    console.log({ migrationName, pascalCase });
     const className = `${pascalCase}_${timestamp}`;
     const collectionName = `${camelCase}_${timestamp}`;
     const fieldName = `${camelCase}_${timestamp}`;
     const indexName = `${migrationName.replace(/-/g, '_')}_${timestamp}`;
     try {
-      const template = !this.configuration.template
-        ? "import { Db } from 'mongodb';\n" +
-          "import { MigrationMongoInterface } from 'fa-node';\n" +
-          '\n' +
-          '/**\n' +
-          ' * MongoMigrationClass\n' +
-          ' */\n' +
-          '\n' +
-          "const COLLECTION = 'mongoMigrationCollection';\n" +
-          "const FIELD = 'mongoMigrationField';\n" +
-          "const INDEX = '${FIELD}_index';\n" +
-          '\n' +
-          'export class MongoMigrationClass implements MigrationMongoInterface {\n' +
-          '  public async up(db: Db): Promise<void> {\n' +
-          '    await db.collection(COLLECTION).createIndex(\n' +
-          '      {\n' +
-          '        [FIELD]: 1,\n' +
-          '      },\n' +
-          '      {\n' +
-          '        name: INDEX,\n' +
-          '        unique: true,\n' +
-          '      },\n' +
-          '    );\n' +
-          '  }\n' +
-          '\n' +
-          '  public async down(db: Db): Promise<void> {\n' +
-          '    await db.collection(COLLECTION).dropIndex(INDEX);\n' +
-          '  }\n' +
-          '}\n'
-        : IoHelper.readFileSync(this.configuration.template).toString();
+      const template = this.configuration.template
+        ? // ? "import { Db } from 'mongodb';\n" +
+          //   "import { MigrationMongoInterface } from 'fa-node';\n" +
+          //   '\n' +
+          //   '/**\n' +
+          //   ' * MongoMigrationClass\n' +
+          //   ' */\n' +
+          //   '\n' +
+          //   "const COLLECTION = 'mongoMigrationCollection';\n" +
+          //   "const FIELD = 'mongoMigrationField';\n" +
+          //   'const INDEX = `${FIELD}_index`;\n' +
+          //   '\n' +
+          //   'export class MongoMigrationClass implements MigrationMongoInterface {\n' +
+          //   '  public async up(db: Db): Promise<void> {\n' +
+          //   '    await db.collection(COLLECTION).createIndex(\n' +
+          //   '      {\n' +
+          //   '        [FIELD]: 1,\n' +
+          //   '      },\n' +
+          //   '      {\n' +
+          //   '        name: INDEX,\n' +
+          //   '        unique: true,\n' +
+          //   '      },\n' +
+          //   '    );\n' +
+          //   '  }\n' +
+          //   '\n' +
+          //   '  public async down(db: Db): Promise<void> {\n' +
+          //   '    await db.collection(COLLECTION).dropIndex(INDEX);\n' +
+          //   '  }\n' +
+          //   '}\n'
+          IoHelper.readFileSync(this.configuration.template).toString()
+        : IoHelper.readFileSync(`${__dirname}/migration-mongo.template`).toString();
       return template
         .replace(/MongoMigrationClass/g, className)
         .replace(/mongoMigrationCollection/g, collectionName)

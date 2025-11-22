@@ -1,6 +1,6 @@
 // GENERATED CODE -- DO NOT EDIT!
 import { Db } from 'mongodb';
-import { MigrationMongoInterface } from './migration-mongo.helper';
+import { MigrationMongoInterface } from 'fa-node';
 
 const COLLECTION = 'mongoMigrationCollection';
 const FIELD = 'mongoMigrationField';
