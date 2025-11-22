@@ -257,7 +257,7 @@ class DataSingleton {
     const cache = new WeakSet();
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
-        const stack = ParserHelper.parseStack(item.stack)
+        const stack = ParserHelper.stack(item.stack)
           .filter((trace) => {
             return !trace.file.includes('node_modules/') && !trace.file.includes('node:');
           })

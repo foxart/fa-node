@@ -153,12 +153,14 @@ export class ConsoleSystemClass {
   public printError(error: Error | ErrorClass): void {
     this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.RED]));
     this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.RED]));
-    if (error instanceof ErrorClass && error.messageIsJson) {
-      this.processStdout(this.dataWrapper(DataHelper.convertFromJson(error.message)));
-    } else {
-      this.processStdout(error.message);
+    if (error.message) {
+      if (error instanceof ErrorClass && error.messageIsJson) {
+        this.processStdout(this.dataWrapper(DataHelper.convertFromJson(error.message)));
+      } else {
+        this.processStdout(error.message);
+      }
+      this.processStdout(' ');
     }
-    this.processStdout(' ');
     if (this.options.stackError) {
       this.printTrace(ConsoleLevelEnum.ERR, this.getStack(error.stack));
     }
@@ -219,7 +221,7 @@ export class ConsoleSystemClass {
   }
 
   public getStack(stack?: string): ParserTraceInterface[] {
-    return ParserHelper.parseStack(stack).map((item) => {
+    return ParserHelper.stack(stack).map((item) => {
       return {
         caller: item.caller,
         method: item.method,
