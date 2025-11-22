@@ -1,12 +1,4 @@
 import { ParserHelper } from './parser.helper';
-// interface IsEmptyKeyValueInterface {
-//   undefined?: boolean;
-//   nullValue?: boolean;
-//   emptyString?: boolean;
-//   zeroNumber?: boolean;
-//   emptyArray?: boolean;
-//   emptyObject?: boolean;
-// }
 
 interface EmptyOptionsInterface {
   blankString?: boolean;
@@ -21,45 +13,6 @@ type MapCallback = (key: string, value: unknown) => unknown;
 
 class DataSingleton {
   private static self: DataSingleton;
-
-  private readonly characters = [
-    Array.from({ length: 26 }, (_, i) => String.fromCharCode(i + 65)).join(''),
-    Array.from({ length: 26 }, (_, i) => String.fromCharCode(i + 97)).join(''),
-    Array.from({ length: 10 }, (_, i) => i).join(''),
-  ].join('');
-
-  private readonly colorList = [
-    '#A47864',
-    '#C9B27C',
-    '#DCCCBD',
-    '#EDE3D9',
-    '#F1E3BC',
-    '#31231A',
-    '#52361E',
-    '#9E7967',
-    '#EDEAB1',
-    '#512C3A',
-    '#71ADBA',
-    '#FF654F',
-    '#4C5578',
-    '#B2456E',
-    '#FBEAE7',
-    '#552619',
-    '#EDF4F2',
-    '#7C8363',
-    '#31473A',
-    '#E9E0D4',
-    '#B8CCD0',
-    '#6C767E',
-    '#56615D',
-    '#E5DADA',
-    '#FFF2EF',
-    '#FFDBB6',
-    '#F7A5A5',
-    '#D3DAD9',
-    '#715A5A',
-    '#44444E',
-  ];
 
   public static getInstance(): DataSingleton {
     if (!DataSingleton.self) {
@@ -133,6 +86,43 @@ class DataSingleton {
     } else if (options?.emptyObject && this.isObjectEmpty(data)) {
       return true;
     } else if (options?.emptyArray && this.isArrayEmpty(data)) {
+      return true;
+    }
+    return false;
+  }
+
+  public isEqual(a: unknown, b: unknown): boolean {
+    if (a === b) {
+      return true;
+    }
+    if (typeof a !== typeof b) {
+      return false;
+    }
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) {
+        return false;
+      }
+      for (let i = 0; i < a.length; i++) {
+        if (!this.isEqual(a[i], b[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (this.isObject(a) && this.isObject(b)) {
+      const keysA = Object.keys(a as Record<string, unknown>);
+      const keysB = Object.keys(b as Record<string, unknown>);
+      if (keysA.length !== keysB.length) {
+        return false;
+      }
+      for (const key of keysA) {
+        if (!(key in (b as Record<string, unknown>))) {
+          return false;
+        }
+        if (!this.isEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) {
+          return false;
+        }
+      }
       return true;
     }
     return false;
@@ -388,74 +378,6 @@ class DataSingleton {
     } else {
       return this.isEmpty(data, options) ? data : ({} as DATA);
     }
-  }
-
-  /**
-   * RANDOM FUNCTIONS
-   */
-  public randomBoolean(): boolean {
-    return Math.random() < 0.5;
-  }
-
-  public randomFloat(min: number, max: number): number {
-    return Math.random() * (max - min + 1) + min;
-  }
-
-  public randomColor(delta = 20): string {
-    const random = (base: number): number => {
-      const shift = this.randomInteger(-delta, delta);
-      const v = base + shift;
-      return Math.max(0, Math.min(255, v));
-    };
-    const base = this.colorList[this.randomInteger(0, this.colorList.length - 1)];
-    const [r, g, b] = this.convertHexToRgb(base);
-    return this.convertRgbToHex(random(r), random(g), random(b));
-  }
-
-  public randomInteger(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1) + min);
-  }
-
-  public randomDate(startDate: Date, endDate: Date): Date {
-    // function isLeapYear(year: number): boolean {
-    //   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    // }
-    // const year = this.randomInteger(startYear, endYear);
-    // const month = this.randomInteger(0, 11);
-    // const daysInMonth = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    // const day = this.randomInteger(1, daysInMonth[month]);
-    // const hour = this.randomInteger(0, 23);
-    // const minute = this.randomInteger(0, 59);
-    // const second = this.randomInteger(0, 59);
-    // return new Date(year, month, day, hour, minute, second);
-    const startMs = startDate.getTime();
-    const endMs = endDate.getTime();
-    const randomMs = this.randomInteger(startMs, endMs);
-    return new Date(randomMs);
-  }
-
-  public randomString(length = 10): string {
-    let counter = 0;
-    let result = '';
-    while (counter < length) {
-      result += this.characters.charAt(Math.floor(Math.random() * this.characters.length));
-      counter++;
-    }
-    return result;
-  }
-
-  public randomWord(length = 5): string {
-    const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
-    const consonants = ['b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'w', 'x', 'z'];
-    let word = '';
-    let useVowel = Math.random() > 0.5;
-    for (let i = 0; i < length; i++) {
-      const letters = useVowel ? vowels : consonants;
-      const randomChar = letters[Math.floor(Math.random() * letters.length)];
-      word += randomChar;
-      useVowel = !useVowel;
-    }
-    return word.charAt(0).toUpperCase() + word.slice(1);
   }
 }
 

@@ -194,43 +194,6 @@ describe('DataHelper', () => {
     });
   });
 
-  describe('random functions', () => {
-    it('should generate random boolean', () => {
-      const results = new Set(Array.from({ length: 20 }, () => DataHelper.randomBoolean()));
-      expect(results.size).toBeGreaterThan(1);
-    });
-
-    it('should generate random integer in range', () => {
-      const val = DataHelper.randomInteger(5, 10);
-      expect(val).toBeGreaterThanOrEqual(5);
-      expect(val).toBeLessThanOrEqual(10);
-    });
-
-    it('should generate random float in range', () => {
-      const val = DataHelper.randomFloat(1, 2);
-      expect(val).toBeGreaterThanOrEqual(1);
-      expect(val).toBeLessThanOrEqual(3);
-    });
-
-    it('should generate random color in hex', () => {
-      const color = DataHelper.randomColor();
-      expect(color).toMatch(/^#[0-9a-f]{6}$/i);
-    });
-
-    it('should generate random date in range', () => {
-      const start = new Date(2000, 0, 1);
-      const end = new Date(2020, 0, 1);
-      const date = DataHelper.randomDate(start, end);
-      expect(date.getTime()).toBeGreaterThanOrEqual(start.getTime());
-      expect(date.getTime()).toBeLessThanOrEqual(end.getTime());
-    });
-
-    it('should generate random string and word', () => {
-      expect(DataHelper.randomString(5)).toHaveLength(5);
-      expect(DataHelper.randomWord(5)).toMatch(/^[A-Z][a-z]+$/);
-    });
-  });
-
   describe('applyCallback', () => {
     it('should apply callback to all values', () => {
       const data = { a: 1, b: { c: 2 } };

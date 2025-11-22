@@ -23,5 +23,6 @@ export * from './helpers/ip.helper';
 export * from './helpers/migration-mongo.helper';
 export * from './helpers/parser.helper';
 export * from './helpers/password.helper';
+export * from './helpers/random.helper';
 export * from './helpers/symbol.helper';
 export * from './helpers/system.helper';
