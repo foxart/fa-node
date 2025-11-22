@@ -155,7 +155,7 @@ export class ConsoleSystemClass {
     this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.RED]));
     if (error.message) {
       if (error instanceof ErrorClass && error.messageIsJson) {
-        this.processStdout(this.dataWrapper(DataHelper.convertFromJson(error.message)));
+        this.processStdout(this.dataWrapper(ParserHelper.json(error.message)));
       } else {
         this.processStdout(error.message);
       }

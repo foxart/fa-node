@@ -131,14 +131,6 @@ class DataSingleton {
   /**
    * CONVERT FUNCTIONS
    */
-  public convertFromJson<T>(data: string): T | string {
-    try {
-      return JSON.parse(data) as T;
-    } catch (e) {
-      return data;
-    }
-  }
-
   public convertToJson(data: unknown, indent?: number): string {
     const cache: unknown[] = [];
     return JSON.stringify(
@@ -271,7 +263,7 @@ class DataSingleton {
         return {
           // __className: item.constructor.name,
           name: item.name,
-          message: errorClass.messageIsJson ? DataHelper.convertFromJson(errorClass.message) : errorClass.message,
+          message: errorClass.messageIsJson ? ParserHelper.json(errorClass.message) : errorClass.message,
           stack,
         };
       }
