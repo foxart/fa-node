@@ -1,4 +1,4 @@
-import { ConverterHelper } from '../../src/helpers/converter.helper';
+import { ConverterHelper } from '../../src';
 
 class EmptyClass {}
 
@@ -37,17 +37,6 @@ const objectValues = {
   regex: new RegExp('/.+/g'),
   valueClass: new ValueClass(),
 };
-
-function testMapObjectKeys(): object {
-  const data = { ...objectEmptyValues, valueObject: { ...objectEmptyValues, ...objectValues } };
-  return ConverterHelper.mapObjectKeys(
-    data,
-    (key) => {
-      return `MAPPED_${key}_MAPPED`;
-    },
-    true,
-  );
-}
 
 function testSeparator(): object {
   function arrayToObject(array: string[]): { [key: string]: string } {
@@ -89,6 +78,5 @@ function testSeparator(): object {
 
 export function run(): void {
   console.clear();
-  console.log(testMapObjectKeys());
   // console.log(testSeparator());
 }

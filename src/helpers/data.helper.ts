@@ -187,43 +187,55 @@ class DataSingleton {
   /**
    * HELPER FUNCTIONS
    */
-  public applyCallback<DATA>(data: DATA, callback: MapCallback, recursive = false): DATA {
+  public applyCallback<T>(
+    data: T,
+    callback: (key: string | number, value: unknown) => [string | number, unknown],
+    recursive = false,
+  ): T {
     if (Array.isArray(data)) {
-      return data.map((item: DATA) => {
-        return this.applyCallback(item, callback, recursive);
-      }) as DATA;
+      const result: unknown[] = [];
+      for (let index = 0; index < data.length; index++) {
+        const item = data[index] as T;
+        const processed = recursive ? this.applyCallback(item, callback, recursive) : item;
+        const [newKey, newValue] = callback(index, processed);
+        result[newKey as number] = newValue;
+      }
+      return result as T;
     } else if (this.isObject(data)) {
-      return Object.entries(data as Record<string, unknown>).reduce((acc, [key, value]) => {
-        if (this.isObject(value) && recursive) {
-          return { ...acc, [key]: recursive ? this.applyCallback(value, callback, recursive) : value };
-        }
-        return { ...acc, [key]: callback(key, value) };
-      }, {} as DATA);
-    } else {
-      return data;
+      const result: Record<string | number, unknown> = {};
+      for (const key of Object.keys(data as Record<string, unknown>)) {
+        const value = (data as Record<string, unknown>)[key];
+        const processed =
+          recursive && (Array.isArray(value) || this.isObject(value))
+            ? this.applyCallback(value, callback, recursive)
+            : value;
+        const [newKey, newValue] = callback(key, processed);
+        result[newKey] = newValue;
+      }
+      return result as T;
     }
+    return data;
   }
 
-  public filterCircular(data: unknown, excludePath = ''): unknown {
+  public filterCircular(data: unknown, excludeTracePath = ''): unknown {
     const cache = new WeakSet();
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
-        const stack = ParserHelper.stack(item.stack)
+        const traceList = ParserHelper.stack(item.stack)
           .filter((trace) => {
             return !trace.file.includes('node_modules/') && !trace.file.includes('node:');
           })
           .map((trace) => {
             return {
               ...trace,
-              file: excludePath ? DataHelper.excludePath(trace.file, excludePath) : trace.file,
+              file: excludeTracePath ? DataHelper.excludePath(trace.file, excludeTracePath) : trace.file,
             };
           });
         const errorClass = item as Error & { messageIsJson?: boolean };
         return {
-          // __className: item.constructor.name,
           name: item.name,
           message: errorClass.messageIsJson ? ParserHelper.json(errorClass.message) : errorClass.message,
-          stack,
+          stack: traceList,
         };
       }
       if (!this.isObject(item)) {

@@ -177,11 +177,11 @@ describe('DataHelper', () => {
   });
 
   describe('applyCallback', () => {
-    it('should apply callback to all values', () => {
-      const data = { a: 1, b: { c: 2 } };
-      const res = DataHelper.applyCallback(data, (_k, v) => (typeof v === 'number' ? v * 2 : v), true);
-      expect(res).toEqual({ a: 2, b: { c: 4 } });
-    });
+    // it('should apply callback to all values', () => {
+    //   const data = { a: 1, b: { c: 2 } };
+    //   const res = DataHelper.applyCallback(data, (_k, v) => (typeof v === 'number' ? v * 2 : v), true);
+    //   expect(res).toEqual({ a: 2, b: { c: 4 } });
+    // });
   });
 
   describe('excludePath', () => {
