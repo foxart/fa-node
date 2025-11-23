@@ -1,3 +1,4 @@
+import { ErrorClass } from '../classes/error.class';
 import { ParserHelper } from './parser.helper';
 
 interface EmptyOptionsInterface {
@@ -215,7 +216,8 @@ class DataSingleton {
     return data;
   }
 
-  public filterCircular(data: unknown, excludeTracePath = ''): unknown {
+  public filterCircular<T>(data: T): T {
+    const isNode = typeof process !== 'undefined' && process?.versions?.node;
     const cache = new WeakSet();
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
@@ -226,13 +228,13 @@ class DataSingleton {
           .map((trace) => {
             return {
               ...trace,
-              file: excludeTracePath ? DataHelper.excludePath(trace.file, excludeTracePath) : trace.file,
+              file: isNode ? DataHelper.excludePath(trace.file, process.cwd()) : trace.file,
             };
           });
-        const errorClass = item as Error & { messageIsJson?: boolean };
+        const error = item as ErrorClass;
         return {
           name: item.name,
-          message: errorClass.messageIsJson ? ParserHelper.json(errorClass.message) : errorClass.message,
+          message: error.messageIsJson ? ParserHelper.json(error.message) : error.message,
           stack: traceList,
         };
       }
@@ -264,7 +266,7 @@ class DataSingleton {
       }
       return result;
     };
-    return walk(data);
+    return walk(data) as T;
   }
 
   public omitEmpty<DATA>(data: DATA, options: EmptyOptionsInterface = {}, recursive = true): DATA {

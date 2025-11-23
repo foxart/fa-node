@@ -272,7 +272,7 @@ export class ConsoleSystemClass {
   }
 
   public dataWrapper(data: unknown): string {
-    return util.inspect(DataHelper.filterCircular(data, process.cwd()), {
+    return util.inspect(DataHelper.filterCircular(data), {
       colors: this.options.color,
       showHidden: this.options.hidden,
       sorted: this.options.sort,

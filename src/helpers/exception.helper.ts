@@ -2,21 +2,34 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ApolloError } from 'apollo-server-errors';
 import * as mongoose from 'mongoose';
 import { ErrorClass } from '../classes/error.class';
-import { ApolloCodeEnum } from '../declarations/apollo-code.enum';
-import {
-  ExceptionResponseContextEnum,
-  ExceptionResponseInterface,
-  ExceptionResponseTypeEnum,
-} from '../declarations/exception-response.interface';
 import { ConverterHelper } from './converter.helper';
 
 export interface ExceptionInterface {
   name: string;
   message: string;
   status: HttpStatus;
-  code: ApolloCodeEnum;
-  type: ExceptionResponseTypeEnum;
+  code: ExceptionCodeEnum;
+  type: ExceptionTypeEnum;
   stack?: string;
+}
+
+export enum ExceptionCodeEnum {
+  // GRAPHQL_PARSE_FAILED = 'GRAPHQL_PARSE_FAILED',
+  // GRAPHQL_VALIDATION_FAILED = 'GRAPHQL_VALIDATION_FAILED',
+  BAD_USER_INPUT = 'BAD_USER_INPUT',
+  FORBIDDEN = 'FORBIDDEN',
+  INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
+  UNAUTHENTICATED = 'UNAUTHENTICATED',
+  UNKNOWN = 'UNKNOWN',
+}
+
+export enum ExceptionTypeEnum {
+  HTTP_EXCEPTION = 'HttpException',
+  APOLLO_ERROR = 'ApolloError',
+  MONGO_ERROR = 'MongoError',
+  ERROR_CLASS = 'ErrorClass',
+  ERROR = 'Error',
+  UNKNOWN = 'Unknown',
 }
 
 class ExceptionSingleton {
@@ -29,53 +42,22 @@ class ExceptionSingleton {
     return ExceptionSingleton.self;
   }
 
-  public castToException(error: unknown): ExceptionInterface {
+  public castToException(payload: unknown): ExceptionInterface {
     let result;
-    if (error instanceof HttpException) {
-      result = this.castHttpException(error);
-    } else if (error instanceof ApolloError) {
-      result = this.castApolloError(error);
-    } else if (error instanceof mongoose.mongo.MongoError) {
-      result = this.castMongoError(error);
-    } else if (error instanceof ErrorClass) {
-      result = this.castErrorClass(error);
-    } else if (error instanceof Error) {
-      result = this.castError(error);
+    if (payload instanceof HttpException) {
+      result = this.castHttpException(payload);
+    } else if (payload instanceof ApolloError) {
+      result = this.castApolloError(payload);
+    } else if (payload instanceof mongoose.mongo.MongoError) {
+      result = this.castMongoError(payload);
+    } else if (payload instanceof ErrorClass) {
+      result = this.castErrorClass(payload);
+    } else if (payload instanceof Error) {
+      result = this.castError(payload);
     } else {
-      result = this.castUnknown(error);
+      result = this.castUnknown(payload);
     }
     return result;
-  }
-
-  public isExceptionResponse(exception: unknown): exception is ExceptionResponseInterface {
-    return (
-      typeof exception === 'object' &&
-      exception !== null &&
-      'code' in exception &&
-      'context' in exception &&
-      'message' in exception &&
-      'metadata' in exception &&
-      'name' in exception &&
-      'payload' in exception &&
-      'timestamp' in exception &&
-      // 'trace' in exception &&
-      'type' in exception &&
-      // Enum checks
-      Object.values(ApolloCodeEnum).includes(exception.code as ApolloCodeEnum) &&
-      Object.values(ExceptionResponseContextEnum).includes(exception.context as ExceptionResponseContextEnum) &&
-      Object.values(ExceptionResponseTypeEnum).includes(exception.type as ExceptionResponseTypeEnum) &&
-      // Type checks
-      typeof exception.message === 'string' &&
-      typeof exception.metadata === 'object' &&
-      typeof exception.name === 'string' &&
-      typeof exception.payload === 'object' &&
-      typeof exception.timestamp === 'string' &&
-      // Array checks
-      // Array.isArray(exception.trace) &&
-      // exception.trace.every((item: unknown) => typeof item === 'string') &&
-      // Null checks
-      exception.payload !== null
-    );
   }
 
   private castHttpException(exception: HttpException): ExceptionInterface {
@@ -84,7 +66,7 @@ class ExceptionSingleton {
       message: exception.message,
       status: exception.getStatus(),
       code: this.codeFromHttpStatus(exception.getStatus()),
-      type: ExceptionResponseTypeEnum.HTTP_EXCEPTION,
+      type: ExceptionTypeEnum.HTTP_EXCEPTION,
       stack: exception.stack,
     };
   }
@@ -92,14 +74,14 @@ class ExceptionSingleton {
   private castApolloError(error: ApolloError): ExceptionInterface {
     const extensions = error.extensions as {
       http?: { status?: number };
-      code?: ApolloCodeEnum;
+      code?: ExceptionCodeEnum;
     };
     return {
       name: error.name,
       message: error.message,
       status: extensions?.http?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      code: extensions?.code || ApolloCodeEnum.INTERNAL_SERVER_ERROR,
-      type: ExceptionResponseTypeEnum.APOLLO_ERROR,
+      code: extensions?.code || ExceptionCodeEnum.INTERNAL_SERVER_ERROR,
+      type: ExceptionTypeEnum.APOLLO_ERROR,
       stack: error.stack,
     };
   }
@@ -127,7 +109,7 @@ class ExceptionSingleton {
       message: ConverterHelper.toJson(message),
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: this.codeFromHttpStatus(HttpStatus.INTERNAL_SERVER_ERROR),
-      type: ExceptionResponseTypeEnum.MONGO_ERROR,
+      type: ExceptionTypeEnum.MONGO_ERROR,
       stack: error.stack,
     };
   }
@@ -138,7 +120,7 @@ class ExceptionSingleton {
       message: error.message,
       status: error.status,
       code: this.codeFromHttpStatus(error.status),
-      type: ExceptionResponseTypeEnum.ERROR_CLASS,
+      type: ExceptionTypeEnum.ERROR_CLASS,
       stack: error.stack,
     };
   }
@@ -149,7 +131,7 @@ class ExceptionSingleton {
       message: error.message,
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: this.codeFromHttpStatus(HttpStatus.INTERNAL_SERVER_ERROR),
-      type: ExceptionResponseTypeEnum.ERROR,
+      type: ExceptionTypeEnum.ERROR,
       stack: error.stack,
     };
   }
@@ -160,23 +142,23 @@ class ExceptionSingleton {
       message: typeof error === 'object' ? ConverterHelper.toJson(error) : '',
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: this.codeFromHttpStatus(HttpStatus.INTERNAL_SERVER_ERROR),
-      type: ExceptionResponseTypeEnum.UNKNOWN,
+      type: ExceptionTypeEnum.UNKNOWN,
       stack: new Error().stack,
     };
   }
 
-  private codeFromHttpStatus(status?: HttpStatus): ApolloCodeEnum {
+  private codeFromHttpStatus(status?: HttpStatus): ExceptionCodeEnum {
     switch (status) {
       case HttpStatus.BAD_REQUEST:
-        return ApolloCodeEnum.BAD_USER_INPUT;
+        return ExceptionCodeEnum.BAD_USER_INPUT;
       case HttpStatus.FORBIDDEN:
-        return ApolloCodeEnum.FORBIDDEN;
+        return ExceptionCodeEnum.FORBIDDEN;
       case HttpStatus.UNAUTHORIZED:
-        return ApolloCodeEnum.UNAUTHENTICATED;
+        return ExceptionCodeEnum.UNAUTHENTICATED;
       case HttpStatus.INTERNAL_SERVER_ERROR:
-        return ApolloCodeEnum.INTERNAL_SERVER_ERROR;
+        return ExceptionCodeEnum.INTERNAL_SERVER_ERROR;
       default:
-        return ApolloCodeEnum.UNKNOWN;
+        return ExceptionCodeEnum.UNKNOWN;
     }
   }
 }

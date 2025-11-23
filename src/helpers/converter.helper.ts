@@ -38,7 +38,7 @@ class ConverterSingleton {
 
   public toPascalCase(str: string, separator = ' '): string {
     if (!str) return '';
-    const words = this.separateWords(str, separator)
+    const words = this.tokenizeWords(str, separator)
       .split(separator)
       .filter(Boolean)
       .map((w) => this.capitalize(w));
@@ -47,7 +47,7 @@ class ConverterSingleton {
 
   public toCamelCase(str: string, separator = ' '): string {
     if (!str) return '';
-    const words = this.separateWords(str, separator)
+    const words = this.tokenizeWords(str, separator)
       .split(separator)
       .filter(Boolean)
       .map((w) => this.capitalize(w));
@@ -56,36 +56,13 @@ class ConverterSingleton {
     words[0] = this.decapitalize(words[0]);
     return words.join('');
   }
-  // public toPascalCase(str: string, separator = ' '): string {
-  //   if (!str) return '';
-  //   const words = this.separateWords(str, separator)
-  //     .split(separator)
-  //     .filter(Boolean)
-  //     .map((w) => {
-  //       return w.charAt(0).toUpperCase() + w.slice(1);
-  //     }); // первая буква заглавная, остальное без изменений
-  //   return words.join('');
-  // }
-  //
-  // public toCamelCase(str: string, separator = ' '): string {
-  //   if (!str) return '';
-  //   const words = this.separateWords(str, separator)
-  //     .split(separator)
-  //     .filter(Boolean)
-  //     .map((w) => {
-  //       return w.charAt(0).toUpperCase() + w.slice(1);
-  //     }); // первая буква заглавная для всех слов
-  //   if (words.length === 0) return '';
-  //   words[0] = words[0].charAt(0).toLowerCase() + words[0].slice(1); // первая буква всего результата строчная
-  //   return words.join('');
-  // }
 
-  public separateWords(str: string, separator: string): string {
-    // return str
-    //   .replace(/[A-Z]/g, (match, index) => (index === 0 ? match : `${separator}${match}`))
-    //   .replace(new RegExp(`${separator}{2,}`, 'g'), separator)
-    //   .replace(new RegExp(`^${separator}|${separator}$`, 'g'), '');
-    // Разделяем перед заглавной буквой, если перед ней стоит строчная или цифра
+  public splitWords(str: string): string[] {
+    if (!str) return [];
+    return this.tokenizeWords(str, ' ').split(' ').filter(Boolean);
+  }
+
+  public tokenizeWords(str: string, separator: string): string {
     if (!str) return '';
     return (
       str

@@ -73,6 +73,7 @@ class ParserSingleton {
     //   result.push(traceItem);
     // }
     // return result;
+    if (!stack) return [];
     const regexp = new RegExp(ParserSingleton.stackRegexp.source, 'gm');
     const result: ParserTraceInterface[] = [];
     for (const match of stack.matchAll(regexp)) {

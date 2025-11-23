@@ -135,37 +135,37 @@ describe('ConverterHelper', () => {
 
     it('separateWords', () => {
       // пустая строка
-      expect(ConverterHelper.separateWords('', '-')).toBe('');
+      expect(ConverterHelper.tokenizeWords('', '-')).toBe('');
       // один символ
-      expect(ConverterHelper.separateWords('T', '-')).toBe('T');
+      expect(ConverterHelper.tokenizeWords('T', '-')).toBe('T');
       // только заглавные — не трогаем
-      expect(ConverterHelper.separateWords('ABC', '-')).toBe('ABC');
+      expect(ConverterHelper.tokenizeWords('ABC', '-')).toBe('ABC');
       // базовый camelCase / PascalCase
-      expect(ConverterHelper.separateWords('HelloWorld', '-')).toBe('Hello-World');
-      expect(ConverterHelper.separateWords('HTMLParser', '-')).toBe('HTML-Parser');
-      expect(ConverterHelper.separateWords('MyXMLHttpRequest', '-')).toBe('My-XML-Http-Request');
-      expect(ConverterHelper.separateWords('TEst', '-')).toBe('T-Est');
+      expect(ConverterHelper.tokenizeWords('HelloWorld', '-')).toBe('Hello-World');
+      expect(ConverterHelper.tokenizeWords('HTMLParser', '-')).toBe('HTML-Parser');
+      expect(ConverterHelper.tokenizeWords('MyXMLHttpRequest', '-')).toBe('My-XML-Http-Request');
+      expect(ConverterHelper.tokenizeWords('TEst', '-')).toBe('T-Est');
       // цифры + слова
-      expect(ConverterHelper.separateWords('Version2Update', '-')).toBe('Version2-Update');
-      expect(ConverterHelper.separateWords('A1B2C3', '-')).toBe('A1-B2-C3');
+      expect(ConverterHelper.tokenizeWords('Version2Update', '-')).toBe('Version2-Update');
+      expect(ConverterHelper.tokenizeWords('A1B2C3', '-')).toBe('A1-B2-C3');
       // кастомный разделитель
-      expect(ConverterHelper.separateWords('myTestString', '-')).toBe('my-Test-String');
-      expect(ConverterHelper.separateWords('JSONDataParser', '-')).toBe('JSON-Data-Parser');
+      expect(ConverterHelper.tokenizeWords('myTestString', '-')).toBe('my-Test-String');
+      expect(ConverterHelper.tokenizeWords('JSONDataParser', '-')).toBe('JSON-Data-Parser');
       // смешанные последовательности + цифры
-      expect(ConverterHelper.separateWords('parseHTML2Text', ' ')).toBe('parse HTML2 Text');
-      expect(ConverterHelper.separateWords('loadJSONFile2Data', ' ')).toBe('load JSON File2 Data');
-      expect(ConverterHelper.separateWords('XML2HTML', ' ')).toBe('XML2 HTML');
+      expect(ConverterHelper.tokenizeWords('parseHTML2Text', ' ')).toBe('parse HTML2 Text');
+      expect(ConverterHelper.tokenizeWords('loadJSONFile2Data', ' ')).toBe('load JSON File2 Data');
+      expect(ConverterHelper.tokenizeWords('XML2HTML', ' ')).toBe('XML2 HTML');
       // слова с несколькими акронимами подряд
-      expect(ConverterHelper.separateWords('APIXMLParser', ' ')).toBe('APIXML Parser');
-      expect(ConverterHelper.separateWords('HTTPRequestJSON', ' ')).toBe('HTTP Request JSON');
+      expect(ConverterHelper.tokenizeWords('APIXMLParser', ' ')).toBe('APIXML Parser');
+      expect(ConverterHelper.tokenizeWords('HTTPRequestJSON', ' ')).toBe('HTTP Request JSON');
       // строка, начинающаяся с акронима + обычное слово
-      expect(ConverterHelper.separateWords('URLStringHandler', ' ')).toBe('URL String Handler');
+      expect(ConverterHelper.tokenizeWords('URLStringHandler', ' ')).toBe('URL String Handler');
       // строка, где есть одиночная заглавная внутри слова
-      expect(ConverterHelper.separateWords('teStIng', ' ')).toBe('te St Ing');
+      expect(ConverterHelper.tokenizeWords('teStIng', ' ')).toBe('te St Ing');
       // последовательности заглавных + маленькая
-      expect(ConverterHelper.separateWords('XYZdata', ' ')).toBe('XY Zdata');
+      expect(ConverterHelper.tokenizeWords('XYZdata', ' ')).toBe('XY Zdata');
       // смешанные сценарии с разными разделителями
-      expect(ConverterHelper.separateWords('parseXML_HTTP_Data', ' ')).toBe('parse XML_HTTP_Data');
+      expect(ConverterHelper.tokenizeWords('parseXML_HTTP_Data', ' ')).toBe('parse XML_HTTP_Data');
     });
   });
 });

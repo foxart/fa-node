@@ -30,7 +30,8 @@ export class ErrorClass extends Error {
     this.status = error.status || HttpStatus.INTERNAL_SERVER_ERROR;
   }
 
-  public static filterStack(stack = '', excludePath = ''): ParserTraceInterface[] {
+  public static traceListFromStack(stack = ''): ParserTraceInterface[] {
+    if (!stack) return [];
     // return ErrorClass.parseStack(stack)
     //   .filter((trace) => {
     //     return !trace.file.includes('node_modules/') && !trace.file.includes('node:');
@@ -41,18 +42,33 @@ export class ErrorClass extends Error {
     //       file: excludePath ? DataHelper.excludePath(trace.file, excludePath) : trace.file,
     //     };
     //   });
-    const parsed = ParserHelper.stack(stack);
-    const hasExclude = !!excludePath;
+    const isNode = typeof process !== 'undefined' && process?.versions?.node;
+    const traceList = ParserHelper.stack(stack);
     const result: ParserTraceInterface[] = [];
-    for (const trace of parsed) {
+    for (const trace of traceList) {
       const file = trace.file;
-      if (file.includes('node_modules/') || file.includes('node:')) continue;
+      if (file.includes('node_modules/') || file.includes('node:')) {
+        continue;
+      }
       result.push({
         caller: trace.caller,
         method: trace.method,
-        file: hasExclude ? DataHelper.excludePath(file, excludePath) : file,
+        file: isNode ? DataHelper.excludePath(file, process.cwd()) : file,
       });
     }
     return result;
+  }
+
+  public static callerKeywordListFromStack(stack = ''): string[] {
+    if (!stack) return [];
+    const set = new Set<string>();
+    const traceList = ErrorClass.traceListFromStack(stack);
+    for (const trace of traceList) {
+      const wordList = ConverterHelper.splitWords(trace.caller);
+      for (const word of wordList) {
+        set.add(word.toLowerCase());
+      }
+    }
+    return Array.from(set).sort();
   }
 }

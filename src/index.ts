@@ -1,5 +1,4 @@
 /** Classes */
-// export * from './classes/console-app.class';
 export * from './classes/console-nest.class';
 export * from './classes/console-system.class';
 export * from './classes/crypt.class';
@@ -8,9 +7,6 @@ export * from './classes/error.class';
 export * from './classes/middleware.class';
 export * from './classes/transformer.class';
 export * from './classes/validator.class';
-/** Declaration */
-export * from './declarations/apollo-code.enum';
-export * from './declarations/exception-response.interface';
 /** Helpers */
 export * from './helpers/codegen.helper';
 export * from './helpers/color.helper';

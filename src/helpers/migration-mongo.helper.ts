@@ -207,7 +207,7 @@ class MigrationMongoSingleton {
   private create(migration: string): Promise<void> {
     CodegenHelper.displayMessage('migration', this.create.name);
     const timestamp = new Date().getTime();
-    const migrationName = ConverterHelper.separateWords(migration.replace(/[^a-zA-Z0-9]/g, '-'), '-').toLowerCase();
+    const migrationName = ConverterHelper.tokenizeWords(migration.replace(/[^a-zA-Z0-9]/g, '-'), '-').toLowerCase();
     const fileName = `${timestamp}_${migrationName}`;
     const filePath = `${this.configuration.path}/${fileName}.ts`;
     IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
