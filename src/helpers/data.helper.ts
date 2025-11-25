@@ -1,6 +1,5 @@
-import { ErrorClass } from '../classes/error.class';
 import { ConverterHelper } from './converter.helper';
-import { ParserHelper } from './parser.helper';
+import { ParserHelper, ParserTraceInterface } from './parser.helper';
 
 interface EmptyOptionsInterface {
   blankString?: boolean;
@@ -293,11 +292,11 @@ class DataSingleton {
     const cache = new WeakSet();
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
-        const errorClass = item as Error & { messageIsJson?: boolean };
+        const error = item as Error & { messageIsJson?: boolean };
         return {
           name: item.name,
-          message: errorClass.messageIsJson ? ParserHelper.json(errorClass.message) : errorClass.message,
-          stack: ErrorClass.traceListFromStack(errorClass.stack),
+          message: error.messageIsJson ? ParserHelper.json(error.message) : error.message,
+          stack: this.traceListFromErrorStack(error.stack),
         };
       }
       if (!this.isObject(item)) {
@@ -322,6 +321,25 @@ class DataSingleton {
       return result;
     };
     return walk(data) as T;
+  }
+
+  public traceListFromErrorStack(stack = ''): ParserTraceInterface[] {
+    if (!stack) return [];
+    const isNode = typeof process !== 'undefined' && process?.versions?.node;
+    const traceList = ParserHelper.stack(stack);
+    const result: ParserTraceInterface[] = [];
+    for (const trace of traceList) {
+      const { caller, method, file } = trace;
+      if (file.includes('node_modules/') || file.includes('node:') || (caller === '' && method === '')) {
+        continue;
+      }
+      result.push({
+        caller: trace.caller,
+        method: trace.method,
+        file: isNode ? DataHelper.excludePath(file, process.cwd()) : file,
+      });
+    }
+    return result;
   }
 
   public keywordListFromWordList(wordList: string[]): string[] {

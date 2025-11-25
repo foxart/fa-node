@@ -48,7 +48,7 @@ export class ConsoleNestClass {
     }
     this.consoleSystemClass.printPerformance();
     if (level === 'DBG') {
-      this.consoleSystemClass.printTrace(level, ErrorClass.traceListFromStack(new Error().stack));
+      this.consoleSystemClass.printTrace(level, DataHelper.traceListFromErrorStack(new Error().stack));
     }
     this.consoleSystemClass.processStdout('\n');
     this.printLink(level, metadata.file, !info.length);
