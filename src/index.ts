@@ -1,4 +1,5 @@
 /** Classes */
+export * from './classes/console.class';
 export * from './classes/console-nest.class';
 export * from './classes/console-system.class';
 export * from './classes/crypt.class';

@@ -62,17 +62,6 @@ class ParserSingleton {
   }
 
   public stack(stack = ''): ParserTraceInterface[] {
-    // const result: ParserTraceInterface[] = [];
-    // for (let match; (match = this.stackRegexp.exec(stack)); ) {
-    //   const context = match[1].includes('.') ? match[1].split('.') : match[1].split(' ');
-    //   const traceItem: ParserTraceInterface = {
-    //     caller: context[0] || '',
-    //     method: context[1] || '',
-    //     file: match[2] || '',
-    //   };
-    //   result.push(traceItem);
-    // }
-    // return result;
     if (!stack) return [];
     const regexp = new RegExp(ParserSingleton.stackRegexp.source, 'gm');
     const result: ParserTraceInterface[] = [];

@@ -1,4 +1,3 @@
-import * as process from 'node:process';
 import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
 import { DataHelper } from '../helpers/data.helper';
@@ -7,14 +6,7 @@ import { ErrorClass } from './error.class';
 
 const { foreground, background, effect } = ColorHelper;
 
-export enum ConsoleLevelEnum {
-  LOG = 'LOG',
-  INF = 'INFO',
-  WRN = 'WARNING',
-  ERR = 'ERROR',
-  DBG = 'DEBUG',
-  CST = 'CUSTOM',
-}
+export type ConsoleSystemLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 
 export interface ConsoleOptionsInterface {
   /** console */
@@ -49,30 +41,30 @@ export class ConsoleSystemClass {
   }
 
   public log(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.LOG, this.getStack(new Error().stack), data);
+    this.print('LOG', this.getStack(new Error().stack), data);
   }
 
   public info(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.INF, this.getStack(new Error().stack), data);
+    this.print('INF', this.getStack(new Error().stack), data);
   }
 
   public warn(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.WRN, this.getStack(new Error().stack), data);
+    this.print('WRN', this.getStack(new Error().stack), data);
   }
 
   public error(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.ERR, this.getStack(new Error().stack), data);
+    this.print('ERR', this.getStack(new Error().stack), data);
   }
 
   public debug(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.DBG, this.getStack(new Error().stack), data);
+    this.print('DBG', this.getStack(new Error().stack), data);
   }
 
-  public custom(...data: unknown[]): void {
-    this.print(ConsoleLevelEnum.CST, this.getStack(new Error().stack), data);
+  public fatal(...data: unknown[]): void {
+    this.print('FTL', this.getStack(new Error().stack), data);
   }
 
-  public print(level: ConsoleLevelEnum, trace: ParserTraceInterface[], args: unknown[]): void {
+  public print(level: ConsoleSystemLevelType, trace: ParserTraceInterface[], args: unknown[]): void {
     this.printLevel(level);
     this.printInfo();
     args.forEach((item) => {
@@ -83,7 +75,7 @@ export class ConsoleSystemClass {
         this.processStdout(' ');
       }
     });
-    if (level === ConsoleLevelEnum.DBG && this.options.stackDebug) {
+    if (level === 'DBG' && this.options.stackDebug) {
       this.printTrace(level, this.getStack(new Error().stack));
     }
     this.printPerformance();
@@ -101,15 +93,15 @@ export class ConsoleSystemClass {
     }
   }
 
-  public printLevel(level: ConsoleLevelEnum): void {
-    if (this.options.info) {
-      const info = Object.keys(ConsoleLevelEnum as object)[Object.values(ConsoleLevelEnum as object).indexOf(level)];
-      this.processStdout(this.colorWrapper(` ${info} `, this.getBackground(level)));
-      this.processStdout(' ');
+  public printLevel(level: ConsoleSystemLevelType): void {
+    if (!this.options.info) {
+      return;
     }
+    this.processStdout(this.colorWrapper(` ${level} `, this.getBackground(level)));
+    this.processStdout(' ');
   }
 
-  public printTrace(level: ConsoleLevelEnum, trace: ParserTraceInterface[]): void {
+  public printTrace(level: ConsoleSystemLevelType, trace: ParserTraceInterface[]): void {
     this.processStdout(this.colorWrapper('{', [effect.BOLD, foreground.CYAN]));
     trace
       .filter((item) => {
@@ -129,25 +121,25 @@ export class ConsoleSystemClass {
   }
 
   public printPerformance(): void {
-    if (this.options.performance) {
-      this.processStdout(this.colorWrapper('+', [effect.DIM, foreground.CYAN]));
-      this.processStdout(
-        this.colorWrapper(Math.floor(performance.now() - this.performance).toString(), foreground.CYAN),
-      );
-      this.processStdout(this.colorWrapper('ms', [effect.DIM, foreground.CYAN]));
-      this.processStdout(' ');
+    if (!this.options.performance) {
+      return;
     }
+    this.processStdout(this.colorWrapper('+', [effect.DIM, foreground.CYAN]));
+    this.processStdout(this.colorWrapper(Math.floor(performance.now() - this.performance).toString(), foreground.CYAN));
+    this.processStdout(this.colorWrapper('ms', [effect.DIM, foreground.CYAN]));
+    this.processStdout(' ');
   }
 
-  public printLink(level: ConsoleLevelEnum, link: string): void {
-    if (this.options.link) {
-      this.processStdout('\n');
-      if (this.options.info) {
-        this.processStdout(this.colorWrapper(' at ', this.getBackground(level)));
-        this.processStdout(' ');
-      }
-      this.processStdout(DataHelper.excludePath(link, process.cwd()));
+  public printLink(level: ConsoleSystemLevelType, link: string): void {
+    if (!this.options.link) {
+      return;
     }
+    this.processStdout('\n');
+    if (this.options.info) {
+      this.processStdout(this.colorWrapper(' at ', this.getBackground(level)));
+      this.processStdout(' ');
+    }
+    this.processStdout(DataHelper.excludePath(link, process.cwd()));
   }
 
   public printError(error: Error | ErrorClass): void {
@@ -162,7 +154,7 @@ export class ConsoleSystemClass {
       this.processStdout(' ');
     }
     if (this.options.stackError) {
-      this.printTrace(ConsoleLevelEnum.ERR, this.getStack(error.stack));
+      this.printTrace('ERR', this.getStack(error.stack));
     }
   }
 
@@ -230,34 +222,34 @@ export class ConsoleSystemClass {
     });
   }
 
-  public getBackground(level: ConsoleLevelEnum): string {
+  public getBackground(level: ConsoleSystemLevelType): string {
     switch (level) {
-      case ConsoleLevelEnum.LOG:
+      case 'LOG':
         return background.GREEN;
-      case ConsoleLevelEnum.INF:
+      case 'INF':
         return background.BLUE;
-      case ConsoleLevelEnum.WRN:
+      case 'WRN':
         return background.YELLOW;
-      case ConsoleLevelEnum.ERR:
+      case 'ERR':
         return background.RED;
-      case ConsoleLevelEnum.DBG:
+      case 'DBG':
         return background.WHITE;
       default:
         return background.MAGENTA;
     }
   }
 
-  public getForeground(level: ConsoleLevelEnum): string {
+  public getForeground(level: ConsoleSystemLevelType): string {
     switch (level) {
-      case ConsoleLevelEnum.LOG:
+      case 'LOG':
         return foreground.GREEN;
-      case ConsoleLevelEnum.INF:
+      case 'INF':
         return foreground.BLUE;
-      case ConsoleLevelEnum.WRN:
+      case 'WRN':
         return foreground.YELLOW;
-      case ConsoleLevelEnum.ERR:
+      case 'ERR':
         return foreground.RED;
-      case ConsoleLevelEnum.DBG:
+      case 'DBG':
         return foreground.WHITE;
       default:
         return foreground.MAGENTA;
@@ -290,38 +282,5 @@ export class ConsoleSystemClass {
       this.console.error('Message:', error.message);
       this.console.error('Data:', data, '\n');
     }
-  }
-}
-
-const consoleLog = console.log.bind(console);
-const consoleWarn = console.warn.bind(console);
-const consoleInfo = console.info.bind(console);
-const consoleError = console.error.bind(console);
-const consoleDebug = console.debug.bind(console);
-
-export class ConsoleClass {
-  private readonly consoleClass: ConsoleSystemClass;
-
-  private readonly console: Console;
-
-  public constructor(options: ConsoleOptionsInterface) {
-    this.console = console;
-    this.consoleClass = new ConsoleSystemClass(options);
-  }
-
-  public override(): void {
-    console.log = this.consoleClass.log.bind(this.consoleClass);
-    console.info = this.consoleClass.info.bind(this.consoleClass);
-    console.warn = this.consoleClass.warn.bind(this.consoleClass);
-    console.error = this.consoleClass.error.bind(this.consoleClass);
-    console.debug = this.consoleClass.debug.bind(this.consoleClass);
-  }
-
-  public restore(): void {
-    console.log = consoleLog;
-    console.info = consoleInfo;
-    console.warn = consoleWarn;
-    console.error = consoleError;
-    console.debug = consoleDebug;
   }
 }

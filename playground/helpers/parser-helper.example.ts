@@ -12,9 +12,7 @@ export function run(): void {
   /**
    *
    */
-  const errorStack = new Error().stack;
+  // const errorStack = new Error().stack;
   // console.log(errorStack);
   console.log(ParserHelper.stack(new Error().stack));
-  console.log([]);
-  console.log(null);
 }

@@ -1,20 +1,22 @@
 import { ColorHelper } from '../helpers/color.helper';
 import { DataHelper } from '../helpers/data.helper';
-import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
-import { ConsoleLevelEnum, ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.class';
+import { ParserTraceInterface } from '../helpers/parser.helper';
+import { ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.class';
 import { ErrorClass } from './error.class';
 
 const { foreground, effect } = ColorHelper;
 
+export type ConsoleNestLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
+
 export class ConsoleNestClass {
-  private readonly consoleClass: ConsoleSystemClass;
+  private readonly consoleSystemClass: ConsoleSystemClass;
 
   public constructor(private readonly options: ConsoleOptionsInterface) {
-    this.consoleClass = new ConsoleSystemClass(options);
+    this.consoleSystemClass = new ConsoleSystemClass(options);
   }
 
   public output(
-    level: ConsoleLevelEnum,
+    level: ConsoleNestLevelType,
     metadata: ParserTraceInterface,
     message: unknown | unknown[],
     // contextOrCaller: string,
@@ -22,16 +24,18 @@ export class ConsoleNestClass {
     // file?: string,
   ): void {
     const info = [
-      this.consoleClass.getName(),
-      this.consoleClass.getPid(),
-      this.consoleClass.getDate(),
-      this.consoleClass.getTime(),
+      this.consoleSystemClass.getName(),
+      this.consoleSystemClass.getPid(),
+      this.consoleSystemClass.getDate(),
+      this.consoleSystemClass.getTime(),
     ].filter((item) => {
       return item;
     });
     if (info.length) {
-      this.consoleClass.processStdout(info.join(this.consoleClass.colorWrapper(' | ', [effect.BOLD, foreground.CYAN])));
-      this.consoleClass.processStdout(' ');
+      this.consoleSystemClass.processStdout(
+        info.join(this.consoleSystemClass.colorWrapper(' | ', [effect.BOLD, foreground.CYAN])),
+      );
+      this.consoleSystemClass.processStdout(' ');
     }
     this.printLevel(level);
     this.printContextOrCaller(level, metadata.caller, metadata.method);
@@ -42,116 +46,121 @@ export class ConsoleNestClass {
     } else {
       this.printMessage(level, message);
     }
-    this.consoleClass.printPerformance();
-    if (level === ConsoleLevelEnum.DBG) {
-      this.consoleClass.printTrace(level, ParserHelper.stack(new Error().stack));
+    this.consoleSystemClass.printPerformance();
+    if (level === 'DBG') {
+      this.consoleSystemClass.printTrace(level, ErrorClass.traceListFromStack(new Error().stack));
     }
-    this.consoleClass.processStdout('\n');
+    this.consoleSystemClass.processStdout('\n');
     this.printLink(level, metadata.file, !info.length);
   }
 
-  private printLevel(level: ConsoleLevelEnum): void {
+  private printLevel(level: ConsoleNestLevelType): void {
     if (!this.options.info) {
       return;
     }
-    const formattedLevel = this.consoleClass.colorWrapper(this.getFormattedLevel(level), [
+    const formattedLevel = this.consoleSystemClass.colorWrapper(this.getFormattedLevel(level), [
       effect.BOLD,
-      this.consoleClass.getForeground(level),
+      this.consoleSystemClass.getForeground(level),
     ]);
-    this.consoleClass.processStdout(formattedLevel);
-    this.consoleClass.processStdout(' ');
+    this.consoleSystemClass.processStdout(formattedLevel);
+    this.consoleSystemClass.processStdout(' ');
   }
 
-  private getFormattedLevel(level: ConsoleLevelEnum): string {
+  private getFormattedLevel(level: ConsoleNestLevelType): string {
     switch (level) {
-      case ConsoleLevelEnum.LOG:
+      case 'LOG':
         return '  LOG';
-      case ConsoleLevelEnum.ERR:
+      case 'ERR':
         return 'ERROR';
-      case ConsoleLevelEnum.WRN:
+      case 'WRN':
         return ' WARN';
-      case ConsoleLevelEnum.DBG:
-        return 'DEBUG';
-      case ConsoleLevelEnum.INF:
+      case 'INF':
         return ' INFO';
+      case 'DBG':
+        return 'DEBUG';
       default:
         return 'FATAL';
     }
   }
 
   private printContextOrCaller(
-    level: ConsoleLevelEnum,
+    level: ConsoleNestLevelType,
     contextOrCaller: string | undefined,
     method: string | undefined,
   ): void {
     if (contextOrCaller) {
-      this.consoleClass.processStdout(
-        this.consoleClass.colorWrapper(`[`, [effect.BOLD, this.consoleClass.getForeground(level)]),
+      this.consoleSystemClass.processStdout(
+        this.consoleSystemClass.colorWrapper(`[`, [effect.BOLD, this.consoleSystemClass.getForeground(level)]),
       );
-      this.consoleClass.processStdout(contextOrCaller);
+      this.consoleSystemClass.processStdout(contextOrCaller);
       if (method) {
-        this.consoleClass.processStdout(
-          this.consoleClass.colorWrapper(`/`, [effect.BOLD, this.consoleClass.getForeground(level)]),
+        this.consoleSystemClass.processStdout(
+          this.consoleSystemClass.colorWrapper(`/`, [effect.BOLD, this.consoleSystemClass.getForeground(level)]),
         );
-        this.consoleClass.processStdout(this.consoleClass.colorWrapper(method, foreground.CYAN));
+        this.consoleSystemClass.processStdout(this.consoleSystemClass.colorWrapper(method, foreground.CYAN));
       }
-      this.consoleClass.processStdout(
-        this.consoleClass.colorWrapper(`]`, [effect.BOLD, this.consoleClass.getForeground(level)]),
+      this.consoleSystemClass.processStdout(
+        this.consoleSystemClass.colorWrapper(`]`, [effect.BOLD, this.consoleSystemClass.getForeground(level)]),
       );
     } else {
-      this.consoleClass.processStdout(
-        this.consoleClass.colorWrapper(`[\u25A0]`, this.consoleClass.getForeground(level)),
+      this.consoleSystemClass.processStdout(
+        this.consoleSystemClass.colorWrapper(`[\u25A0]`, this.consoleSystemClass.getForeground(level)),
       );
     }
-    this.consoleClass.processStdout(' ');
+    this.consoleSystemClass.processStdout(' ');
   }
 
-  private printMessage(level: ConsoleLevelEnum, message: unknown): void {
+  private printMessage(level: ConsoleNestLevelType, message: unknown): void {
     if (typeof message === 'string') {
       let data: string;
       if (message.includes('dependencies')) {
         data = message.replace(
           'dependencies',
-          this.consoleClass.colorWrapper('dependencies', [effect.DIM, this.consoleClass.getForeground(level)]),
+          this.consoleSystemClass.colorWrapper('dependencies', [
+            effect.DIM,
+            this.consoleSystemClass.getForeground(level),
+          ]),
         );
       } else if (message.startsWith('Mapped')) {
         data = message
           .replace(
             'Mapped',
-            this.consoleClass.colorWrapper('Mapped', [effect.DIM, this.consoleClass.getForeground(level)]),
+            this.consoleSystemClass.colorWrapper('Mapped', [effect.DIM, this.consoleSystemClass.getForeground(level)]),
           )
           .replace(
             'route',
-            this.consoleClass.colorWrapper('route', [effect.DIM, this.consoleClass.getForeground(level)]),
+            this.consoleSystemClass.colorWrapper('route', [effect.DIM, this.consoleSystemClass.getForeground(level)]),
           );
       } else {
         data = message;
       }
-      this.consoleClass.processStdout(this.consoleClass.colorWrapper(data, this.consoleClass.getForeground(level)));
+      this.consoleSystemClass.processStdout(
+        this.consoleSystemClass.colorWrapper(data, this.consoleSystemClass.getForeground(level)),
+      );
     } else if (message instanceof Error || message instanceof ErrorClass) {
-      this.consoleClass.printError(message);
+      this.consoleSystemClass.printError(message);
     } else {
-      this.consoleClass.processStdout(this.consoleClass.dataWrapper(message));
+      this.consoleSystemClass.processStdout(this.consoleSystemClass.dataWrapper(message));
     }
-    this.consoleClass.processStdout(' ');
+    this.consoleSystemClass.processStdout(' ');
   }
 
-  private printLink(level: ConsoleLevelEnum, filePath: string | undefined, indent: boolean): void {
+  private printLink(level: ConsoleNestLevelType, filePath: string | undefined, indent: boolean): void {
     if (!this.options.info) {
       return;
     }
     if (filePath) {
       if (this.options.info) {
-        this.consoleClass.processStdout(
-          this.consoleClass.colorWrapper(indent ? '   at ' : 'at ', [
+        this.consoleSystemClass.processStdout(
+          this.consoleSystemClass.colorWrapper(indent ? '   at ' : 'at ', [
             effect.BOLD,
-            this.consoleClass.getForeground(level),
+            this.consoleSystemClass.getForeground(level),
           ]),
         );
       }
-      this.consoleClass.processStdout(DataHelper.excludePath(filePath, process.cwd()));
+      this.consoleSystemClass.processStdout(DataHelper.excludePath(filePath, process.cwd()));
       // this.consoleClass.processStdout(file);
-      this.consoleClass.processStdout('\n');
+      this.consoleSystemClass.processStdout('\n');
     }
   }
 }

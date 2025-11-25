@@ -1,5 +1,5 @@
 import process from 'process';
-import { ConfigurationHelper, ConsoleLevelEnum, ConsoleNestClass, ErrorClass } from '../../src';
+import { ConfigurationHelper, ConsoleNestClass, ErrorClass } from '../../src';
 
 export function run(): void {
   console.clear();
@@ -24,7 +24,7 @@ export function run(): void {
     stackDebug: true,
   });
   nestConsole.output(
-    ConsoleLevelEnum.LOG,
+    'LOG',
     { caller: '', file: '', method: '' },
     new ErrorClass({
       name: 'ErrorString',

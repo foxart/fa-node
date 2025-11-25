@@ -1,4 +1,5 @@
 import { ErrorClass } from '../classes/error.class';
+import { ConverterHelper } from './converter.helper';
 import { ParserHelper } from './parser.helper';
 
 interface EmptyOptionsInterface {
@@ -9,6 +10,8 @@ interface EmptyOptionsInterface {
   emptyArray?: boolean;
   emptyObject?: boolean;
 }
+
+type CallbackType = (key: string | number, value: unknown) => [string | number, unknown];
 
 class DataSingleton {
   private static self: DataSingleton;
@@ -175,98 +178,12 @@ class DataSingleton {
     }
   }
 
-  public excludePath(path: string, exclude: string): string {
-    if (path.startsWith(exclude)) {
-      const cleanedPath = path.replace(exclude, '').replace(/^\/|\/$/g, '');
+  public excludePath(fromPath: string, excludePath: string): string {
+    if (fromPath.startsWith(excludePath)) {
+      const cleanedPath = fromPath.replace(excludePath, '').replace(/^\/|\/$/g, '');
       return cleanedPath || '.';
     }
-    return path.replace(/^\/|\/$/g, '');
-  }
-
-  /**
-   * HELPER FUNCTIONS
-   */
-  public applyCallback<T>(
-    data: T,
-    callback: (key: string | number, value: unknown) => [string | number, unknown],
-    recursive = false,
-  ): T {
-    if (Array.isArray(data)) {
-      const result: unknown[] = [];
-      for (let index = 0; index < data.length; index++) {
-        const item = data[index] as T;
-        const processed = recursive ? this.applyCallback(item, callback, recursive) : item;
-        const [newKey, newValue] = callback(index, processed);
-        result[newKey as number] = newValue;
-      }
-      return result as T;
-    } else if (this.isObject(data)) {
-      const result: Record<string | number, unknown> = {};
-      for (const key of Object.keys(data as Record<string, unknown>)) {
-        const value = (data as Record<string, unknown>)[key];
-        const processed =
-          recursive && (Array.isArray(value) || this.isObject(value))
-            ? this.applyCallback(value, callback, recursive)
-            : value;
-        const [newKey, newValue] = callback(key, processed);
-        result[newKey] = newValue;
-      }
-      return result as T;
-    }
-    return data;
-  }
-
-  public filterCircular<T>(data: T): T {
-    const isNode = typeof process !== 'undefined' && process?.versions?.node;
-    const cache = new WeakSet();
-    const walk = (item: unknown): unknown => {
-      if (item instanceof Error) {
-        const traceList = ParserHelper.stack(item.stack)
-          .filter((trace) => {
-            return !trace.file.includes('node_modules/') && !trace.file.includes('node:');
-          })
-          .map((trace) => {
-            return {
-              ...trace,
-              file: isNode ? DataHelper.excludePath(trace.file, process.cwd()) : trace.file,
-            };
-          });
-        const error = item as ErrorClass;
-        return {
-          name: item.name,
-          message: error.messageIsJson ? ParserHelper.json(error.message) : error.message,
-          stack: traceList,
-        };
-      }
-      if (!this.isObject(item)) {
-        return item;
-      }
-      // Циклическая проверка
-      if (cache.has(item as object)) {
-        return '[Circular]';
-      }
-      cache.add(item as object);
-      if (this.isInstance(item)) {
-        return item;
-      }
-      if (Array.isArray(item)) {
-        return item.map(walk);
-      }
-      // Объект/класс
-      const result: Record<string, unknown> = {};
-      // if (
-      //   (item as object).constructor &&
-      //   (item as object).constructor.name &&
-      //   (item as object).constructor.name !== 'Object'
-      // ) {
-      //   result.__className = (item as object).constructor.name;
-      // }
-      for (const [key, value] of Object.entries(item as object)) {
-        result[key] = walk(value);
-      }
-      return result;
-    };
-    return walk(data) as T;
+    return fromPath.replace(/^\/|\/$/g, '');
   }
 
   public omitEmpty<DATA>(data: DATA, options: EmptyOptionsInterface = {}, recursive = true): DATA {
@@ -341,6 +258,83 @@ class DataSingleton {
     } else {
       return this.isEmpty(data, options) ? data : ({} as DATA);
     }
+  }
+
+  /**
+   * HELPER FUNCTIONS
+   */
+  public applyCallback<T>(data: T, callback: CallbackType, recursive = false): T {
+    if (Array.isArray(data)) {
+      const result: unknown[] = [];
+      for (let index = 0; index < data.length; index++) {
+        const item = data[index] as T;
+        const processed = recursive ? this.applyCallback(item, callback, recursive) : item;
+        const [newKey, newValue] = callback(index, processed);
+        result[newKey as number] = newValue;
+      }
+      return result as T;
+    } else if (this.isObject(data)) {
+      const result: Record<string | number, unknown> = {};
+      for (const key of Object.keys(data as Record<string, unknown>)) {
+        const value = (data as Record<string, unknown>)[key];
+        const processed =
+          recursive && (Array.isArray(value) || this.isObject(value))
+            ? this.applyCallback(value, callback, recursive)
+            : value;
+        const [newKey, newValue] = callback(key, processed);
+        result[newKey] = newValue;
+      }
+      return result as T;
+    }
+    return data;
+  }
+
+  public filterCircular<T>(data: T): T {
+    const cache = new WeakSet();
+    const walk = (item: unknown): unknown => {
+      if (item instanceof Error) {
+        const errorClass = item as Error & { messageIsJson?: boolean };
+        return {
+          name: item.name,
+          message: errorClass.messageIsJson ? ParserHelper.json(errorClass.message) : errorClass.message,
+          stack: ErrorClass.traceListFromStack(errorClass.stack),
+        };
+      }
+      if (!this.isObject(item)) {
+        return item;
+      }
+      // Циклическая проверка
+      if (cache.has(item as object)) {
+        return '[Circular]';
+      }
+      cache.add(item as object);
+      if (this.isInstance(item)) {
+        return item;
+      }
+      if (Array.isArray(item)) {
+        return item.map(walk);
+      }
+      // Объект/класс
+      const result: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(item as object)) {
+        result[key] = walk(value);
+      }
+      return result;
+    };
+    return walk(data) as T;
+  }
+
+  public keywordListFromWordList(wordList: string[]): string[] {
+    if (!wordList.length) return [];
+    const set = new Set<string>();
+    for (const word of wordList) {
+      const splitList = ConverterHelper.splitWords(word);
+      if (!splitList.length) continue;
+      for (const split of splitList) {
+        set.add(split.toLowerCase());
+      }
+    }
+    return Array.from(set);
   }
 }
 

@@ -32,22 +32,12 @@ export class ErrorClass extends Error {
 
   public static traceListFromStack(stack = ''): ParserTraceInterface[] {
     if (!stack) return [];
-    // return ErrorClass.parseStack(stack)
-    //   .filter((trace) => {
-    //     return !trace.file.includes('node_modules/') && !trace.file.includes('node:');
-    //   })
-    //   .map((trace) => {
-    //     return {
-    //       ...trace,
-    //       file: excludePath ? DataHelper.excludePath(trace.file, excludePath) : trace.file,
-    //     };
-    //   });
     const isNode = typeof process !== 'undefined' && process?.versions?.node;
     const traceList = ParserHelper.stack(stack);
     const result: ParserTraceInterface[] = [];
     for (const trace of traceList) {
-      const file = trace.file;
-      if (file.includes('node_modules/') || file.includes('node:')) {
+      const { caller, method, file } = trace;
+      if (file.includes('node_modules/') || file.includes('node:') || (caller === '' && method === '')) {
         continue;
       }
       result.push({
@@ -59,16 +49,24 @@ export class ErrorClass extends Error {
     return result;
   }
 
-  public static callerKeywordListFromStack(stack = ''): string[] {
-    if (!stack) return [];
-    const set = new Set<string>();
-    const traceList = ErrorClass.traceListFromStack(stack);
-    for (const trace of traceList) {
-      const wordList = ConverterHelper.splitWords(trace.caller);
-      for (const word of wordList) {
-        set.add(word.toLowerCase());
-      }
-    }
-    return Array.from(set).sort();
-  }
+  // public static keywordListFromStack(stack = ''): string[] {
+  //   if (!stack) return [];
+  //   const set = new Set<string>();
+  //   const traceList = ErrorClass.traceListFromStack(stack);
+  //   for (const trace of traceList) {
+  //     if (trace.caller) {
+  //       const callerList = ConverterHelper.splitWords(trace.caller);
+  //       for (const caller of callerList) {
+  //         set.add(caller.toLowerCase());
+  //       }
+  //     }
+  //     if (trace.method) {
+  //       const methodWords = ConverterHelper.splitWords(trace.method);
+  //       for (const w of methodWords) {
+  //         set.add(w.toLowerCase());
+  //       }
+  //     }
+  //   }
+  //   return Array.from(set);
+  // }
 }
