@@ -5,7 +5,6 @@ import { ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.cl
 import { ErrorClass } from './error.class';
 
 const { foreground, effect } = ColorHelper;
-
 export type ConsoleNestLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 
 export class ConsoleNestClass {
@@ -158,7 +157,7 @@ export class ConsoleNestClass {
           ]),
         );
       }
-      this.consoleSystemClass.processStdout(DataHelper.excludePath(filePath, process.cwd()));
+      this.consoleSystemClass.processStdout(DataHelper.excludePath(filePath));
       // this.consoleClass.processStdout(file);
       this.consoleSystemClass.processStdout('\n');
     }

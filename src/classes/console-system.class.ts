@@ -217,7 +217,7 @@ export class ConsoleSystemClass {
       return {
         caller: item.caller,
         method: item.method,
-        file: DataHelper.excludePath(item.file, process.cwd()),
+        file: DataHelper.excludePath(item.file),
       };
     });
   }

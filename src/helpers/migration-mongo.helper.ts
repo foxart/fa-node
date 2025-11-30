@@ -73,7 +73,7 @@ class MigrationMongoSingleton {
       uri: uri,
       database: database,
       collection: collection,
-      path: `${process.cwd()}/${configuration.path}`,
+      path: configuration.path,
       template: template,
     };
     await this.check();

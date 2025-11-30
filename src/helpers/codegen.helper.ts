@@ -1,6 +1,5 @@
 import { exec } from 'child_process';
-import { buildClientSchema, printSchema } from 'graphql/utilities';
-import type { IntrospectionQuery } from 'graphql/utilities/getIntrospectionQuery';
+import { buildClientSchema, IntrospectionQuery, printSchema } from 'graphql';
 import path from 'path';
 import { promisify } from 'util';
 import { ColorHelper } from './color.helper';

@@ -1,4 +1,3 @@
-import process from 'process';
 import { ConfigurationHelper, ConsoleNestClass, ErrorClass } from '../../src';
 
 export function run(): void {

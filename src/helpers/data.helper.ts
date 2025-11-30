@@ -15,6 +15,12 @@ type CallbackType = (key: string | number, value: unknown) => [string | number, 
 class DataSingleton {
   private static self: DataSingleton;
 
+  private readonly isNode: boolean;
+
+  private constructor() {
+    this.isNode = !!(typeof process !== 'undefined' && process?.versions?.node);
+  }
+
   public static getInstance(): DataSingleton {
     if (!DataSingleton.self) {
       DataSingleton.self = new DataSingleton();
@@ -28,6 +34,7 @@ class DataSingleton {
   public isNull(data: unknown): boolean {
     return data === null;
   }
+
   public isBuffer(data: unknown): boolean {
     if (typeof Buffer === 'undefined') return false;
     return data instanceof Buffer || Buffer.isBuffer(data);
@@ -177,10 +184,12 @@ class DataSingleton {
     }
   }
 
-  public excludePath(fromPath: string, excludePath: string): string {
-    if (fromPath.startsWith(excludePath)) {
-      const cleanedPath = fromPath.replace(excludePath, '').replace(/^\/|\/$/g, '');
-      return cleanedPath || '.';
+  public excludePath(fromPath: string, excludePath = ''): string {
+    const path = excludePath ? excludePath : this.isNode ? process.cwd() : '';
+    if (!path) return fromPath;
+    if (fromPath.startsWith(path)) {
+      const rest = fromPath.slice(path.length).replace(/^\/|\/$/g, '');
+      return rest || '.';
     }
     return fromPath.replace(/^\/|\/$/g, '');
   }
@@ -325,7 +334,6 @@ class DataSingleton {
 
   public traceListFromErrorStack(stack = ''): ParserTraceInterface[] {
     if (!stack) return [];
-    const isNode = typeof process !== 'undefined' && process?.versions?.node;
     const traceList = ParserHelper.stack(stack);
     const result: ParserTraceInterface[] = [];
     for (const trace of traceList) {
@@ -336,7 +344,7 @@ class DataSingleton {
       result.push({
         caller: trace.caller,
         method: trace.method,
-        file: isNode ? DataHelper.excludePath(file, process.cwd()) : file,
+        file: this.isNode ? DataHelper.excludePath(file, process.cwd()) : file,
       });
     }
     return result;

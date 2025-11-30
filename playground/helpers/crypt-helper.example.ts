@@ -46,7 +46,7 @@ export function run(): void {
       message: { a: 1 },
     }),
   );
-  console.log(new Error('1'));
+  console.log(process.cwd(), __dirname);
 }
 //
 // AQCYEmmGWt9czQLi7GViYJeiVmI0HdMBCAFsCz2CACDIFof4RCUyAShXOO8YjjFmyHKwho1hG9FlnD2iOQPgy0T5IXX0gyaruaGZ7d32W0EDgozaYXNCyOk0XAlzfZwXuwGfE/0Mnv3xonV5qfBPV3XLVPWbgNAJPMMhl9kajT1hLYYM0rCU2n7M7Udij6rk8wqmDA==
