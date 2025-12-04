@@ -1,11 +1,11 @@
 import { IoHelper } from '../helpers/io.helper';
 
-interface EnvironmentInterface<T> {
-  configuration: T;
+interface EnvironmentInterface<R> {
+  configuration: R;
   errors: string[];
 }
 
-export class EnvironmentClass<T> {
+export class EnvironmentClass<T extends Record<string, unknown>> {
   private readonly configuration: T;
 
   public constructor(configuration: T) {
@@ -47,21 +47,29 @@ export class EnvironmentClass<T> {
   }
 
   public extract(): EnvironmentInterface<T> {
-    return this.extractRecursive(this.configuration);
+    // return this.extractRecursive(this.configuration);
+    const { configuration, errors } = this.extractRecursive(this.configuration);
+    return {
+      configuration: configuration as T,
+      errors,
+    };
   }
 
   public mask(fullList: string[], partialList: string[]): T {
-    return this.maskRecursive(this.configuration, fullList, partialList);
+    return this.maskRecursive(this.configuration, fullList, partialList) as T;
   }
 
-  private extractRecursive(dictionary: T, parentKey = ''): EnvironmentInterface<T> {
+  private extractRecursive(
+    dictionary: Record<string, unknown>,
+    parentKey = '',
+  ): EnvironmentInterface<Record<string, unknown>> {
     const result: Record<string, unknown> = {};
     const errors: string[] = [];
     for (const key in dictionary) {
       const fullKey = parentKey ? parentKey + '.' + key : key;
       // Рекурсивный объект
       if (typeof dictionary[key] === 'object' && dictionary[key] !== null) {
-        const nested = this.extractRecursive(dictionary[key] as T, fullKey);
+        const nested = this.extractRecursive(dictionary[key] as Record<string, unknown>, fullKey);
         result[key] = nested.configuration;
         errors.push(...nested.errors);
         continue;
@@ -80,17 +88,21 @@ export class EnvironmentClass<T> {
       result[key] = dictionary[key];
     }
 
-    return { configuration: result as T, errors };
+    return { configuration: result, errors };
   }
 
-  private maskRecursive(obj: T, fullList: string[], partialList: string[]): T {
-    if (!obj || typeof obj !== 'object') return obj;
+  private maskRecursive(
+    dictionary: Record<string, unknown>,
+    fullList: string[],
+    partialList: string[],
+  ): Record<string, unknown> {
+    if (!dictionary || typeof dictionary !== 'object') return dictionary;
     const result: Record<string, unknown> = {};
-    for (const key in obj) {
-      const value = obj[key];
+    for (const key in dictionary) {
+      const value = dictionary[key];
       // Nested object or array
       if (typeof value === 'object' && value !== null) {
-        result[key] = this.maskRecursive(value as T, fullList, partialList);
+        result[key] = this.maskRecursive(value as Record<string, unknown>, fullList, partialList);
         continue;
       }
       const lowerKey = key.toLowerCase();
@@ -120,6 +132,6 @@ export class EnvironmentClass<T> {
       // No mask
       result[key] = value;
     }
-    return result as T;
+    return result;
   }
 }

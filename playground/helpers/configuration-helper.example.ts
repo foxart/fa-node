@@ -8,7 +8,8 @@ export function run(): void {
       key12: '<VALUE>',
     },
   };
-  const result = EnvironmentClass.extractEnv(configuration);
+  const config = new EnvironmentClass(configuration);
+  const result = config.extract();
   console.error(result.errors);
   console.log(new Error('Error'));
   console.log(new ErrorClass({ name: 'ErrorString', message: 'Message' }));
