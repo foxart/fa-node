@@ -67,6 +67,10 @@ export class EnvironmentClass<T extends Record<string, unknown>> {
     const errors: string[] = [];
     for (const key in dictionary) {
       const fullKey = parentKey ? parentKey + '.' + key : key;
+      if (Array.isArray(dictionary[key])) {
+        result[key] = dictionary[key];
+        continue;
+      }
       // Рекурсивный объект
       if (typeof dictionary[key] === 'object' && dictionary[key] !== null) {
         const nested = this.extractRecursive(dictionary[key] as Record<string, unknown>, fullKey);
@@ -100,6 +104,10 @@ export class EnvironmentClass<T extends Record<string, unknown>> {
     const result: Record<string, unknown> = {};
     for (const key in dictionary) {
       const value = dictionary[key];
+      if (Array.isArray(dictionary[key])) {
+        result[key] = dictionary[key];
+        continue;
+      }
       // Nested object or array
       if (typeof value === 'object' && value !== null) {
         result[key] = this.maskRecursive(value as Record<string, unknown>, fullList, partialList);
