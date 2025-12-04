@@ -1,4 +1,4 @@
-import { ConfigurationHelper, ConsoleNestClass, ErrorClass } from '../../src';
+import { ConsoleNestClass, EnvironmentClass, ErrorClass } from '../../src';
 
 export function run(): void {
   console.clear();
@@ -8,7 +8,7 @@ export function run(): void {
       key12: '<VALUE>',
     },
   };
-  const result = ConfigurationHelper.extract(configuration);
+  const result = EnvironmentClass.extractEnv(configuration);
   console.error(result.errors);
   console.log(new Error('Error'));
   console.log(new ErrorClass({ name: 'ErrorString', message: 'Message' }));

@@ -1,4 +1,5 @@
 /** Classes */
+export * from './classes/environment.class';
 export * from './classes/console.class';
 export * from './classes/console-nest.class';
 export * from './classes/console-system.class';
@@ -11,7 +12,6 @@ export * from './classes/validator.class';
 /** Helpers */
 export * from './helpers/codegen.helper';
 export * from './helpers/color.helper';
-export * from './helpers/configuration.helper';
 export * from './helpers/converter.helper';
 export * from './helpers/data.helper';
 export * from './helpers/exception.helper';

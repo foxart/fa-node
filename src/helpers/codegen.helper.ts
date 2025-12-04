@@ -6,6 +6,8 @@ import { ColorHelper } from './color.helper';
 import { IoHelper } from './io.helper';
 import { SymbolHelper } from './symbol.helper';
 
+type JsonType = string | number | boolean | null | { [key: string]: JsonType } | JsonType[];
+
 const { foreground, background, effect } = ColorHelper;
 
 class CodegenSingleton {
@@ -53,14 +55,14 @@ class CodegenSingleton {
     console.log(result.join(''));
   }
 
-  public async fetchJson<T>(host: string, init: RequestInit): Promise<T | null> {
+  public async fetchJson(host: string, init: RequestInit): Promise<JsonType | null> {
     try {
       const response = await fetch(host, init);
       if (!response.ok) {
         this.logError(this.fetchJson.name, new Error(response.statusText));
         return null;
       }
-      const json = (await response.json()) as T;
+      const json = (await response.json()) as JsonType;
       this.logSuccess(this.fetchJson.name, host);
       return json;
     } catch (e) {
