@@ -1,4 +1,4 @@
-import { MiddlewareClass } from '../../src/classes/middleware.class';
+import { MiddlewareClass } from '../../src';
 
 function middlewareAddUse(): void {
   const payload1 = { name: 'case 1', data: 1 };

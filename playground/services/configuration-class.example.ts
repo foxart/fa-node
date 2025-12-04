@@ -1,4 +1,4 @@
-import { ConsoleNestClass, EnvironmentClass, ErrorClass } from '../../src';
+import { ConfigurationClass, ConsoleNestClass, ErrorClass } from '../../src';
 
 export function run(): void {
   console.clear();
@@ -8,7 +8,7 @@ export function run(): void {
       key12: '<VALUE>',
     },
   };
-  const config = new EnvironmentClass(configuration);
+  const config = new ConfigurationClass(configuration);
   const result = config.extract();
   console.error(result.errors);
   console.log(new Error('Error'));

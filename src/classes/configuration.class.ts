@@ -1,11 +1,11 @@
 import { IoHelper } from '../helpers/io.helper';
 
-interface EnvironmentInterface<R> {
-  configuration: R;
+interface EnvironmentInterface<T> {
+  configuration: T;
   errors: string[];
 }
 
-export class EnvironmentClass<T extends Record<string, unknown>> {
+export class ConfigurationClass<T extends object> {
   private readonly configuration: T;
 
   public constructor(configuration: T) {
@@ -48,15 +48,19 @@ export class EnvironmentClass<T extends Record<string, unknown>> {
 
   public extract(): EnvironmentInterface<T> {
     // return this.extractRecursive(this.configuration);
-    const { configuration, errors } = this.extractRecursive(this.configuration);
+    const { configuration, errors } = this.extractRecursive(this.configuration as Record<string, unknown>);
     return {
       configuration: configuration as T,
       errors,
     };
   }
 
-  public mask(fullList: string[], partialList: string[]): T {
-    return this.maskRecursive(this.configuration, fullList, partialList) as T;
+  public mask(configuration: T, fullList: string[], partialList: string[]): EnvironmentInterface<T> {
+    return this.maskRecursive(
+      configuration as Record<string, unknown>,
+      fullList,
+      partialList,
+    ) as unknown as EnvironmentInterface<T>;
   }
 
   private extractRecursive(

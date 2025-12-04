@@ -1,5 +1,5 @@
 /** Classes */
-export * from './classes/environment.class';
+export * from './classes/configuration.class';
 export * from './classes/console.class';
 export * from './classes/console-nest.class';
 export * from './classes/console-system.class';
