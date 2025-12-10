@@ -20,7 +20,7 @@ interface UrlInterface {
 export interface ParserTraceInterface {
   file: string;
   caller: string;
-  method: string;
+  method: string | undefined;
 }
 
 class ParserSingleton {
@@ -66,10 +66,10 @@ class ParserSingleton {
     const regexp = new RegExp(ParserSingleton.stackRegexp.source, 'gm');
     const result: ParserTraceInterface[] = [];
     for (const match of stack.matchAll(regexp)) {
-      const ctx = match[1];
-      const dotIndex = ctx.indexOf('.');
-      const caller = dotIndex === -1 ? ctx : ctx.slice(0, dotIndex);
-      const method = dotIndex === -1 ? '' : ctx.slice(dotIndex + 1);
+      const context = match[1];
+      const dotIndex = context.indexOf('.');
+      const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
+      const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
       result.push({
         caller,
         method,

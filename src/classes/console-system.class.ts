@@ -66,13 +66,17 @@ export class ConsoleSystemClass {
 
   public print(level: ConsoleSystemLevelType, trace: ParserTraceInterface[], args: unknown[]): void {
     this.printLevel(level);
-    this.printInfo();
-    args.forEach((item) => {
+    this.printInfo(level);
+    args.forEach((item, index) => {
       if (item instanceof Error || item instanceof ErrorClass) {
         this.printError(item);
       } else {
-        this.processStdout(this.dataWrapper(item));
-        this.processStdout(' ');
+        this.stdout(this.prettify(item));
+        this.stdout(' ');
+      }
+      if (index !== args.length - 1) {
+        // this.processStdout(' ');
+        process.stdout.write('\n');
       }
     });
     if (level === 'DBG' && this.options.stackDebug) {
@@ -80,16 +84,22 @@ export class ConsoleSystemClass {
     }
     this.printPerformance();
     this.printLink(level, trace[this.options.linkIndex ?? 1].file);
-    this.processStdout('\n');
+    this.stdout('\n');
   }
 
-  public printInfo(): void {
-    const info = [this.getName(), this.getPid(), this.getDate(), this.getTime()].filter((item) => {
+  public printInfo(level: ConsoleSystemLevelType): void {
+    const info = [
+      this.getName(),
+      this.getPid(),
+      this.getDate(),
+      this.getTime(),
+      //
+    ].filter((item) => {
       return item;
     });
     if (info.length) {
-      this.processStdout(info.join(this.colorWrapper(' | ', [effect.BOLD, foreground.CYAN])));
-      this.processStdout(' ');
+      this.stdout(info.join(ColorHelper.wrapData(' \u2503 ', [effect.BOLD, this.getForeground(level)])));
+      this.stdout(' ');
     }
   }
 
@@ -97,61 +107,61 @@ export class ConsoleSystemClass {
     if (!this.options.info) {
       return;
     }
-    this.processStdout(this.colorWrapper(` ${level} `, this.getBackground(level)));
-    this.processStdout(' ');
+    this.stdout(ColorHelper.wrapData(` ${level} `, [this.getBackground(level)]));
+    this.stdout(' ');
   }
 
   public printTrace(level: ConsoleSystemLevelType, trace: ParserTraceInterface[]): void {
-    this.processStdout(this.colorWrapper('{', [effect.BOLD, foreground.CYAN]));
+    this.stdout(ColorHelper.wrapData('{', [effect.BOLD, foreground.CYAN]));
     trace
       .filter((item) => {
         return !item.file.includes('node_modules/') && !item.file.includes('node:');
       })
       .forEach((item) => {
-        this.processStdout('\n');
+        this.stdout('\n');
         if (this.options.info) {
-          this.processStdout(this.colorWrapper(' at ', [effect.DIM, this.getForeground(level)]));
+          this.stdout(ColorHelper.wrapData(' at ', [effect.DIM, this.getForeground(level)]));
         } else {
-          this.processStdout('    ');
+          this.stdout('    ');
         }
-        this.processStdout(DataHelper.excludePath(item.file, process.cwd()));
+        this.stdout(DataHelper.excludePath(item.file, process.cwd()));
       });
-    this.processStdout(`\n${this.colorWrapper('}', [effect.BOLD, foreground.CYAN])}`);
-    this.processStdout(' ');
+    this.stdout(`\n${ColorHelper.wrapData('}', [effect.BOLD, foreground.CYAN])}`);
+    this.stdout(' ');
   }
 
   public printPerformance(): void {
     if (!this.options.performance) {
       return;
     }
-    this.processStdout(this.colorWrapper('+', [effect.DIM, foreground.CYAN]));
-    this.processStdout(this.colorWrapper(Math.floor(performance.now() - this.performance).toString(), foreground.CYAN));
-    this.processStdout(this.colorWrapper('ms', [effect.DIM, foreground.CYAN]));
-    this.processStdout(' ');
+    this.stdout(ColorHelper.wrapData('+', [effect.DIM, foreground.CYAN]));
+    this.stdout(ColorHelper.wrapData(Math.floor(performance.now() - this.performance).toString(), [foreground.CYAN]));
+    this.stdout(ColorHelper.wrapData('ms', [effect.DIM, foreground.CYAN]));
+    this.stdout(' ');
   }
 
   public printLink(level: ConsoleSystemLevelType, link: string): void {
     if (!this.options.link) {
       return;
     }
-    this.processStdout('\n');
+    this.stdout('\n');
     if (this.options.info) {
-      this.processStdout(this.colorWrapper(' at ', this.getBackground(level)));
-      this.processStdout(' ');
+      this.stdout(ColorHelper.wrapData(' at ', [this.getBackground(level)]));
+      this.stdout(' ');
     }
-    this.processStdout(DataHelper.excludePath(link, process.cwd()));
+    this.stdout(DataHelper.excludePath(link, process.cwd()));
   }
 
   public printError(error: Error | ErrorClass): void {
-    this.processStdout(this.colorWrapper(error.name, [effect.BOLD, foreground.RED]));
-    this.processStdout(this.colorWrapper(': ', [effect.DIM, foreground.RED]));
+    this.stdout(ColorHelper.wrapData(error.name, [effect.BOLD, foreground.RED]));
+    this.stdout(ColorHelper.wrapData(': ', [effect.DIM, foreground.RED]));
     if (error.message) {
       if (error instanceof ErrorClass && error.messageIsJson) {
-        this.processStdout(this.dataWrapper(ParserHelper.json(error.message)));
+        this.stdout(this.prettify(ParserHelper.json(error.message)));
       } else {
-        this.processStdout(error.message);
+        this.stdout(error.message);
       }
-      this.processStdout(' ');
+      this.stdout(' ');
     }
     if (this.options.stackError) {
       this.printTrace('ERR', this.getStack(error.stack));
@@ -162,54 +172,44 @@ export class ConsoleSystemClass {
     if (!this.options.name) {
       return;
     }
-    return this.colorWrapper(this.options.name, foreground.WHITE);
+    return ColorHelper.wrapData(this.options.name, [effect.BOLD, foreground.WHITE]);
   }
 
   public getPid(): string | void {
     if (!this.options.pid) {
       return;
     }
-    return this.colorWrapper(this.pid, [effect.DIM, foreground.YELLOW]);
+    return ColorHelper.wrapData(this.pid, [effect.BOLD, foreground.YELLOW]);
   }
 
   public getDate(): string | void {
     if (!this.options.date) {
       return;
     }
-    const ISO_DATE_INDEX = 0; // Index to extract date from ISO string
-    const DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
-    const formatDateString = (year: string, month: string, day: string): string => {
-      return [day, month, year.slice(-2)]
-        .map((unit) => {
-          return this.colorWrapper(unit, [effect.DIM, foreground.GREEN]);
-        })
-        .join(this.colorWrapper('/', [effect.DIM]));
-    };
-    const isoDate = new Date().toISOString().split('T')[ISO_DATE_INDEX]; // Extract ISO date part
-    return isoDate.replace(DATE_REGEX, formatDateString);
+    const date = new Date();
+    return [
+      ColorHelper.wrapData(`${date.getFullYear()}`.padStart(2, '0'), [foreground.MAGENTA]),
+      ColorHelper.wrapData('-', [effect.DIM, foreground.MAGENTA]),
+      ColorHelper.wrapData(`${date.getMonth() + 1}`.padStart(2, '0'), [foreground.MAGENTA]),
+      ColorHelper.wrapData('-', [effect.DIM, foreground.MAGENTA]),
+      ColorHelper.wrapData(`${date.getDate()}`.padStart(2, '0'), [foreground.MAGENTA]),
+    ].join('');
   }
 
   public getTime(): string | void {
     if (!this.options.time) {
       return;
     }
-    const ISO_TIME_INDEX = 1; // Index to extract time from ISO string
-    const TIME_REGEX = /^(\d{2}):(\d{2}):(\d{2})\.(\d{3})Z$/;
-    const formatHMS = (hour: string, minute: string, second: string): string => {
-      return [hour, minute, second]
-        .map((unit) => this.colorWrapper(unit, foreground.GREEN))
-        .join(this.colorWrapper(':', effect.DIM));
-    };
-    const formatMilliseconds = (ms: string): string => {
-      return `${this.colorWrapper('.', effect.DIM)}${this.colorWrapper(ms, [effect.DIM, foreground.GREEN])}`;
-    };
-    const formatTime = (_: string, hour: string, minute: string, second: string, ms: string): string => {
-      const hms = formatHMS(hour, minute, second);
-      const millis = formatMilliseconds(ms);
-      return `${hms}${millis}`;
-    };
-    const isoTime = new Date().toISOString().split('T')[ISO_TIME_INDEX]; // Extract ISO time part
-    return isoTime.replace(TIME_REGEX, formatTime);
+    const date = new Date();
+    return [
+      ColorHelper.wrapData(`${date.getHours()}`.padStart(2, '0'), [foreground.CYAN]),
+      ColorHelper.wrapData(':', [effect.DIM, foreground.CYAN]),
+      ColorHelper.wrapData(`${date.getMinutes()}`.padStart(2, '0'), [foreground.CYAN]),
+      ColorHelper.wrapData(':', [effect.DIM, foreground.CYAN]),
+      ColorHelper.wrapData(`${date.getSeconds()}`.padStart(2, '0'), [foreground.CYAN]),
+      ColorHelper.wrapData('.', [effect.DIM, foreground.CYAN]),
+      ColorHelper.wrapData(`${date.getMilliseconds()}`.padStart(2, '0'), [effect.DIM, foreground.CYAN]),
+    ].join('');
   }
 
   public getStack(stack?: string): ParserTraceInterface[] {
@@ -256,14 +256,10 @@ export class ConsoleSystemClass {
     }
   }
 
-  public colorWrapper(data: string, colors: string | string[]): string {
-    if (!this.options.color) {
-      return Array.isArray(data) ? data.join('') : data;
+  public prettify(data: unknown): string {
+    if (typeof data === 'string') {
+      return ColorHelper.wrapData(data, [foreground.WHITE]);
     }
-    return ColorHelper.wrapData(data, colors);
-  }
-
-  public dataWrapper(data: unknown): string {
     return util.inspect(DataHelper.filterCircular(data), {
       colors: this.options.color,
       showHidden: this.options.hidden,
@@ -272,7 +268,7 @@ export class ConsoleSystemClass {
     });
   }
 
-  public processStdout(data: string): void {
+  public stdout(data: string): void {
     try {
       process.stdout.write(data);
     } catch (e) {

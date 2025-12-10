@@ -1,6 +1,6 @@
 import { ColorHelper } from '../helpers/color.helper';
 import { DataHelper } from '../helpers/data.helper';
-import { ParserTraceInterface } from '../helpers/parser.helper';
+import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
 import { ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.class';
 import { ErrorClass } from './error.class';
 
@@ -8,158 +8,139 @@ const { foreground, effect } = ColorHelper;
 export type ConsoleNestLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 
 export class ConsoleNestClass {
-  private readonly consoleSystemClass: ConsoleSystemClass;
+  private readonly placeholderRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")/g;
+  private readonly placeholderSplitRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")|([^{}'"]+)/g;
+  private readonly console: ConsoleSystemClass;
 
   public constructor(private readonly options: ConsoleOptionsInterface) {
-    this.consoleSystemClass = new ConsoleSystemClass(options);
+    this.console = new ConsoleSystemClass(options);
   }
 
-  public output(
-    level: ConsoleNestLevelType,
-    metadata: ParserTraceInterface,
-    message: unknown | unknown[],
-    // contextOrCaller: string,
-    // method?: string,
-    // file?: string,
-  ): void {
+  public metadata(stack = '', level: number): ParserTraceInterface {
+    const trace = ParserHelper.stack(stack);
+    const metadata = trace[level];
+    if (metadata) {
+      return {
+        file: DataHelper.excludePath(metadata.file, process.cwd()),
+        caller: metadata.caller,
+        method: metadata.method,
+      };
+    }
+    const nextMetadata = trace.slice(level).find((item) => {
+      return item.caller && item.method;
+    });
+    return {
+      file: DataHelper.excludePath(nextMetadata?.file ?? '', process.cwd()),
+      caller: nextMetadata?.caller ?? '',
+      method: nextMetadata?.method ?? '',
+    };
+  }
+
+  public output(level: ConsoleNestLevelType, metadata: ParserTraceInterface, message: unknown | unknown[]): void {
     const info = [
-      this.consoleSystemClass.getName(),
-      this.consoleSystemClass.getPid(),
-      this.consoleSystemClass.getDate(),
-      this.consoleSystemClass.getTime(),
+      this.console.getName(),
+      this.console.getPid(),
+      this.console.getDate(),
+      this.console.getTime(),
+      //
     ].filter((item) => {
       return item;
     });
     if (info.length) {
-      this.consoleSystemClass.processStdout(
-        info.join(this.consoleSystemClass.colorWrapper(' | ', [effect.BOLD, foreground.CYAN])),
-      );
-      this.consoleSystemClass.processStdout(' ');
+      this.console.stdout(info.join(ColorHelper.wrapData(' | ', [effect.BOLD, foreground.CYAN])));
+      this.console.stdout(' ');
     }
     this.printLevel(level);
-    this.printContextOrCaller(level, metadata.caller, metadata.method);
+    this.printCaller(level, metadata.caller, metadata.method);
     if (Array.isArray(message)) {
-      message.forEach((item) => {
-        this.printMessage(level, item);
+      message.forEach((item, index) => {
+        this.printMessage(level, item, metadata.caller);
+        if (index !== message.length - 1) {
+          process.stdout.write('\n');
+        }
       });
     } else {
-      this.printMessage(level, message);
+      this.printMessage(level, message, metadata.caller);
     }
-    this.consoleSystemClass.printPerformance();
+    this.console.printPerformance();
     if (level === 'DBG') {
-      this.consoleSystemClass.printTrace(level, DataHelper.traceListFromErrorStack(new Error().stack));
+      this.console.printTrace(level, DataHelper.traceListFromErrorStack(new Error().stack));
     }
-    this.consoleSystemClass.processStdout('\n');
-    this.printLink(level, metadata.file, !info.length);
+    this.printLink(level, metadata.file);
+    this.console.stdout('\n');
   }
 
   private printLevel(level: ConsoleNestLevelType): void {
     if (!this.options.info) {
       return;
     }
-    const formattedLevel = this.consoleSystemClass.colorWrapper(this.getFormattedLevel(level), [
-      effect.BOLD,
-      this.consoleSystemClass.getForeground(level),
-    ]);
-    this.consoleSystemClass.processStdout(formattedLevel);
-    this.consoleSystemClass.processStdout(' ');
+    const color = this.console.getForeground(level);
+    this.console.stdout(ColorHelper.wrapData(`[`, [effect.RESET, effect.BOLD]));
+    this.console.stdout(ColorHelper.wrapData(level, [effect.BOLD, color]));
+    this.console.stdout(ColorHelper.wrapData(`]`, [effect.RESET, effect.BOLD]));
+    this.console.stdout(' ');
   }
 
-  private getFormattedLevel(level: ConsoleNestLevelType): string {
-    switch (level) {
-      case 'LOG':
-        return '  LOG';
-      case 'ERR':
-        return 'ERROR';
-      case 'WRN':
-        return ' WARN';
-      case 'INF':
-        return ' INFO';
-      case 'DBG':
-        return 'DEBUG';
-      default:
-        return 'FATAL';
+  private printCaller(level: ConsoleNestLevelType, caller: string, method: string | undefined): void {
+    const color = this.console.getForeground(level);
+    this.console.stdout(caller);
+    if (method) {
+      this.console.stdout(ColorHelper.wrapData(`/`, [effect.BOLD, color]));
+      this.console.stdout(ColorHelper.wrapData(method, [foreground.CYAN]));
     }
+    this.console.stdout(' ');
   }
 
-  private printContextOrCaller(
-    level: ConsoleNestLevelType,
-    contextOrCaller: string | undefined,
-    method: string | undefined,
-  ): void {
-    if (contextOrCaller) {
-      this.consoleSystemClass.processStdout(
-        this.consoleSystemClass.colorWrapper(`[`, [effect.BOLD, this.consoleSystemClass.getForeground(level)]),
-      );
-      this.consoleSystemClass.processStdout(contextOrCaller);
-      if (method) {
-        this.consoleSystemClass.processStdout(
-          this.consoleSystemClass.colorWrapper(`/`, [effect.BOLD, this.consoleSystemClass.getForeground(level)]),
-        );
-        this.consoleSystemClass.processStdout(this.consoleSystemClass.colorWrapper(method, foreground.CYAN));
-      }
-      this.consoleSystemClass.processStdout(
-        this.consoleSystemClass.colorWrapper(`]`, [effect.BOLD, this.consoleSystemClass.getForeground(level)]),
-      );
-    } else {
-      this.consoleSystemClass.processStdout(
-        this.consoleSystemClass.colorWrapper(`[\u25A0]`, this.consoleSystemClass.getForeground(level)),
-      );
-    }
-    this.consoleSystemClass.processStdout(' ');
-  }
-
-  private printMessage(level: ConsoleNestLevelType, message: unknown): void {
-    if (typeof message === 'string') {
-      let data: string;
-      if (message.includes('dependencies')) {
-        data = message.replace(
-          'dependencies',
-          this.consoleSystemClass.colorWrapper('dependencies', [
-            effect.DIM,
-            this.consoleSystemClass.getForeground(level),
-          ]),
-        );
-      } else if (message.startsWith('Mapped')) {
-        data = message
-          .replace(
-            'Mapped',
-            this.consoleSystemClass.colorWrapper('Mapped', [effect.DIM, this.consoleSystemClass.getForeground(level)]),
-          )
-          .replace(
-            'route',
-            this.consoleSystemClass.colorWrapper('route', [effect.DIM, this.consoleSystemClass.getForeground(level)]),
-          );
+  private printMessage(level: ConsoleNestLevelType, message: unknown, caller: string): void {
+    if (
+      typeof message === 'string' &&
+      [
+        'NestFactory',
+        'InstanceLoader',
+        'WebSocketsController',
+        'RouterExplorer',
+        'RoutesResolver',
+        'GraphQLModule',
+        'NestApplication',
+      ].includes(caller)
+    ) {
+      const color = this.console.getForeground(level);
+      this.placeholderRegExp.lastIndex = 0;
+      if (this.placeholderRegExp.test(message)) {
+        this.placeholderSplitRegExp.lastIndex = 0;
+        const data = message.replace(this.placeholderSplitRegExp, (...args) => {
+          const [, bracket, single, double, plain] = args as [
+            string,
+            string | undefined,
+            string | undefined,
+            string | undefined,
+            string | undefined,
+          ];
+          if (bracket || single || double) {
+            return ColorHelper.wrapData(bracket ?? single ?? double ?? '', [foreground.WHITE]);
+          }
+          return ColorHelper.wrapData(plain ?? '', [color]);
+        });
+        this.console.stdout(data);
       } else {
-        data = message;
+        this.console.stdout(ColorHelper.wrapData(message, [color]));
       }
-      this.consoleSystemClass.processStdout(
-        this.consoleSystemClass.colorWrapper(data, this.consoleSystemClass.getForeground(level)),
-      );
     } else if (message instanceof Error || message instanceof ErrorClass) {
-      this.consoleSystemClass.printError(message);
+      this.console.printError(message);
     } else {
-      this.consoleSystemClass.processStdout(this.consoleSystemClass.dataWrapper(message));
+      this.console.stdout(this.console.prettify(message));
     }
-    this.consoleSystemClass.processStdout(' ');
+    this.console.stdout(' ');
   }
 
-  private printLink(level: ConsoleNestLevelType, filePath: string | undefined, indent: boolean): void {
-    if (!this.options.info) {
+  private printLink(level: ConsoleNestLevelType, filePath: string): void {
+    if (!this.options.link) {
       return;
     }
-    if (filePath) {
-      if (this.options.info) {
-        this.consoleSystemClass.processStdout(
-          this.consoleSystemClass.colorWrapper(indent ? '   at ' : 'at ', [
-            effect.BOLD,
-            this.consoleSystemClass.getForeground(level),
-          ]),
-        );
-      }
-      this.consoleSystemClass.processStdout(DataHelper.excludePath(filePath));
-      // this.consoleClass.processStdout(file);
-      this.consoleSystemClass.processStdout('\n');
+    this.console.stdout('\n');
+    if (this.options.info) {
+      this.console.stdout(ColorHelper.wrapData('at ', [effect.BOLD, this.console.getForeground(level)]));
     }
+    this.console.stdout(DataHelper.excludePath(filePath));
   }
 }

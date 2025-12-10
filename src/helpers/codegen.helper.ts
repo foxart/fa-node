@@ -22,15 +22,15 @@ class CodegenSingleton {
 
   public displayMessage(name: string, message: string): void {
     const result = [
-      ColorHelper.wrapData(` ${name.toUpperCase()} `, background.CYAN),
-      ColorHelper.wrapData(` ${message}`, foreground.CYAN),
+      ColorHelper.wrapData(` ${name.toUpperCase()} `, [background.CYAN]),
+      ColorHelper.wrapData(` ${message}`, [foreground.CYAN]),
     ];
     console.log(result.join(''));
   }
 
   public logSuccess(context: string, message: string): void {
     const result = [
-      ColorHelper.wrapData(context, foreground.WHITE),
+      ColorHelper.wrapData(context, [foreground.WHITE]),
       ColorHelper.wrapData(` ${SymbolHelper.status.SUCCESS} `, [effect.BOLD, foreground.GREEN]),
       ColorHelper.wrapData(message, [effect.DIM, foreground.GREEN]),
     ];
@@ -39,7 +39,7 @@ class CodegenSingleton {
 
   public logWarning(context: string, message: string): void {
     const result = [
-      ColorHelper.wrapData(context, foreground.WHITE),
+      ColorHelper.wrapData(context, [foreground.WHITE]),
       ColorHelper.wrapData(` ${SymbolHelper.status.WARNING} `, [effect.BOLD, foreground.YELLOW]),
       ColorHelper.wrapData(message, [effect.DIM, foreground.YELLOW]),
     ];
@@ -48,7 +48,7 @@ class CodegenSingleton {
 
   public logError(context: string, err: Error): void {
     const result = [
-      ColorHelper.wrapData(context, foreground.WHITE),
+      ColorHelper.wrapData(context, [foreground.WHITE]),
       ColorHelper.wrapData(` ${SymbolHelper.status.ERROR} `, [effect.BOLD, foreground.RED]),
       ColorHelper.wrapData(err.message, [effect.DIM, foreground.RED]),
     ];

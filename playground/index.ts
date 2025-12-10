@@ -18,17 +18,16 @@ export function initConsole(): void {
     info: true,
     // name: 'NAME',
     // pid: true,
-    // date: true,
-    // time: true,
-    // performance: true,
+    date: true,
+    time: true,
+    performance: true,
     link: true,
     /** */
     linkIndex: 2,
     stackError: true,
     stackDebug: true,
-    // stackFull: true,
     /** */
-    // sort: true,
+    sort: true,
   });
   console.log = (...args: unknown[]): void => {
     Console.log(...args);

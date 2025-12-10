@@ -42,8 +42,8 @@ class ColorSingleton {
     return ColorSingleton.self;
   }
 
-  public wrapData(data: string, colors: string | string[]): string {
-    return (Array.isArray(colors) ? colors : [colors]).reduce((acc, color) => {
+  public wrapData(data: string, colors: string[]): string {
+    return colors.reduce((acc, color) => {
       return `${color}${acc}${this.effect.RESET}`;
     }, data);
   }

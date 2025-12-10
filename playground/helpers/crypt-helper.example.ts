@@ -1,4 +1,4 @@
-import { CryptClass, ErrorClass, SystemHelper } from '../../src';
+import { CryptClass, SystemHelper } from '../../src';
 
 function rotate(rawPayload: string, oldCrypt: CryptClass, newCrypt: CryptClass): string {
   const { dek, encryptedData, ivData, tagData } = oldCrypt.unwrapDek(rawPayload);
@@ -35,17 +35,17 @@ export function run(): void {
   // const { dek, encryptedData, ivData, tagData } = crypt1.unwrapDEK(encrypt2 as string);
   // const rotatedWithClass = crypt1.wrapDEK(dek, encryptedData, ivData, tagData);
   //
-  console.log({ encrypted1, decrypted1, time1 });
-  console.log({ encrypted2, decrypted2, time2 });
+  // console.log({ encrypted1, decrypted1, time1 });
+  // console.log({ encrypted2, decrypted2, time2 });
   // console.log({ dek, encryptedData, ivData, tagData, rotatedWithClass });
   const rotated1 = rotate(encrypted1 as string, crypt1, crypt2);
-  console.log(encrypted1 === rotated1, crypt2.decrypt(rotated1) === data);
-  console.log(
-    new ErrorClass({
-      name: 'Error',
-      message: { a: 1 },
-    }),
-  );
+  // console.log(encrypted1 === rotated1, crypt2.decrypt(rotated1) === data);
+  // console.log(
+  //   new ErrorClass({
+  //     name: 'Error',
+  //     message: { a: 1 },
+  //   }),
+  // );
   console.log(process.cwd(), __dirname);
 }
 //
