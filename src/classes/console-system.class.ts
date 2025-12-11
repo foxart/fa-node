@@ -18,7 +18,6 @@ export interface ConsoleOptionsInterface {
   time?: boolean;
   performance?: boolean;
   link?: boolean;
-  linkIndex?: number;
   /** trace */
   stackError?: boolean;
   stackDebug?: boolean;
@@ -83,7 +82,7 @@ export class ConsoleSystemClass {
       this.printTrace(level, this.getStack(new Error().stack));
     }
     this.printPerformance();
-    this.printLink(level, trace[this.options.linkIndex ?? 1].file);
+    this.printLink(level, trace[1].file);
     this.stdout('\n');
   }
 
@@ -98,7 +97,8 @@ export class ConsoleSystemClass {
       return item;
     });
     if (info.length) {
-      this.stdout(info.join(ColorHelper.wrapData(' \u2503 ', [effect.BOLD, this.getForeground(level)])));
+      // this.stdout(info.join(ColorHelper.wrapData(' \u2503 ', [foreground.RED])));
+      this.stdout(info.join(ColorHelper.wrapData(' \u2503 ', [this.getForeground(level)])));
       this.stdout(' ');
     }
   }
@@ -172,14 +172,14 @@ export class ConsoleSystemClass {
     if (!this.options.name) {
       return;
     }
-    return ColorHelper.wrapData(this.options.name, [effect.BOLD, foreground.WHITE]);
+    return this.options.name;
   }
 
   public getPid(): string | void {
     if (!this.options.pid) {
       return;
     }
-    return ColorHelper.wrapData(this.pid, [effect.BOLD, foreground.YELLOW]);
+    return ColorHelper.wrapData(this.pid, [foreground.CYAN]);
   }
 
   public getDate(): string | void {
@@ -189,9 +189,9 @@ export class ConsoleSystemClass {
     const date = new Date();
     return [
       ColorHelper.wrapData(`${date.getFullYear()}`.padStart(2, '0'), [foreground.MAGENTA]),
-      ColorHelper.wrapData('-', [effect.DIM, foreground.MAGENTA]),
+      ColorHelper.wrapData('-', [foreground.CYAN]),
       ColorHelper.wrapData(`${date.getMonth() + 1}`.padStart(2, '0'), [foreground.MAGENTA]),
-      ColorHelper.wrapData('-', [effect.DIM, foreground.MAGENTA]),
+      ColorHelper.wrapData('-', [foreground.CYAN]),
       ColorHelper.wrapData(`${date.getDate()}`.padStart(2, '0'), [foreground.MAGENTA]),
     ].join('');
   }
@@ -203,11 +203,11 @@ export class ConsoleSystemClass {
     const date = new Date();
     return [
       ColorHelper.wrapData(`${date.getHours()}`.padStart(2, '0'), [foreground.CYAN]),
-      ColorHelper.wrapData(':', [effect.DIM, foreground.CYAN]),
+      ColorHelper.wrapData(':', [foreground.MAGENTA]),
       ColorHelper.wrapData(`${date.getMinutes()}`.padStart(2, '0'), [foreground.CYAN]),
-      ColorHelper.wrapData(':', [effect.DIM, foreground.CYAN]),
+      ColorHelper.wrapData(':', [foreground.MAGENTA]),
       ColorHelper.wrapData(`${date.getSeconds()}`.padStart(2, '0'), [foreground.CYAN]),
-      ColorHelper.wrapData('.', [effect.DIM, foreground.CYAN]),
+      ColorHelper.wrapData('.', [foreground.MAGENTA]),
       ColorHelper.wrapData(`${date.getMilliseconds()}`.padStart(2, '0'), [effect.DIM, foreground.CYAN]),
     ].join('');
   }

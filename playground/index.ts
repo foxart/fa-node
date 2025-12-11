@@ -16,14 +16,13 @@ export function initConsole(): void {
   const Console = new ConsoleSystemClass({
     color: true,
     info: true,
-    // name: 'NAME',
-    // pid: true,
+    name: 'NAME',
+    pid: true,
     date: true,
     time: true,
     performance: true,
     link: true,
     /** */
-    linkIndex: 2,
     stackError: true,
     stackDebug: true,
     /** */

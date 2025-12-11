@@ -36,21 +36,9 @@ export class ConsoleNestClass {
     };
   }
 
-  public output(level: ConsoleNestLevelType, metadata: ParserTraceInterface, message: unknown | unknown[]): void {
-    const info = [
-      this.console.getName(),
-      this.console.getPid(),
-      this.console.getDate(),
-      this.console.getTime(),
-      //
-    ].filter((item) => {
-      return item;
-    });
-    if (info.length) {
-      this.console.stdout(info.join(ColorHelper.wrapData(' | ', [effect.BOLD, foreground.CYAN])));
-      this.console.stdout(' ');
-    }
+  public stdout(level: ConsoleNestLevelType, metadata: ParserTraceInterface, message: unknown | unknown[]): void {
     this.printLevel(level);
+    this.console.printInfo(level);
     this.printCaller(level, metadata.caller, metadata.method);
     if (Array.isArray(message)) {
       message.forEach((item, index) => {

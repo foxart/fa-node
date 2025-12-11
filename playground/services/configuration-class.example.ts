@@ -23,7 +23,7 @@ export function run(): void {
     stackError: true,
     stackDebug: true,
   });
-  nestConsole.output(
+  nestConsole.stdout(
     'LOG',
     { caller: '', file: '', method: '' },
     new ErrorClass({
