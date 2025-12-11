@@ -14,6 +14,7 @@ export function initCatch(): void {
 export function initConsole(): void {
   Array.from(Array(5).keys()).forEach(() => console.log('|'));
   const Console = new ConsoleSystemClass({
+    traceIndex: 1,
     color: true,
     info: true,
     name: 'NAME',

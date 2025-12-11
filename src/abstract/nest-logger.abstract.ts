@@ -1,18 +1,18 @@
+import { ConsoleOptionsInterface, ConsoleSystemClass } from '../classes/console-system.class';
+import { ErrorClass } from '../classes/error.class';
 import { ColorHelper } from '../helpers/color.helper';
 import { DataHelper } from '../helpers/data.helper';
 import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
-import { ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.class';
-import { ErrorClass } from './error.class';
 
 const { foreground, effect } = ColorHelper;
-export type ConsoleNestLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
+export type NestLoggerLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 
-export class ConsoleNestClass {
+export abstract class NestLoggerAbstract {
   private readonly placeholderRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")/g;
   private readonly placeholderSplitRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")|([^{}'"]+)/g;
   private readonly console: ConsoleSystemClass;
 
-  public constructor(private readonly options: ConsoleOptionsInterface) {
+  protected constructor(private readonly options: ConsoleOptionsInterface) {
     this.console = new ConsoleSystemClass(options);
   }
 
@@ -31,12 +31,12 @@ export class ConsoleNestClass {
     });
     return {
       file: DataHelper.excludePath(nextMetadata?.file ?? '', process.cwd()),
-      caller: nextMetadata?.caller ?? '',
-      method: nextMetadata?.method ?? '',
+      caller: nextMetadata?.caller ?? 'unknown',
+      method: nextMetadata?.method,
     };
   }
 
-  public stdout(level: ConsoleNestLevelType, metadata: ParserTraceInterface, message: unknown | unknown[]): void {
+  public stdout(level: NestLoggerLevelType, metadata: ParserTraceInterface, message: unknown | unknown[]): void {
     this.printLevel(level);
     this.console.printInfo(level);
     this.printCaller(level, metadata.caller, metadata.method);
@@ -58,7 +58,7 @@ export class ConsoleNestClass {
     this.console.stdout('\n');
   }
 
-  private printLevel(level: ConsoleNestLevelType): void {
+  private printLevel(level: NestLoggerLevelType): void {
     if (!this.options.info) {
       return;
     }
@@ -69,7 +69,7 @@ export class ConsoleNestClass {
     this.console.stdout(' ');
   }
 
-  private printCaller(level: ConsoleNestLevelType, caller: string, method: string | undefined): void {
+  private printCaller(level: NestLoggerLevelType, caller: string, method: string | undefined): void {
     const color = this.console.getForeground(level);
     this.console.stdout(caller);
     if (method) {
@@ -79,7 +79,7 @@ export class ConsoleNestClass {
     this.console.stdout(' ');
   }
 
-  private printMessage(level: ConsoleNestLevelType, message: unknown, caller: string): void {
+  private printMessage(level: NestLoggerLevelType, message: unknown, caller: string): void {
     if (
       typeof message === 'string' &&
       [
@@ -114,6 +114,7 @@ export class ConsoleNestClass {
         this.console.stdout(ColorHelper.wrapData(message, [color]));
       }
     } else if (message instanceof Error || message instanceof ErrorClass) {
+      // const error = item as Error & { messageIsJson?: boolean };
       this.console.printError(message);
     } else {
       this.console.stdout(this.console.prettify(message));
@@ -121,7 +122,7 @@ export class ConsoleNestClass {
     this.console.stdout(' ');
   }
 
-  private printLink(level: ConsoleNestLevelType, filePath: string): void {
+  private printLink(level: NestLoggerLevelType, filePath: string): void {
     if (!this.options.link) {
       return;
     }

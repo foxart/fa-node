@@ -1,7 +1,11 @@
-/** Classes */
+/** ABSTRACT */
+export * from './abstract/nest-logger.abstract';
+export * from './abstract/nest-logger-application.abstract';
+export * from './abstract/nest-logger-system.abstract';
+
+/** CLASSES */
 export * from './classes/configuration.class';
 export * from './classes/console.class';
-export * from './classes/console-nest.class';
 export * from './classes/console-system.class';
 export * from './classes/crypt.class';
 export * from './classes/decorator.class';
@@ -9,7 +13,8 @@ export * from './classes/error.class';
 export * from './classes/middleware.class';
 export * from './classes/transformer.class';
 export * from './classes/validator.class';
-/** Helpers */
+
+/** HELPERS */
 export * from './helpers/codegen.helper';
 export * from './helpers/color.helper';
 export * from './helpers/converter.helper';

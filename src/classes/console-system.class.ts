@@ -18,6 +18,7 @@ export interface ConsoleOptionsInterface {
   time?: boolean;
   performance?: boolean;
   link?: boolean;
+  traceIndex?: number;
   /** trace */
   stackError?: boolean;
   stackDebug?: boolean;
@@ -28,15 +29,15 @@ export interface ConsoleOptionsInterface {
 
 export class ConsoleSystemClass {
   public readonly console: Console;
-
   private readonly pid: string;
-
   private readonly performance: number;
+  private readonly traceIndex: number;
 
   public constructor(private readonly options: ConsoleOptionsInterface) {
     this.console = Object.assign({}, console);
     this.pid = process.pid.toString();
     this.performance = performance.now();
+    this.traceIndex = options.traceIndex ?? 1;
   }
 
   public log(...data: unknown[]): void {
@@ -82,7 +83,7 @@ export class ConsoleSystemClass {
       this.printTrace(level, this.getStack(new Error().stack));
     }
     this.printPerformance();
-    this.printLink(level, trace[1].file);
+    this.printLink(level, trace[this.traceIndex].file);
     this.stdout('\n');
   }
 
