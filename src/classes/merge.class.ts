@@ -1,19 +1,19 @@
 import { CheckHelper } from '../helpers/check.helper';
 
-type DeepType = Record<string, unknown>;
-
 interface DeepOptionsInterface {
   null?: boolean;
   undefined?: boolean;
-  arrays?: boolean;
+  array?: boolean;
 }
 
 export class MergeClass {
-  private deep(
-    target: DeepType,
-    source: Partial<DeepType>,
-    options: DeepOptionsInterface = { null: true, undefined: false, arrays: false },
-  ): void {
+  public deep<T extends object, S extends object>(
+    target: T,
+    source: S,
+    options: DeepOptionsInterface = { null: true, undefined: false, array: false },
+  ): T & S {
+    const result = Array.isArray(target) ? ([...target] as unknown) : ({ ...target } as unknown);
+    const out = result as Record<string, unknown>;
     for (const key in source) {
       const srcValue = source[key];
       if (!options.null && srcValue === null) {
@@ -22,20 +22,17 @@ export class MergeClass {
       if (!options.undefined && srcValue === undefined) {
         continue;
       }
-      const targetValue = target[key];
-      if (Array.isArray(srcValue) && Array.isArray(targetValue)) {
-        if (options.arrays) {
-          target[key] = [...(targetValue as unknown[]), ...(srcValue as unknown[])];
-        } else {
-          target[key] = srcValue;
-        }
+      const resultValue = out[key];
+      if (Array.isArray(srcValue) && Array.isArray(resultValue)) {
+        out[key] = options.array ? ([...(resultValue as unknown[]), ...(srcValue as unknown[])] as unknown) : srcValue;
         continue;
       }
-      if (CheckHelper.isObject(srcValue) && CheckHelper.isObject(targetValue)) {
-        this.deep(targetValue as DeepType, srcValue as DeepType, options);
+      if (CheckHelper.isObject(srcValue) && CheckHelper.isObject(resultValue)) {
+        out[key] = this.deep(resultValue as object, srcValue as object, options);
         continue;
       }
-      target[key] = srcValue;
+      out[key] = srcValue;
     }
+    return result as T & S;
   }
 }

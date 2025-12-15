@@ -1,9 +1,9 @@
 import { exec } from 'child_process';
+import fs from 'fs';
 import { buildClientSchema, IntrospectionQuery, printSchema } from 'graphql';
 import path from 'path';
 import { promisify } from 'util';
 import { ColorHelper } from './color.helper';
-import { IoHelper } from './io.helper';
 import { SymbolHelper } from './symbol.helper';
 
 type JsonType = string | number | boolean | null | { [key: string]: JsonType } | JsonType[];
@@ -89,7 +89,8 @@ class CodegenSingleton {
 
   public buildGraphql(filePath: string, introspectionQuery: IntrospectionQuery): void {
     try {
-      IoHelper.createFileSync(filePath, printSchema(buildClientSchema(introspectionQuery)));
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, printSchema(buildClientSchema(introspectionQuery)));
       this.logSuccess(this.buildGraphql.name, path.basename(filePath));
     } catch (e) {
       this.logError(this.buildGraphql.name, e as Error);
@@ -98,7 +99,7 @@ class CodegenSingleton {
 
   public async buildProto(source: string, destination: string, filePath: string): Promise<void> {
     try {
-      IoHelper.createDirectorySync(destination);
+      fs.mkdirSync(destination, { recursive: true });
       const command = [
         'protoc',
         `--proto_path=${source}`,
