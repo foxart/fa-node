@@ -1,7 +1,7 @@
 import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
-import { DataHelper } from '../helpers/data.helper';
-import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
+import { DataHelper, StackToTraceInterface } from '../helpers/data.helper';
+import { ParserHelper } from '../helpers/parser.helper';
 import { ErrorClass } from './error.class';
 
 const { foreground, background, effect } = ColorHelper;
@@ -27,7 +27,7 @@ export interface ConsoleOptionsInterface {
   hidden?: boolean;
 }
 
-export class ConsoleSystemClass {
+export class LoggerSystemClass {
   public readonly console: Console;
   private readonly pid: string;
   private readonly performance: number;
@@ -64,7 +64,7 @@ export class ConsoleSystemClass {
     this.print('FTL', this.getStack(new Error().stack), data);
   }
 
-  public print(level: ConsoleSystemLevelType, trace: ParserTraceInterface[], args: unknown[]): void {
+  public print(level: ConsoleSystemLevelType, trace: StackToTraceInterface[], args: unknown[]): void {
     this.printLevel(level);
     this.printInfo(level);
     args.forEach((item, index) => {
@@ -112,7 +112,7 @@ export class ConsoleSystemClass {
     this.stdout(' ');
   }
 
-  public printTrace(level: ConsoleSystemLevelType, trace: ParserTraceInterface[]): void {
+  public printTrace(level: ConsoleSystemLevelType, trace: StackToTraceInterface[]): void {
     this.stdout(ColorHelper.wrapData('{', [effect.BOLD, foreground.CYAN]));
     trace
       .filter((item) => {
@@ -213,8 +213,8 @@ export class ConsoleSystemClass {
     ].join('');
   }
 
-  public getStack(stack?: string): ParserTraceInterface[] {
-    return ParserHelper.stack(stack).map((item) => {
+  public getStack(stack?: string): StackToTraceInterface[] {
+    return DataHelper.stackToTrace(stack).map((item) => {
       return {
         caller: item.caller,
         method: item.method,

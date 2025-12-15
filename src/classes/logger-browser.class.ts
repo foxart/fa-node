@@ -73,7 +73,7 @@ interface ConsoleBrowserOptionsInterface {
   performance?: boolean;
 }
 
-class ConsoleBrowserClass {
+class LoggerBrowserClass {
   private readonly performanceStart: number;
 
   public constructor(private readonly options: ConsoleBrowserOptionsInterface = {}) {
@@ -147,10 +147,10 @@ const consoleError = console.error.bind(console);
 const consoleDebug = console.debug.bind(console);
 
 export class ConsoleClass {
-  private readonly consoleClass: ConsoleBrowserClass;
+  private readonly consoleClass: LoggerBrowserClass;
 
   public constructor(options: ConsoleBrowserOptionsInterface) {
-    this.consoleClass = new ConsoleBrowserClass(options);
+    this.consoleClass = new LoggerBrowserClass(options);
   }
 
   public override(): void {

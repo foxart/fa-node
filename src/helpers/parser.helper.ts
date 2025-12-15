@@ -17,12 +17,6 @@ interface UrlInterface {
   hashParams?: { [key: string]: string };
 }
 
-export interface ParserTraceInterface {
-  file: string;
-  caller: string;
-  method: string | undefined;
-}
-
 class ParserSingleton {
   private static self: ParserSingleton;
   private static readonly stackRegexp = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
@@ -59,24 +53,6 @@ class ParserSingleton {
       filename: fileName.substring(0, fileName.lastIndexOf('.')) || fileName,
       extension: fullPath.substring(fullPath.lastIndexOf('.')),
     };
-  }
-
-  public stack(stack = ''): ParserTraceInterface[] {
-    if (!stack) return [];
-    const regexp = new RegExp(ParserSingleton.stackRegexp.source, 'gm');
-    const result: ParserTraceInterface[] = [];
-    for (const match of stack.matchAll(regexp)) {
-      const context = match[1];
-      const dotIndex = context.indexOf('.');
-      const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
-      const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
-      result.push({
-        caller,
-        method,
-        file: match[2],
-      });
-    }
-    return result;
   }
 
   public url(url: string): UrlInterface | null {

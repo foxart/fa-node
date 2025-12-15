@@ -1,6 +1,6 @@
 import { LoggerService } from '@nestjs/common';
-import { ConsoleOptionsInterface } from '../classes/console-system.class';
-import { ParserTraceInterface } from '../helpers/parser.helper';
+import { ConsoleOptionsInterface } from '../classes/logger-system.class';
+import { StackToTraceInterface } from '../helpers/data.helper';
 import { NestLoggerAbstract, NestLoggerLevelType } from './nest-logger.abstract';
 
 class Console extends NestLoggerAbstract {
@@ -16,7 +16,7 @@ export abstract class NestLoggerApplicationAbstract implements LoggerService {
     this.console = new Console(options);
   }
 
-  protected get metadata(): ParserTraceInterface {
+  protected get metadata(): StackToTraceInterface {
     return this.console.metadata(new Error().stack, 2);
   }
 
@@ -42,7 +42,7 @@ export abstract class NestLoggerApplicationAbstract implements LoggerService {
 
   protected stdout(
     level: NestLoggerLevelType,
-    metadata: ParserTraceInterface,
+    metadata: StackToTraceInterface,
     ...params: [...unknown[]] | [...unknown[], string]
   ): void {
     this.console.stdout(level, metadata, params);

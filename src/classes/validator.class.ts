@@ -9,22 +9,22 @@ interface ErrorInterface {
 }
 
 export class ValidatorClass {
-  public constructor(private readonly config: ValidatorOptions = {}) {}
+  public constructor(private readonly validatorOptions: ValidatorOptions = {}) {}
 
-  public getConfig(): ValidatorOptions {
-    return this.config;
+  public get options(): ValidatorOptions {
+    return this.validatorOptions;
   }
 
   public async validateAsync<I>(instance: I): Promise<ErrorInterface[] | null> {
-    return this.getError(await validate(instance as object, this.config));
+    return this.getError(await validate(instance as object, this.validatorOptions));
   }
 
   public validate<I>(instance: I): ErrorInterface[] | null {
-    return this.getError(validateSync(instance as object, this.config));
+    return this.getError(validateSync(instance as object, this.validatorOptions));
   }
 
   public async validateOrThrowAsync<I>(instance: I): Promise<I> {
-    const errors = this.getError(await validate(instance as object, this.config));
+    const errors = this.getError(await validate(instance as object, this.validatorOptions));
     if (errors) {
       this.throwErrors(instance, errors);
     }
@@ -32,7 +32,7 @@ export class ValidatorClass {
   }
 
   public validateOrThrow<T>(instance: T): T {
-    const errors = this.getError(validateSync(instance as object, this.config));
+    const errors = this.getError(validateSync(instance as object, this.validatorOptions));
     if (errors) {
       this.throwErrors(instance, errors);
     }

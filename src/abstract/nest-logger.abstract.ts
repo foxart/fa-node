@@ -1,8 +1,7 @@
-import { ConsoleOptionsInterface, ConsoleSystemClass } from '../classes/console-system.class';
 import { ErrorClass } from '../classes/error.class';
+import { ConsoleOptionsInterface, LoggerSystemClass } from '../classes/logger-system.class';
 import { ColorHelper } from '../helpers/color.helper';
-import { DataHelper } from '../helpers/data.helper';
-import { ParserHelper, ParserTraceInterface } from '../helpers/parser.helper';
+import { DataHelper, StackToTraceInterface } from '../helpers/data.helper';
 
 const { foreground, effect } = ColorHelper;
 export type NestLoggerLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
@@ -10,14 +9,14 @@ export type NestLoggerLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 export abstract class NestLoggerAbstract {
   private readonly placeholderRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")/g;
   private readonly placeholderSplitRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")|([^{}'"]+)/g;
-  private readonly console: ConsoleSystemClass;
+  private readonly console: LoggerSystemClass;
 
   protected constructor(private readonly options: ConsoleOptionsInterface) {
-    this.console = new ConsoleSystemClass(options);
+    this.console = new LoggerSystemClass(options);
   }
 
-  public metadata(stack = '', level: number): ParserTraceInterface {
-    const trace = ParserHelper.stack(stack);
+  public metadata(stack = '', level: number): StackToTraceInterface {
+    const trace = DataHelper.stackToTrace(stack);
     const metadata = trace[level];
     if (metadata) {
       return {
@@ -36,7 +35,7 @@ export abstract class NestLoggerAbstract {
     };
   }
 
-  public stdout(level: NestLoggerLevelType, metadata: ParserTraceInterface, message: unknown | unknown[]): void {
+  public stdout(level: NestLoggerLevelType, metadata: StackToTraceInterface, message: unknown | unknown[]): void {
     this.printLevel(level);
     this.console.printInfo(level);
     this.printCaller(level, metadata.caller, metadata.method);
@@ -52,7 +51,7 @@ export abstract class NestLoggerAbstract {
     }
     this.console.printPerformance();
     if (level === 'DBG') {
-      this.console.printTrace(level, DataHelper.traceListFromErrorStack(new Error().stack));
+      this.console.printTrace(level, DataHelper.stackToTrace(new Error().stack, true));
     }
     this.printLink(level, metadata.file);
     this.console.stdout('\n');

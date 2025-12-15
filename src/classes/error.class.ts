@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
+import { CheckHelper } from '../helpers/check.helper';
 import { ConverterHelper } from '../helpers/converter.helper';
-import { DataHelper } from '../helpers/data.helper';
 
 export interface ErrorClassInterface {
   name?: string;
@@ -15,7 +15,7 @@ export class ErrorClass extends Error {
   public readonly status: HttpStatus;
 
   public constructor(error: ErrorClassInterface) {
-    const messageIsJson = DataHelper.isPrimitive(error.message);
+    const messageIsJson = CheckHelper.isPrimitive(error.message);
     const message = messageIsJson ? error.message.toString() : ConverterHelper.toJson(error.message);
     super(message);
     this.name = error.name || 'ErrorClass';

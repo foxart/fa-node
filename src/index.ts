@@ -6,7 +6,7 @@ export * from './abstract/nest-logger-system.abstract';
 /** CLASSES */
 export * from './classes/configuration.class';
 export * from './classes/console.class';
-export * from './classes/console-system.class';
+export * from './classes/logger-system.class';
 export * from './classes/crypt.class';
 export * from './classes/decorator.class';
 export * from './classes/error.class';
@@ -15,6 +15,7 @@ export * from './classes/transformer.class';
 export * from './classes/validator.class';
 
 /** HELPERS */
+export * from './helpers/check.helper';
 export * from './helpers/codegen.helper';
 export * from './helpers/color.helper';
 export * from './helpers/converter.helper';

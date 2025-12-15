@@ -1,4 +1,4 @@
-import { ConsoleOptionsInterface, ConsoleSystemClass } from './console-system.class';
+import { ConsoleOptionsInterface, LoggerSystemClass } from './logger-system.class';
 
 const consoleLog = console.log.bind(console);
 const consoleWarn = console.warn.bind(console);
@@ -7,21 +7,21 @@ const consoleError = console.error.bind(console);
 const consoleDebug = console.debug.bind(console);
 
 export class ConsoleClass {
-  private readonly consoleClass: ConsoleSystemClass;
+  private readonly consoleSystem: LoggerSystemClass;
 
-  private readonly console: Console;
+  private readonly consoleOriginal: Console;
 
   public constructor(options: ConsoleOptionsInterface) {
-    this.console = console;
-    this.consoleClass = new ConsoleSystemClass(options);
+    this.consoleOriginal = console;
+    this.consoleSystem = new LoggerSystemClass(options);
   }
 
   public override(): void {
-    console.log = this.consoleClass.log.bind(this.consoleClass);
-    console.info = this.consoleClass.info.bind(this.consoleClass);
-    console.warn = this.consoleClass.warn.bind(this.consoleClass);
-    console.error = this.consoleClass.error.bind(this.consoleClass);
-    console.debug = this.consoleClass.debug.bind(this.consoleClass);
+    console.log = this.consoleSystem.log.bind(this.consoleSystem);
+    console.info = this.consoleSystem.info.bind(this.consoleSystem);
+    console.warn = this.consoleSystem.warn.bind(this.consoleSystem);
+    console.error = this.consoleSystem.error.bind(this.consoleSystem);
+    console.debug = this.consoleSystem.debug.bind(this.consoleSystem);
   }
 
   public restore(): void {
