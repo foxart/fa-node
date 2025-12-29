@@ -1,6 +1,5 @@
 import { CheckHelper } from './check.helper';
 import { ConverterHelper } from './converter.helper';
-import { ParserHelper } from './parser.helper';
 
 export interface StackToTraceInterface {
   file: string;
@@ -15,6 +14,12 @@ interface EmptyOptionsInterface {
   zeroNumber?: boolean;
   emptyArray?: boolean;
   emptyObject?: boolean;
+}
+
+interface MergeDeepOptionsInterface {
+  null?: boolean;
+  undefined?: boolean;
+  array?: boolean;
 }
 
 type ApplyCallbackType = (key: string | number, value: unknown) => [string | number, unknown];
@@ -124,6 +129,36 @@ class DataSingleton {
     }
   }
 
+  // todo add filter empty object
+  public mergeDeep<T extends object, S extends object>(
+    target: T,
+    source: S,
+    options: MergeDeepOptionsInterface = { null: true, undefined: false, array: false },
+  ): T & S {
+    const result = Array.isArray(target) ? ([...target] as unknown) : ({ ...target } as unknown);
+    const out = result as Record<string, unknown>;
+    for (const key in source) {
+      const srcValue = source[key];
+      if (!options.null && srcValue === null) {
+        continue;
+      }
+      if (!options.undefined && srcValue === undefined) {
+        continue;
+      }
+      const resultValue = out[key];
+      if (Array.isArray(srcValue) && Array.isArray(resultValue)) {
+        out[key] = options.array ? ([...(resultValue as unknown[]), ...(srcValue as unknown[])] as unknown) : srcValue;
+        continue;
+      }
+      if (CheckHelper.isObject(srcValue) && CheckHelper.isObject(resultValue)) {
+        out[key] = this.mergeDeep(resultValue as object, srcValue as object, options);
+        continue;
+      }
+      out[key] = srcValue;
+    }
+    return result as T & S;
+  }
+
   public pickEmpty<DATA>(data: DATA, options: EmptyOptionsInterface = {}, recursive = true): DATA {
     if (Array.isArray(data)) {
       const mapped = data.map((item) => this.pickEmpty(item as DATA, options, recursive));
@@ -203,7 +238,7 @@ class DataSingleton {
         const error = item as Error & { messageIsJson?: boolean };
         return {
           name: item.name,
-          message: error.messageIsJson ? ParserHelper.json(error.message) : error.message,
+          message: error.messageIsJson ? this.jsonParse(error.message) : error.message,
           stack: this.stackToTrace(error.stack, true),
         };
       }
@@ -266,6 +301,14 @@ class DataSingleton {
       }
     }
     return Array.from(set);
+  }
+
+  private jsonParse<T>(data: string): T | string {
+    try {
+      return JSON.parse(data) as T;
+    } catch (e) {
+      return data;
+    }
   }
 }
 

@@ -38,14 +38,6 @@ class ParserSingleton {
     return ParserSingleton.self;
   }
 
-  public json<T>(data: string): T | string {
-    try {
-      return JSON.parse(data) as T;
-    } catch (e) {
-      return data;
-    }
-  }
-
   public path(fullPath: string): PathInterface {
     const fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
     return {

@@ -1,7 +1,6 @@
 import * as util from 'node:util';
 import { ColorHelper } from '../helpers/color.helper';
 import { DataHelper, StackToTraceInterface } from '../helpers/data.helper';
-import { ParserHelper } from '../helpers/parser.helper';
 import { ErrorClass } from './error.class';
 
 const { foreground, background, effect } = ColorHelper;
@@ -158,7 +157,7 @@ export class LoggerSystemClass {
     this.stdout(ColorHelper.wrapData(': ', [effect.DIM, foreground.RED]));
     if (error.message) {
       if (error instanceof ErrorClass && error.messageIsJson) {
-        this.stdout(this.prettify(ParserHelper.json(error.message)));
+        this.stdout(this.prettify(this.jsonParse(error.message)));
       } else {
         this.stdout(error.message);
       }
@@ -278,6 +277,14 @@ export class LoggerSystemClass {
       this.console.error('Name:', error.name);
       this.console.error('Message:', error.message);
       this.console.error('Data:', data, '\n');
+    }
+  }
+
+  private jsonParse<T>(data: string): T | string {
+    try {
+      return JSON.parse(data) as T;
+    } catch (e) {
+      return data;
     }
   }
 }

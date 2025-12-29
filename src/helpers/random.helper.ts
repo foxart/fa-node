@@ -1,4 +1,16 @@
 import { ConverterHelper } from './converter.helper';
+import { RANDOM_LOCATION_LIST, RandomLocationInterface } from './random-location.list';
+
+interface AddressInterface {
+  city: string;
+  country: string;
+  countryCode: string;
+  postalCode: string;
+  street: string;
+  phone: string;
+  domain: string;
+  email: string;
+}
 
 class RandomSingleton {
   private static self: RandomSingleton;
@@ -49,9 +61,9 @@ class RandomSingleton {
     return RandomSingleton.self;
   }
 
-  /**
-   * RANDOM FUNCTIONS
-   */
+  /* ------------------------------------------------------------------ */
+  /* BASE RANDOM                                                         */
+  /* ------------------------------------------------------------------ */
   public boolean(): boolean {
     return Math.random() < 0.5;
   }
@@ -115,6 +127,68 @@ class RandomSingleton {
       useVowel = !useVowel;
     }
     return word.charAt(0).toUpperCase() + word.slice(1);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* LOCATION CORE (EN, DATA-DRIVEN)                                     */
+  /* ------------------------------------------------------------------ */
+  public city(): string {
+    return this.randomLocation().city;
+  }
+
+  public country(): string {
+    return this.randomLocation().country;
+  }
+
+  public street(): string {
+    return this.randomLocation().street;
+  }
+
+  public postalCode(): string {
+    return this.randomLocation().postalCode;
+  }
+
+  public phone(phoneCode?: string): string {
+    const result = [
+      phoneCode ? phoneCode : this.randomLocation().phoneCode,
+      this.integer(100, 999),
+      this.integer(100, 999),
+      this.integer(10, 99),
+    ];
+    return result.join(' ');
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* CONTACT                                                             */
+  /* ------------------------------------------------------------------ */
+  public domain(code?: string): string {
+    return `${this.word(this.integer(5, 10)).toLowerCase()}.${code ? code : this.randomLocation().countryCode.toLowerCase()}`;
+  }
+
+  public email(code?: string): string {
+    const user = `${this.word(this.integer(3, 8))}.${this.word(this.integer(3, 8))}`.toLowerCase();
+    return `${user}@${this.word(this.integer(5, 10)).toLowerCase()}.${code ? code : this.randomLocation().countryCode.toLowerCase()}`;
+  }
+
+  public address(): AddressInterface {
+    const location = this.randomLocation();
+    return {
+      city: location.city,
+      country: location.country,
+      countryCode: location.countryCode,
+      postalCode: location.postalCode,
+      street: `${location.street}, ${this.integer(1, 250)}`,
+      phone: this.phone(location.phoneCode),
+      domain: this.domain(location.countryCode),
+      email: this.email(location.countryCode),
+    };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* CONSISTENT ADDRESS (🔥 MAIN API)                                     */
+  /* ------------------------------------------------------------------ */
+  private randomLocation(): RandomLocationInterface {
+    return RANDOM_LOCATION_LIST[this.integer(0, RANDOM_LOCATION_LIST.length - 1)];
   }
 }
 
