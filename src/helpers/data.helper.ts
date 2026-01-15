@@ -90,7 +90,9 @@ class DataSingleton {
 
   public excludePath(fromPath: string, excludePath = ''): string {
     const path = excludePath ? excludePath : this.isNode ? process.cwd() : '';
-    if (!path) return fromPath;
+    if (!path) {
+      return fromPath;
+    }
     if (fromPath.startsWith(path)) {
       const rest = fromPath.slice(path.length).replace(/^\/|\/$/g, '');
       return rest || '.';
@@ -235,11 +237,10 @@ class DataSingleton {
     const cache = new WeakSet();
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
-        const error = item as Error & { messageIsJson?: boolean };
         return {
-          name: error.name,
-          message: error.messageIsJson ? this.jsonParse(error.message) : error.message,
-          stack: this.stackToTrace(error.stack ?? ''),
+          name: item.name,
+          message: this.isJsonError(item) ? this.jsonParse(item.message) : item.message,
+          stack: this.stackToTrace(item.stack),
         };
       }
       if (item === null || typeof item !== 'object') {
@@ -272,7 +273,9 @@ class DataSingleton {
   }
 
   public stackToTrace(stack = '', filterNode = false): StackToTraceInterface[] {
-    if (!stack) return [];
+    if (!stack) {
+      return [];
+    }
     const stackRegExp = new RegExp(this.stackRegExp.source, 'gm');
     const result: StackToTraceInterface[] = [];
     for (const match of stack.matchAll(stackRegExp)) {
@@ -314,6 +317,10 @@ class DataSingleton {
     } catch (e) {
       return data;
     }
+  }
+
+  private isJsonError(error: Error): boolean {
+    return Boolean((error as { messageIsJson?: boolean }).messageIsJson);
   }
 }
 

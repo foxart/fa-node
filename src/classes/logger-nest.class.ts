@@ -34,7 +34,6 @@ const NEST_CALLER_LIST = [
   'GraphQLModule',
   'NestApplication',
 ];
-
 const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
 
 export class LoggerNestClass {
@@ -97,7 +96,7 @@ export class LoggerNestClass {
     parts.push(this.formatHeader(level, metadata));
     parts.push(this.formatMessages(level, data, metadata.caller));
     if (level === 'DBG' && this.options.stackDebug) {
-      parts.push(this.formatTrace(level, this.stackToTrace(new Error().stack, true)));
+      parts.push(this.formatTrace(level, this.stackToTrace(new Error().stack)));
     }
     if (this.options.performance) {
       parts.push(this.formatPerformance());
@@ -250,20 +249,65 @@ export class LoggerNestClass {
   }
 
   private colorizeString(message: string, baseColor: string): string {
-    const withBraces = message.replace(
-      /(\{[^}]*}|\[[^\]]*]|\([^)]*\)|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g,
-      (match) => {
-        const open = match[0];
-        const close = match[match.length - 1];
-        const inner = match.slice(1, -1);
-        return (
-          `${this.color.wrap(open, [this.color.foreground.yellow])}` +
-          `${this.color.wrap(inner, [this.color.foreground.white])}` +
-          `${this.color.wrap(close, [this.color.foreground.yellow])}${baseColor}`
-        );
-      },
-    );
-    return `${baseColor}${withBraces}${this.color.effect.reset}`;
+    if (!this.options.color) {
+      return message;
+    }
+    if (!/[{}\[\]()'"\/]/.test(message)) {
+      return `${baseColor}${message}${this.color.effect.reset}`;
+    }
+    const tokenRegex = /(\{[^}]*}|\[[^\]]*]|\([^)]*\)|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;
+    let result = '';
+    let lastIndex = 0;
+    for (const match of message.matchAll(tokenRegex)) {
+      const index = match.index;
+      const token = match[0];
+      if (index > lastIndex) {
+        const plain = message.slice(lastIndex, index);
+        result += baseColor + this.colorizePathsInText(plain, baseColor);
+      }
+      const open = token[0];
+      const close = token[token.length - 1];
+      const inner = token.slice(1, -1);
+      let frameColor = this.color.foreground.yellow;
+      if (open === '[') frameColor = this.color.foreground.cyan;
+      else if (open === '(') frameColor = this.color.foreground.magenta;
+      else if (open === '"' || open === "'") frameColor = this.color.foreground.green;
+      const innerWithPaths = this.colorizePathsInText(inner, this.color.foreground.white);
+      result += this.color.wrap(open, [frameColor]) + innerWithPaths + this.color.wrap(close, [frameColor]);
+      lastIndex = index + token.length;
+    }
+    if (lastIndex < message.length) {
+      const tail = message.slice(lastIndex);
+      result += baseColor + this.colorizePathsInText(tail, baseColor);
+    }
+    return `${result}${this.color.effect.reset}`;
+  }
+
+  private colorizePathsInText(text: string, baseColor: string): string {
+    if (text.indexOf('/') === -1) {
+      return text;
+    }
+    const pathRegex = /(^|[\s,:;=])(\/?[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+)/g;
+    return text.replace(pathRegex, (_m, prefix: string, path: string) => {
+      return `${prefix}${this.colorizePath(path)}${baseColor}`;
+    });
+  }
+
+  private colorizePath(path: string): string {
+    const isAbsolute = path.startsWith('/');
+    const parts = path.split('/').filter(Boolean);
+    let out = '';
+    // ведущий слеш
+    if (isAbsolute) {
+      out += this.color.wrap('/', [this.color.effect.dim, this.color.foreground.cyan]);
+    }
+    for (let i = 0; i < parts.length; i++) {
+      if (i > 0) {
+        out += this.color.wrap('/', [this.color.effect.dim, this.color.foreground.cyan]);
+      }
+      out += this.color.wrap(parts[i], [this.color.foreground.cyan]);
+    }
+    return out;
   }
 
   private stdout(data: string): void {
@@ -271,19 +315,48 @@ export class LoggerNestClass {
       process.stdout.write(data);
     } catch (e) {
       const error = e as Error;
-      process.stdout.write('\n---------');
-      process.stdout.write(`${this.constructor.name}\n`);
-      process.stdout.write(`Message: ${error.message}\n`);
-      process.stdout.write(`Name: ${error.name}\n`);
-      process.stdout.write('Data: ');
-      process.stdout.write(data);
-      process.stdout.write('\n');
-      process.stdout.write('---------\n');
+      const color = this.color; // ConsoleClass
+      const message = '---------------[LOGGER STDOUT ERROR]---------------';
+      process.stderr.write('\n');
+      process.stderr.write(color.wrap(message, [color.effect.bold, color.foreground.red]) + '\n');
+      process.stderr.write(
+        color.wrap('Source: ', [color.effect.dim]) +
+          color.wrap(this.constructor.name, [color.foreground.yellow]) +
+          '\n',
+      );
+      process.stderr.write(
+        color.wrap('Error : ', [color.effect.dim]) +
+          color.wrap(`${error.name}: ${error.message}`, [color.foreground.red]) +
+          '\n',
+      );
+      // аккуратно разобранный стек
+      if (error.stack) {
+        const trace = this.stackToTrace(error.stack);
+        if (trace.length) {
+          process.stderr.write(color.wrap('Stack trace:\n', [color.effect.bold, color.foreground.magenta]));
+          for (const item of trace) {
+            process.stderr.write(
+              '  ' +
+                color.wrap('at ', [color.effect.dim]) +
+                color.wrap(item.caller, [color.foreground.yellow]) +
+                (item.method ? color.wrap(`.${item.method}`, [color.foreground.blue]) : '') +
+                ' ' +
+                color.wrap(this.excludePath(item.file), [color.foreground.cyan]) +
+                '\n',
+            );
+          }
+        }
+      }
+      process.stderr.write(color.wrap('Original log payload:\n', [color.effect.bold, color.foreground.magenta]));
+      process.stderr.write(data.endsWith('\n') ? data : data + '\n');
+      process.stderr.write(color.wrap('-'.repeat(message.length), [color.foreground.red]));
     }
   }
 
-  private stackToTrace(stack = '', filterNode = false): LoggerNestMetadataInterface[] {
-    if (!stack) return [];
+  private stackToTrace(stack = ''): LoggerNestMetadataInterface[] {
+    if (!stack) {
+      return [];
+    }
     const result: LoggerNestMetadataInterface[] = [];
     for (const match of stack.matchAll(STACK_REGEXP)) {
       const context = match[1];
@@ -291,10 +364,7 @@ export class LoggerNestClass {
       const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
       const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
       const file = match[2];
-      if (
-        filterNode &&
-        (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === ''))
-      ) {
+      if (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === '')) {
         continue;
       }
       result.push({ caller, method, file });
@@ -302,13 +372,15 @@ export class LoggerNestClass {
     return result;
   }
 
-  private excludePath(fromPath: string): string {
+  private excludePath(path: string): string {
     const root = process.cwd();
-    if (!root) return fromPath;
-    if (fromPath.startsWith(root)) {
-      const rest = fromPath.slice(root.length).replace(/^\/|\/$/g, '');
+    if (!root) {
+      return path;
+    }
+    if (path.startsWith(root)) {
+      const rest = path.slice(root.length).replace(/^\/|\/$/g, '');
       return rest || '.';
     }
-    return fromPath.replace(/^\/|\/$/g, '');
+    return path.replace(/^\/|\/$/g, '');
   }
 }

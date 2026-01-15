@@ -1,5 +1,6 @@
 import * as util from 'node:util';
 import { ConsoleClass } from './console.class';
+import { LoggerNestMetadataInterface } from './logger-nest.class';
 
 type LevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG';
 
@@ -123,7 +124,7 @@ export class LoggerSystemClass {
         } else {
           this.stdout('    ');
         }
-        this.stdout(this.excludePath(item.file, process.cwd()));
+        this.stdout(this.excludePath(item.file));
       });
     this.stdout(`\n${this.color.wrap('}', [this.color.effect.bold, this.color.foreground.cyan])}`);
     this.stdout(' ');
@@ -150,7 +151,7 @@ export class LoggerSystemClass {
       this.stdout(this.color.wrap(' at ', [this.getBackground(level)]));
       this.stdout(' ');
     }
-    this.stdout(this.excludePath(link, process.cwd()));
+    this.stdout(this.excludePath(link));
   }
 
   public printError(error: Error): void {
@@ -272,55 +273,88 @@ export class LoggerSystemClass {
     });
   }
 
-  public stdout(data: string): void {
+  private stdout(data: string): void {
     try {
       process.stdout.write(data);
     } catch (e) {
       const error = e as Error;
-      process.stdout.write('\n---------');
-      process.stdout.write(`${this.constructor.name}\n`);
-      process.stdout.write(`Message: ${error.message}\n`);
-      process.stdout.write(`Name: ${error.name}\n`);
-      process.stdout.write('Data: ');
-      process.stdout.write(data);
-      process.stdout.write('\n');
-      process.stdout.write('---------\n');
+      const color = this.color; // ConsoleClass
+      const message = '---------------[LOGGER STDOUT ERROR]---------------';
+      process.stderr.write('\n');
+      process.stderr.write(color.wrap(message, [color.effect.bold, color.foreground.red]) + '\n');
+      process.stderr.write(
+        color.wrap('Source: ', [color.effect.dim]) +
+          color.wrap(this.constructor.name, [color.foreground.yellow]) +
+          '\n',
+      );
+      process.stderr.write(
+        color.wrap('Error : ', [color.effect.dim]) +
+          color.wrap(`${error.name}: ${error.message}`, [color.foreground.red]) +
+          '\n',
+      );
+      // аккуратно разобранный стек
+      if (error.stack) {
+        const trace = this.stackToTrace(error.stack);
+        if (trace.length) {
+          process.stderr.write(color.wrap('Stack trace:\n', [color.effect.bold, color.foreground.magenta]));
+          for (const item of trace) {
+            process.stderr.write(
+              '  ' +
+                color.wrap('at ', [color.effect.dim]) +
+                color.wrap(item.caller, [color.foreground.yellow]) +
+                (item.method ? color.wrap(`.${item.method}`, [color.foreground.blue]) : '') +
+                ' ' +
+                color.wrap(this.excludePath(item.file), [color.foreground.cyan]) +
+                '\n',
+            );
+          }
+        }
+      }
+      process.stderr.write(color.wrap('Original log payload:\n', [color.effect.bold, color.foreground.magenta]));
+      process.stderr.write(data.endsWith('\n') ? data : data + '\n');
+      process.stderr.write(color.wrap('-'.repeat(message.length), [color.foreground.red]));
     }
   }
 
-  private stackToTrace(stack = ''): TraceInterface[] {
-    if (!stack) return [];
-    const result: TraceInterface[] = [];
+  private stackToTrace(stack = ''): LoggerNestMetadataInterface[] {
+    if (!stack) {
+      return [];
+    }
+    const result: LoggerNestMetadataInterface[] = [];
     for (const match of stack.matchAll(STACK_REGEXP)) {
       const context = match[1];
       const dotIndex = context.indexOf('.');
       const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
       const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
       const file = match[2];
+      if (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === '')) {
+        continue;
+      }
       result.push({ caller, method, file });
     }
     return result;
   }
 
-  private excludePath(fromPath: string, excludePath = ''): string {
-    const path = excludePath ? excludePath : process.cwd();
-    if (!path) return fromPath;
-    if (fromPath.startsWith(path)) {
-      const rest = fromPath.slice(path.length).replace(/^\/|\/$/g, '');
+  private excludePath(path: string): string {
+    const root = process.cwd();
+    if (!root) {
+      return path;
+    }
+    if (path.startsWith(root)) {
+      const rest = path.slice(root.length).replace(/^\/|\/$/g, '');
       return rest || '.';
     }
-    return fromPath.replace(/^\/|\/$/g, '');
+    return path.replace(/^\/|\/$/g, '');
   }
 
   private filterCircular(data: unknown): unknown {
     const cache = new WeakSet();
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
-        const error = item as Error & { messageIsJson?: boolean };
         return {
-          name: error.name,
-          message: error.messageIsJson ? this.jsonParse(error.message) : error.message,
-          stack: this.stackToTrace(error.stack ?? ''),
+          name: item.name,
+          message: this.isJsonError(item) ? this.jsonParse(item.message) : item.message,
+          stack: this.stackToTrace(item.stack),
         };
       }
       if (item === null || typeof item !== 'object') {
