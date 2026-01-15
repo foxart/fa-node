@@ -1,23 +1,21 @@
 import { LoggerService } from '@nestjs/common';
-import type {
-  LoggerNestFormatterInterface,
+import { LoggerSystemOptionsInterface } from '../classes/logger-system.class';
+import {
+  LoggerNestClass,
+  LoggerNestInterface,
+  LoggerNestLevelType,
   LoggerNestMetadataInterface,
-  LoggerNestOutputterInterface,
 } from './logger-nest.class';
-import { LoggerNestLevelType } from './logger-nest.class';
 
 export class NestLoggerApplicationAbstract implements LoggerService {
-  private readonly outputter: LoggerNestFormatterInterface | LoggerNestOutputterInterface;
+  private readonly logger: LoggerNestInterface;
 
-  public constructor(outputter: LoggerNestFormatterInterface | LoggerNestOutputterInterface) {
-    this.outputter = outputter;
+  public constructor(options: LoggerSystemOptionsInterface) {
+    this.logger = new LoggerNestClass(options);
   }
 
   private get traceMetadata(): LoggerNestMetadataInterface {
-    if (this.isFormatter(this.outputter)) {
-      return this.outputter.metadata(new Error().stack, 2);
-    }
-    return this.fallbackMetadata(new Error().stack, 2);
+    return this.logger.metadata(new Error().stack, 2);
   }
 
   public log(message: unknown, ...args: unknown[]): void {
@@ -41,50 +39,32 @@ export class NestLoggerApplicationAbstract implements LoggerService {
   }
 
   protected write(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface, ...params: unknown[]): void {
-    if (this.isFormatter(this.outputter)) {
-      this.outputter.stdout(level, metadata, params, undefined, 'application');
+    if (this.logger.stdout) {
+      this.logger.stdout(level, metadata, params, undefined, 'application');
       return;
     }
     this.outputByLevel(level, ...params);
   }
 
   private outputByLevel(level: LoggerNestLevelType, ...data: unknown[]): void {
-    if (this.isFormatter(this.outputter)) {
-      return;
-    }
-    const outputter = this.outputter;
     switch (level) {
       case 'INF':
-        outputter.info(...data);
+        this.logger.info(...data);
         break;
       case 'WRN':
-        outputter.warn(...data);
+        this.logger.warn(...data);
         break;
       case 'ERR':
       case 'FTL':
-        if (outputter.fatal && level === 'FTL') {
-          outputter.fatal(...data);
-        } else {
-          outputter.error(...data);
-        }
+        this.logger.error(...data);
         break;
       case 'DBG':
-        outputter.debug(...data);
+        this.logger.debug(...data);
         break;
       default:
-        outputter.log(...data);
+        this.logger.log(...data);
         break;
     }
-  }
-
-  private isFormatter(
-    outputter: LoggerNestFormatterInterface | LoggerNestOutputterInterface,
-  ): outputter is LoggerNestFormatterInterface {
-    return (
-      typeof (outputter as LoggerNestFormatterInterface).format === 'function' &&
-      typeof (outputter as LoggerNestFormatterInterface).metadata === 'function' &&
-      typeof (outputter as LoggerNestFormatterInterface).stdout === 'function'
-    );
   }
 
   private fallbackMetadata(stack = '', level: number): LoggerNestMetadataInterface {

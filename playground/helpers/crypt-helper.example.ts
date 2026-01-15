@@ -1,6 +1,5 @@
 import {
   CryptClass,
-  LoggerNestClass,
   LoggerSystemClass,
   NestLoggerApplicationAbstract,
   NestLoggerSystemAbstract,
@@ -70,7 +69,7 @@ export function run(): void {
     /** */
     sort: true,
   });
-  const loggerNest = new LoggerNestClass({
+  const application = new NestLoggerApplicationAbstract({
     pid: true,
     date: true,
     time: true,
@@ -83,8 +82,19 @@ export function run(): void {
     stackError: true,
     stackDebug: true,
   });
-  const application = new NestLoggerApplicationAbstract(loggerNest);
-  const system = new NestLoggerSystemAbstract(loggerNest);
+  const system = new NestLoggerSystemAbstract({
+    pid: true,
+    date: true,
+    time: true,
+    // link: true,
+    hidden: true,
+    sort: true,
+    color: true,
+    info: true,
+    performance: true,
+    stackError: true,
+    stackDebug: true,
+  });
   application.warn(new Error('Error').message, '{a}', [1, 2, 3]);
   system.error(new Error('Error').name, '{a}', [1, 2, 3]);
   customConsole.log(process.cwd(), __dirname);

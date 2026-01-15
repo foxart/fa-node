@@ -22,7 +22,7 @@ export interface LoggerNestMetadataInterface {
   method: string | undefined;
 }
 
-export interface LoggerNestFormatterInterface {
+export interface LoggerNestInterface {
   metadata: (stack?: string, level?: number) => LoggerNestMetadataInterface;
   stdout: (
     level: LoggerNestLevelType,
@@ -31,23 +31,11 @@ export interface LoggerNestFormatterInterface {
     callerOverride?: string,
     mode?: 'system' | 'application',
   ) => void;
-  format: (
-    level: LoggerNestLevelType,
-    metadata: LoggerNestMetadataInterface,
-    message: unknown | unknown[],
-    callerOverride?: string,
-    mode?: 'system' | 'application',
-  ) => string;
-  raw: (data: string) => void;
-}
-
-export interface LoggerNestOutputterInterface {
   log: (...args: unknown[]) => void;
   info: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
   error: (...args: unknown[]) => void;
   debug: (...args: unknown[]) => void;
-  fatal?: (...args: unknown[]) => void;
 }
 
 const COLOR_MAP = {
@@ -181,11 +169,8 @@ export class LoggerNestClass {
     mode: 'system' | 'application' = 'system',
   ): void {
     const line = this.format(level, metadata, message, callerOverride, mode);
-    this.output(level, line);
-  }
-
-  public raw(data: string): void {
-    this.stdoutRaw(data);
+    // this.output(level, line);
+    this.stdoutRaw(line);
   }
 
   public format(
@@ -199,10 +184,6 @@ export class LoggerNestClass {
     const data = Array.isArray(message) ? message : [message];
     const normalizedMetadata = { ...metadata, caller };
     return this.formatLine(level, normalizedMetadata, data, mode);
-  }
-
-  protected output(_level: LoggerNestLevelType, line: string): void {
-    this.stdoutRaw(line);
   }
 
   private formatLine(
@@ -636,12 +617,16 @@ export class LoggerNestClass {
   private stdoutRaw(data: string): void {
     try {
       process.stdout.write(data);
-    } catch (error) {
-      const err = error as Error;
-      console.error('\n', this.constructor.name);
-      console.error('Name:', err.name);
-      console.error('Message:', err.message);
-      console.error('Data:', data, '\n');
+    } catch (e) {
+      const error = e as Error;
+      process.stdout.write('\n---------');
+      process.stdout.write(`${this.constructor.name}\n`);
+      process.stdout.write(`Message: ${error.message}\n`);
+      process.stdout.write(`Name: ${error.name}\n`);
+      process.stdout.write('Data: ');
+      process.stdout.write(data);
+      process.stdout.write('\n');
+      process.stdout.write('---------\n');
     }
   }
 

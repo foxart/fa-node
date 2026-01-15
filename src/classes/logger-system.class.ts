@@ -7,7 +7,7 @@ const { foreground, background, effect } = ColorHelper;
 
 export type ConsoleSystemLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 
-export interface ConsoleOptionsInterface {
+export interface LoggerSystemOptionsInterface {
   /** console */
   color?: boolean;
   info?: boolean;
@@ -32,7 +32,7 @@ export class LoggerSystemClass {
   private readonly performance: number;
   private readonly traceIndex: number;
 
-  public constructor(private readonly options: ConsoleOptionsInterface) {
+  public constructor(private readonly options: LoggerSystemOptionsInterface) {
     // this.console = Object.assign({}, console);
     this.pid = process.pid.toString();
     this.performance = performance.now();
