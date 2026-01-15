@@ -16,7 +16,6 @@ export * from './classes/validator.class';
 /** HELPERS */
 export * from './helpers/check.helper';
 export * from './helpers/codegen.helper';
-export * from './helpers/color.helper';
 export * from './helpers/console.helper';
 export * from './helpers/converter.helper';
 export * from './helpers/data.helper';
@@ -27,5 +26,4 @@ export * from './helpers/migration-mongo.helper';
 export * from './helpers/parser.helper';
 export * from './helpers/password.helper';
 export * from './helpers/random.helper';
-export * from './helpers/symbol.helper';
 export * from './helpers/system.helper';

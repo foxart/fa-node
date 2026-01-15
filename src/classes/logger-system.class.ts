@@ -1,4 +1,5 @@
 import * as util from 'node:util';
+import { ConsoleClass } from './console.class';
 
 type LevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG';
 
@@ -29,75 +30,17 @@ interface OptionsInterface {
 
 const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
 
-const COLOR = {
-  foreground: {
-    red: '\u001b[31m',
-    green: '\u001b[32m',
-    blue: '\u001b[34m',
-    yellow: '\u001b[33m',
-    magenta: '\u001b[35m',
-    cyan: '\u001b[36m',
-    white: '\u001b[37m',
-  },
-  background: {
-    red: '\u001b[41m',
-    green: '\u001b[42m',
-    blue: '\u001b[44m',
-    yellow: '\u001b[43m',
-    magenta: '\u001b[45m',
-    cyan: '\u001b[46m',
-    white: '\u001b[47m',
-  },
-  effect: {
-    bold: '\u001b[1m',
-    dim: '\u001b[2m',
-    reset: '\u001b[0m',
-  },
-};
-
-const NO_COLOR: typeof COLOR = {
-  foreground: {
-    red: '',
-    green: '',
-    blue: '',
-    yellow: '',
-    magenta: '',
-    cyan: '',
-    white: '',
-  },
-  background: {
-    red: '',
-    green: '',
-    blue: '',
-    yellow: '',
-    magenta: '',
-    cyan: '',
-    white: '',
-  },
-  effect: {
-    bold: '',
-    dim: '',
-    reset: '',
-  },
-};
-
 export class LoggerSystemClass {
-  // public readonly console: Console;
   private readonly pid: string;
   private readonly performance: number;
   private readonly traceIndex: number;
-  private readonly foreground: typeof COLOR.foreground;
-  private readonly background: typeof COLOR.background;
-  private readonly effect: typeof COLOR.effect;
+  private readonly color: ConsoleClass;
 
   public constructor(private readonly options: OptionsInterface) {
     this.pid = process.pid.toString();
     this.performance = performance.now();
     this.traceIndex = options.traceIndex ?? 1;
-    const color = options.color === true ? COLOR : NO_COLOR;
-    this.foreground = color.foreground;
-    this.background = color.background;
-    this.effect = color.effect;
+    this.color = this.options.color ? new ConsoleClass(true) : new ConsoleClass(false);
   }
 
   public log(...data: unknown[]): void {
@@ -154,7 +97,7 @@ export class LoggerSystemClass {
       return item;
     });
     if (info.length) {
-      this.stdout(info.join(this.wrapData(' \u2503 ', [this.getForeground(level)])));
+      this.stdout(info.join(this.color.wrap(' \u2503 ', [this.getForeground(level)])));
       this.stdout(' ');
     }
   }
@@ -163,12 +106,12 @@ export class LoggerSystemClass {
     if (!this.options.info) {
       return;
     }
-    this.stdout(this.wrapData(` ${level} `, [this.getBackground(level)]));
+    this.stdout(this.color.wrap(` ${level} `, [this.getBackground(level)]));
     this.stdout(' ');
   }
 
   public printTrace(level: LevelType, trace: TraceInterface[]): void {
-    this.stdout(this.wrapData('{', [this.effect.bold, this.foreground.cyan]));
+    this.stdout(this.color.wrap('{', [this.color.effect.bold, this.color.foreground.cyan]));
     trace
       .filter((item) => {
         return !item.file.includes('node_modules/') && !item.file.includes('node:');
@@ -176,13 +119,13 @@ export class LoggerSystemClass {
       .forEach((item) => {
         this.stdout('\n');
         if (this.options.info) {
-          this.stdout(this.wrapData(' at ', [this.effect.dim, this.getForeground(level)]));
+          this.stdout(this.color.wrap(' at ', [this.color.effect.dim, this.getForeground(level)]));
         } else {
           this.stdout('    ');
         }
         this.stdout(this.excludePath(item.file, process.cwd()));
       });
-    this.stdout(`\n${this.wrapData('}', [this.effect.bold, this.foreground.cyan])}`);
+    this.stdout(`\n${this.color.wrap('}', [this.color.effect.bold, this.color.foreground.cyan])}`);
     this.stdout(' ');
   }
 
@@ -190,9 +133,11 @@ export class LoggerSystemClass {
     if (!this.options.performance) {
       return;
     }
-    this.stdout(this.wrapData('+', [this.effect.dim, this.foreground.cyan]));
-    this.stdout(this.wrapData(Math.floor(performance.now() - this.performance).toString(), [this.foreground.cyan]));
-    this.stdout(this.wrapData('ms', [this.effect.dim, this.foreground.cyan]));
+    this.stdout(this.color.wrap('+', [this.color.effect.dim, this.color.foreground.cyan]));
+    this.stdout(
+      this.color.wrap(Math.floor(performance.now() - this.performance).toString(), [this.color.foreground.cyan]),
+    );
+    this.stdout(this.color.wrap('ms', [this.color.effect.dim, this.color.foreground.cyan]));
     this.stdout(' ');
   }
 
@@ -202,15 +147,15 @@ export class LoggerSystemClass {
     }
     this.stdout('\n');
     if (this.options.info) {
-      this.stdout(this.wrapData(' at ', [this.getBackground(level)]));
+      this.stdout(this.color.wrap(' at ', [this.getBackground(level)]));
       this.stdout(' ');
     }
     this.stdout(this.excludePath(link, process.cwd()));
   }
 
   public printError(error: Error): void {
-    this.stdout(this.wrapData(error.name, [this.effect.bold, this.foreground.red]));
-    this.stdout(this.wrapData(': ', [this.effect.dim, this.foreground.red]));
+    this.stdout(this.color.wrap(error.name, [this.color.effect.bold, this.color.foreground.red]));
+    this.stdout(this.color.wrap(': ', [this.color.effect.dim, this.color.foreground.red]));
     if (error.message) {
       if (this.isJsonError(error)) {
         this.stdout(this.prettify(this.jsonParse(error.message)));
@@ -235,7 +180,7 @@ export class LoggerSystemClass {
     if (!this.options.pid) {
       return;
     }
-    return this.wrapData(this.pid, [this.foreground.cyan]);
+    return this.color.wrap(this.pid, [this.color.foreground.cyan]);
   }
 
   public getDate(): string | void {
@@ -244,11 +189,11 @@ export class LoggerSystemClass {
     }
     const date = new Date();
     return [
-      this.wrapData(`${date.getFullYear()}`.padStart(2, '0'), [this.foreground.magenta]),
-      this.wrapData('-', [this.foreground.cyan]),
-      this.wrapData(`${date.getMonth() + 1}`.padStart(2, '0'), [this.foreground.magenta]),
-      this.wrapData('-', [this.foreground.cyan]),
-      this.wrapData(`${date.getDate()}`.padStart(2, '0'), [this.foreground.magenta]),
+      this.color.wrap(`${date.getFullYear()}`.padStart(2, '0'), [this.color.foreground.magenta]),
+      this.color.wrap('-', [this.color.foreground.cyan]),
+      this.color.wrap(`${date.getMonth() + 1}`.padStart(2, '0'), [this.color.foreground.magenta]),
+      this.color.wrap('-', [this.color.foreground.cyan]),
+      this.color.wrap(`${date.getDate()}`.padStart(2, '0'), [this.color.foreground.magenta]),
     ].join('');
   }
 
@@ -258,13 +203,16 @@ export class LoggerSystemClass {
     }
     const date = new Date();
     return [
-      this.wrapData(`${date.getHours()}`.padStart(2, '0'), [this.foreground.cyan]),
-      this.wrapData(':', [this.foreground.magenta]),
-      this.wrapData(`${date.getMinutes()}`.padStart(2, '0'), [this.foreground.cyan]),
-      this.wrapData(':', [this.foreground.magenta]),
-      this.wrapData(`${date.getSeconds()}`.padStart(2, '0'), [this.foreground.cyan]),
-      this.wrapData('.', [this.foreground.magenta]),
-      this.wrapData(`${date.getMilliseconds()}`.padStart(2, '0'), [this.effect.dim, this.foreground.cyan]),
+      this.color.wrap(`${date.getHours()}`.padStart(2, '0'), [this.color.foreground.cyan]),
+      this.color.wrap(':', [this.color.foreground.magenta]),
+      this.color.wrap(`${date.getMinutes()}`.padStart(2, '0'), [this.color.foreground.cyan]),
+      this.color.wrap(':', [this.color.foreground.magenta]),
+      this.color.wrap(`${date.getSeconds()}`.padStart(2, '0'), [this.color.foreground.cyan]),
+      this.color.wrap('.', [this.color.foreground.magenta]),
+      this.color.wrap(`${date.getMilliseconds()}`.padStart(2, '0'), [
+        this.color.effect.dim,
+        this.color.foreground.cyan,
+      ]),
     ].join('');
   }
 
@@ -281,40 +229,40 @@ export class LoggerSystemClass {
   public getBackground(level: LevelType): string {
     switch (level) {
       case 'LOG':
-        return this.background.green;
+        return this.color.background.green;
       case 'INF':
-        return this.background.blue;
+        return this.color.background.blue;
       case 'WRN':
-        return this.background.yellow;
+        return this.color.background.yellow;
       case 'ERR':
-        return this.background.red;
+        return this.color.background.red;
       case 'DBG':
-        return this.background.white;
+        return this.color.background.white;
       default:
-        return this.background.magenta;
+        return this.color.background.magenta;
     }
   }
 
   public getForeground(level: LevelType): string {
     switch (level) {
       case 'LOG':
-        return this.foreground.green;
+        return this.color.foreground.green;
       case 'INF':
-        return this.foreground.blue;
+        return this.color.foreground.blue;
       case 'WRN':
-        return this.foreground.yellow;
+        return this.color.foreground.yellow;
       case 'ERR':
-        return this.foreground.red;
+        return this.color.foreground.red;
       case 'DBG':
-        return this.foreground.white;
+        return this.color.foreground.white;
       default:
-        return this.foreground.magenta;
+        return this.color.foreground.magenta;
     }
   }
 
   public prettify(data: unknown): string {
     if (typeof data === 'string') {
-      return this.wrapData(data, [this.foreground.white]);
+      return this.color.wrap(data, [this.color.foreground.white]);
     }
     return util.inspect(this.filterCircular(data), {
       colors: this.options.color,
@@ -414,9 +362,5 @@ export class LoggerSystemClass {
     } catch (e) {
       return data;
     }
-  }
-
-  private wrapData(data: string, styles: string[]): string {
-    return `${styles.join('')}${data}${this.effect.reset}`;
   }
 }

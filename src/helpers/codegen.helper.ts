@@ -3,15 +3,18 @@ import fs from 'fs';
 import { buildClientSchema, IntrospectionQuery, printSchema } from 'graphql';
 import path from 'path';
 import { promisify } from 'util';
-import { ColorHelper } from './color.helper';
-import { SymbolHelper } from './symbol.helper';
+import { ConsoleClass } from '../classes/console.class';
 
 type JsonType = string | number | boolean | null | { [key: string]: JsonType } | JsonType[];
 
-const { foreground, background, effect } = ColorHelper;
-
 class CodegenSingleton {
   private static self: CodegenSingleton;
+
+  private readonly color: ConsoleClass;
+
+  private constructor() {
+    this.color = new ConsoleClass(true);
+  }
 
   public static getInstance(): CodegenSingleton {
     if (!CodegenSingleton.self) {
@@ -22,35 +25,35 @@ class CodegenSingleton {
 
   public displayMessage(name: string, message: string): void {
     const result = [
-      ColorHelper.wrapData(` ${name.toUpperCase()} `, [background.CYAN]),
-      ColorHelper.wrapData(` ${message}`, [foreground.CYAN]),
+      this.color.wrap(` ${name.toUpperCase()} `, [this.color.background.cyan]),
+      this.color.wrap(` ${message}`, [this.color.foreground.cyan]),
     ];
     console.log(result.join(''));
   }
 
   public logSuccess(context: string, message: string): void {
     const result = [
-      ColorHelper.wrapData(context, [foreground.WHITE]),
-      ColorHelper.wrapData(` ${SymbolHelper.status.SUCCESS} `, [effect.BOLD, foreground.GREEN]),
-      ColorHelper.wrapData(message, [effect.DIM, foreground.GREEN]),
+      this.color.wrap(context, [this.color.foreground.white]),
+      this.color.wrap(` ${this.color.status.success} `, [this.color.effect.bold, this.color.foreground.green]),
+      this.color.wrap(message, [this.color.effect.dim, this.color.foreground.green]),
     ];
     console.log(result.join(''));
   }
 
   public logWarning(context: string, message: string): void {
     const result = [
-      ColorHelper.wrapData(context, [foreground.WHITE]),
-      ColorHelper.wrapData(` ${SymbolHelper.status.WARNING} `, [effect.BOLD, foreground.YELLOW]),
-      ColorHelper.wrapData(message, [effect.DIM, foreground.YELLOW]),
+      this.color.wrap(context, [this.color.foreground.white]),
+      this.color.wrap(` ${this.color.status.warning} `, [this.color.effect.bold, this.color.foreground.yellow]),
+      this.color.wrap(message, [this.color.effect.dim, this.color.foreground.yellow]),
     ];
     console.log(result.join(''));
   }
 
   public logError(context: string, err: Error): void {
     const result = [
-      ColorHelper.wrapData(context, [foreground.WHITE]),
-      ColorHelper.wrapData(` ${SymbolHelper.status.ERROR} `, [effect.BOLD, foreground.RED]),
-      ColorHelper.wrapData(err.message, [effect.DIM, foreground.RED]),
+      this.color.wrap(context, [this.color.foreground.white]),
+      this.color.wrap(` ${this.color.status.error} `, [this.color.effect.bold, this.color.foreground.red]),
+      this.color.wrap(err.message, [this.color.effect.dim, this.color.foreground.red]),
     ];
     console.log(result.join(''));
   }
