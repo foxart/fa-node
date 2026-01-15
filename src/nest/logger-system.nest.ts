@@ -1,22 +1,20 @@
 import { LoggerService } from '@nestjs/common';
-import { LoggerSystemOptionsInterface } from '../classes/logger-system.class';
 import {
   LoggerNestClass,
-  LoggerNestInterface,
   LoggerNestLevelType,
   LoggerNestMetadataInterface,
-} from './logger-nest.class';
+  LoggerNestOptionsInterface,
+} from '../classes/logger-nest.class';
 
-export class NestLoggerSystemAbstract implements LoggerService {
-  private readonly logger: LoggerNestInterface;
+export class LoggerSystemNest implements LoggerService {
+  private readonly logger: LoggerNestClass;
 
-  public constructor(options: LoggerSystemOptionsInterface) {
+  public constructor(options: LoggerNestOptionsInterface) {
     this.logger = new LoggerNestClass(options);
   }
 
   private get traceMetadata(): LoggerNestMetadataInterface {
-    const { caller, file } = this.logger.metadata(new Error().stack, 2);
-    return { caller, file, method: undefined };
+    return this.logger.metadata(new Error().stack, 2);
   }
 
   public log(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
@@ -89,31 +87,6 @@ export class NestLoggerSystemAbstract implements LoggerService {
       return;
     }
     const caller = context ? context : metadata.caller;
-    if (this.logger.stdout) {
-      this.logger.stdout(level, metadata, [message, ...params], caller, 'system');
-      return;
-    }
-    this.outputByLevel(level, message, ...params, caller);
-  }
-
-  private outputByLevel(level: LoggerNestLevelType, ...data: unknown[]): void {
-    switch (level) {
-      case 'INF':
-        this.logger.info(...data);
-        break;
-      case 'WRN':
-        this.logger.warn(...data);
-        break;
-      case 'ERR':
-      case 'FTL':
-        this.logger.error(...data);
-        break;
-      case 'DBG':
-        this.logger.debug(...data);
-        break;
-      default:
-        this.logger.log(...data);
-        break;
-    }
+    this.logger.print(level, metadata, [message, ...params], caller);
   }
 }

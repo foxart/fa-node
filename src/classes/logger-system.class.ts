@@ -5,9 +5,9 @@ import { ErrorClass } from './error.class';
 
 const { foreground, background, effect } = ColorHelper;
 
-export type ConsoleSystemLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
+export type LoggerNodeLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG';
 
-export interface LoggerSystemOptionsInterface {
+export interface LoggerNodeOptionsInterface {
   /** console */
   color?: boolean;
   info?: boolean;
@@ -32,7 +32,7 @@ export class LoggerSystemClass {
   private readonly performance: number;
   private readonly traceIndex: number;
 
-  public constructor(private readonly options: LoggerSystemOptionsInterface) {
+  public constructor(private readonly options: LoggerNodeOptionsInterface) {
     // this.console = Object.assign({}, console);
     this.pid = process.pid.toString();
     this.performance = performance.now();
@@ -59,11 +59,7 @@ export class LoggerSystemClass {
     this.print('DBG', this.getStack(new Error().stack), data);
   }
 
-  public fatal(...data: unknown[]): void {
-    this.print('FTL', this.getStack(new Error().stack), data);
-  }
-
-  public print(level: ConsoleSystemLevelType, trace: StackToTraceInterface[], args: unknown[]): void {
+  public print(level: LoggerNodeLevelType, trace: StackToTraceInterface[], args: unknown[]): void {
     this.printLevel(level);
     this.printInfo(level);
     args.forEach((item, index) => {
@@ -86,7 +82,7 @@ export class LoggerSystemClass {
     this.stdout('\n');
   }
 
-  public printInfo(level: ConsoleSystemLevelType): void {
+  public printInfo(level: LoggerNodeLevelType): void {
     const info = [
       this.getName(),
       this.getPid(),
@@ -103,7 +99,7 @@ export class LoggerSystemClass {
     }
   }
 
-  public printLevel(level: ConsoleSystemLevelType): void {
+  public printLevel(level: LoggerNodeLevelType): void {
     if (!this.options.info) {
       return;
     }
@@ -111,7 +107,7 @@ export class LoggerSystemClass {
     this.stdout(' ');
   }
 
-  public printTrace(level: ConsoleSystemLevelType, trace: StackToTraceInterface[]): void {
+  public printTrace(level: LoggerNodeLevelType, trace: StackToTraceInterface[]): void {
     this.stdout(ColorHelper.wrapData('{', [effect.BOLD, foreground.CYAN]));
     trace
       .filter((item) => {
@@ -140,7 +136,7 @@ export class LoggerSystemClass {
     this.stdout(' ');
   }
 
-  public printLink(level: ConsoleSystemLevelType, link: string): void {
+  public printLink(level: LoggerNodeLevelType, link: string): void {
     if (!this.options.link) {
       return;
     }
@@ -222,7 +218,7 @@ export class LoggerSystemClass {
     });
   }
 
-  public getBackground(level: ConsoleSystemLevelType): string {
+  public getBackground(level: LoggerNodeLevelType): string {
     switch (level) {
       case 'LOG':
         return background.GREEN;
@@ -239,7 +235,7 @@ export class LoggerSystemClass {
     }
   }
 
-  public getForeground(level: ConsoleSystemLevelType): string {
+  public getForeground(level: LoggerNodeLevelType): string {
     switch (level) {
       case 'LOG':
         return foreground.GREEN;

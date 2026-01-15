@@ -22,22 +22,6 @@ export interface LoggerNestMetadataInterface {
   method: string | undefined;
 }
 
-export interface LoggerNestInterface {
-  metadata: (stack?: string, level?: number) => LoggerNestMetadataInterface;
-  stdout: (
-    level: LoggerNestLevelType,
-    metadata: LoggerNestMetadataInterface,
-    message: unknown | unknown[],
-    callerOverride?: string,
-    mode?: 'system' | 'application',
-  ) => void;
-  log: (...args: unknown[]) => void;
-  info: (...args: unknown[]) => void;
-  warn: (...args: unknown[]) => void;
-  error: (...args: unknown[]) => void;
-  debug: (...args: unknown[]) => void;
-}
-
 const COLOR_MAP = {
   red: '\u001b[31m',
   green: '\u001b[32m',
@@ -47,16 +31,6 @@ const COLOR_MAP = {
   cyan: '\u001b[36m',
   white: '\x1b[37m',
   gray: '\x1b[90m',
-  reset: '\u001b[0m',
-};
-
-const BACKGROUND_MAP = {
-  red: '\u001b[41m',
-  green: '\u001b[42m',
-  blue: '\u001b[44m',
-  yellow: '\u001b[43m',
-  magenta: '\u001b[45m',
-  white: '\u001b[47m',
   reset: '\u001b[0m',
 };
 
@@ -72,20 +46,16 @@ const NO_COLOR_MAP = {
   reset: '',
 };
 
-const NO_BACKGROUND_MAP = {
-  red: '',
-  green: '',
-  blue: '',
-  yellow: '',
-  magenta: '',
-  white: '',
-  reset: '',
-};
-
 const EFFECT_MAP = {
   bold: '\u001b[1m',
   dim: '\u001b[2m',
   reset: '\u001b[0m',
+};
+
+const NO_EFFECT_MAP = {
+  bold: '',
+  dim: '',
+  reset: '',
 };
 
 const NEST_CALLERS = [
@@ -107,37 +77,11 @@ export class LoggerNestClass {
   private readonly placeholderSplitRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")|([^{}'"]+)/g;
   private readonly performanceStart = performance.now();
   private readonly color: typeof COLOR_MAP;
-  private readonly background: typeof BACKGROUND_MAP;
-  private readonly traceIndex: number;
+  private readonly effect: typeof EFFECT_MAP;
 
   public constructor(protected readonly options: LoggerNestOptionsInterface) {
-    this.color = this.options.color === false ? NO_COLOR_MAP : COLOR_MAP;
-    this.background = this.options.color === false ? NO_BACKGROUND_MAP : BACKGROUND_MAP;
-    this.traceIndex = this.options.traceIndex ?? 1;
-  }
-
-  public log(...data: unknown[]): void {
-    this.print('LOG', this.getStack(new Error().stack), data);
-  }
-
-  public info(...data: unknown[]): void {
-    this.print('INF', this.getStack(new Error().stack), data);
-  }
-
-  public warn(...data: unknown[]): void {
-    this.print('WRN', this.getStack(new Error().stack), data);
-  }
-
-  public error(...data: unknown[]): void {
-    this.print('ERR', this.getStack(new Error().stack), data);
-  }
-
-  public debug(...data: unknown[]): void {
-    this.print('DBG', this.getStack(new Error().stack), data);
-  }
-
-  public fatal(...data: unknown[]): void {
-    this.print('FTL', this.getStack(new Error().stack), data);
+    this.color = this.options.color === true ? COLOR_MAP : NO_COLOR_MAP;
+    this.effect = this.options.color === true ? EFFECT_MAP : NO_EFFECT_MAP;
   }
 
   public metadata(stack = '', level: number): LoggerNestMetadataInterface {
@@ -161,40 +105,21 @@ export class LoggerNestClass {
     };
   }
 
-  public stdout(
+  public print(
     level: LoggerNestLevelType,
     metadata: LoggerNestMetadataInterface,
     message: unknown | unknown[],
     callerOverride?: string,
-    mode: 'system' | 'application' = 'system',
   ): void {
-    const line = this.format(level, metadata, message, callerOverride, mode);
-    // this.output(level, line);
-    this.stdoutRaw(line);
-  }
-
-  public format(
-    level: LoggerNestLevelType,
-    metadata: LoggerNestMetadataInterface,
-    message: unknown | unknown[],
-    callerOverride?: string,
-    mode: 'system' | 'application' = 'system',
-  ): string {
     const caller = callerOverride ?? metadata.caller;
     const data = Array.isArray(message) ? message : [message];
-    const normalizedMetadata = { ...metadata, caller };
-    return this.formatLine(level, normalizedMetadata, data, mode);
+    this.stdout(this.format(level, { ...metadata, caller }, data));
   }
 
-  private formatLine(
-    level: LoggerNestLevelType,
-    metadata: LoggerNestMetadataInterface,
-    data: unknown[],
-    mode: 'system' | 'application',
-  ): string {
+  private format(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface, data: unknown[]): string {
     const parts: string[] = [];
     parts.push(this.formatHeader(level, metadata));
-    parts.push(this.formatMessages(level, data, metadata.caller, mode));
+    parts.push(this.formatMessages(level, data, metadata.caller));
     if (level === 'DBG' && this.options.stackDebug) {
       parts.push(this.formatTrace(level, this.stackToTrace(new Error().stack, true)));
     }
@@ -233,12 +158,7 @@ export class LoggerNestClass {
     return parts.join('');
   }
 
-  private formatMessage(
-    level: LoggerNestLevelType,
-    message: unknown,
-    caller: string,
-    mode: 'system' | 'application',
-  ): string {
+  private formatMessage(level: LoggerNestLevelType, message: unknown, caller: string): string {
     if (message instanceof Error) {
       const header = `${this.color.red}${message.name}${this.color.reset}: ${message.message}`;
       if (this.options.stackError && message.stack) {
@@ -247,7 +167,7 @@ export class LoggerNestClass {
       return header;
     }
     if (typeof message === 'string') {
-      const useLevelColor = mode === 'application' || NEST_CALLERS.includes(caller);
+      const useLevelColor = NEST_CALLERS.includes(caller);
       const color = useLevelColor ? this.getLevelColor(level) : this.color.white;
       if (this.options.color === false) {
         return message;
@@ -274,15 +194,10 @@ export class LoggerNestClass {
     return this.prettify(message);
   }
 
-  private formatMessages(
-    level: LoggerNestLevelType,
-    data: unknown[],
-    caller: string,
-    mode: 'system' | 'application',
-  ): string {
+  private formatMessages(level: LoggerNestLevelType, data: unknown[], caller: string): string {
     return data
       .map((item) => {
-        return this.formatMessage(level, item, caller, mode);
+        return this.formatMessage(level, item, caller);
       })
       .join(' ');
   }
@@ -304,10 +219,7 @@ export class LoggerNestClass {
 
   private formatPerformance(): string {
     const elapsed = Math.floor(performance.now() - this.performanceStart);
-    if (this.options.color === false) {
-      return `+${elapsed}ms `;
-    }
-    return `${this.color.gray}+${elapsed}ms${this.color.reset} `;
+    return ` ${this.effect.dim}${this.color.cyan}+${this.effect.reset}${this.color.cyan}${elapsed}${this.effect.dim}${this.color.cyan}ms${this.color.reset}`;
   }
 
   private getDate(): string {
@@ -375,7 +287,7 @@ export class LoggerNestClass {
       return `${this.color.white}${data}${this.color.reset}`;
     }
     return util.inspect(data, {
-      colors: this.options.color !== false,
+      colors: this.options.color,
       showHidden: this.options.hidden,
       sorted: this.options.sort,
       depth: null,
@@ -400,221 +312,7 @@ export class LoggerNestClass {
     return `${styles.join('')}${data}${EFFECT_MAP.reset}`;
   }
 
-  private print(level: LoggerNestLevelType, trace: LoggerNestMetadataInterface[], args: unknown[]): void {
-    this.printLevel(level);
-    this.printInfo(level);
-    args.forEach((item, index) => {
-      if (item instanceof Error) {
-        this.printError(item);
-      } else {
-        this.stdoutRaw(this.prettify(item));
-        this.stdoutRaw(' ');
-      }
-      if (index !== args.length - 1) {
-        this.stdoutRaw('\n');
-      }
-    });
-    if (level === 'DBG' && this.options.stackDebug) {
-      this.printTrace(level, this.getStack(new Error().stack));
-    }
-    this.printPerformance();
-    this.printLink(level, trace[this.traceIndex]?.file ?? 'unknown');
-    this.stdoutRaw('\n');
-  }
-
-  private printInfo(level: LoggerNestLevelType): void {
-    const info = [this.getSystemName(), this.getSystemPid(), this.getSystemDate(), this.getSystemTime()].filter(
-      (item) => {
-        return item;
-      },
-    );
-    if (info.length) {
-      this.stdoutRaw(info.join(this.wrapData(' \u2503 ', [this.getForeground(level)])));
-      this.stdoutRaw(' ');
-    }
-  }
-
-  private printLevel(level: LoggerNestLevelType): void {
-    if (!this.options.info) {
-      return;
-    }
-    this.stdoutRaw(this.wrapData(` ${level} `, [this.getBackground(level)]));
-    this.stdoutRaw(' ');
-  }
-
-  private printTrace(level: LoggerNestLevelType, trace: LoggerNestMetadataInterface[]): void {
-    this.stdoutRaw(this.wrapData('{', [EFFECT_MAP.bold, this.color.cyan]));
-    trace
-      .filter((item) => {
-        return !item.file.includes('node_modules/') && !item.file.includes('node:');
-      })
-      .forEach((item) => {
-        this.stdoutRaw('\n');
-        if (this.options.info) {
-          this.stdoutRaw(this.wrapData(' at ', [EFFECT_MAP.dim, this.getForeground(level)]));
-        } else {
-          this.stdoutRaw('    ');
-        }
-        this.stdoutRaw(this.excludePath(item.file));
-      });
-    this.stdoutRaw(`\n${this.wrapData('}', [EFFECT_MAP.bold, this.color.cyan])} `);
-  }
-
-  private printPerformance(): void {
-    if (!this.options.performance) {
-      return;
-    }
-    const elapsed = Math.floor(performance.now() - this.performanceStart);
-    if (this.options.color === false) {
-      this.stdoutRaw(`+${elapsed}ms `);
-      return;
-    }
-    this.stdoutRaw(this.wrapData('+', [EFFECT_MAP.dim, this.color.cyan]));
-    this.stdoutRaw(this.wrapData(elapsed.toString(), [this.color.cyan]));
-    this.stdoutRaw(this.wrapData('ms', [EFFECT_MAP.dim, this.color.cyan]));
-    this.stdoutRaw(' ');
-  }
-
-  private printLink(level: LoggerNestLevelType, link: string): void {
-    if (!this.options.link) {
-      return;
-    }
-    this.stdoutRaw('\n');
-    if (this.options.info) {
-      this.stdoutRaw(this.wrapData(' at ', [this.getBackground(level)]));
-      this.stdoutRaw(' ');
-    }
-    this.stdoutRaw(this.excludePath(link));
-  }
-
-  private printError(error: Error): void {
-    if (this.options.color === false) {
-      this.stdoutRaw(`${error.name}: ${error.message} `);
-      if (this.options.stackError && error.stack) {
-        this.stdoutRaw(error.stack);
-      }
-      return;
-    }
-    this.stdoutRaw(this.wrapData(error.name, [EFFECT_MAP.bold, this.color.red]));
-    this.stdoutRaw(this.wrapData(': ', [EFFECT_MAP.dim, this.color.red]));
-    if (error.message) {
-      this.stdoutRaw(error.message);
-      this.stdoutRaw(' ');
-    }
-    if (this.options.stackError && error.stack) {
-      this.printTrace('ERR', this.getStack(error.stack));
-    }
-  }
-
-  private getSystemName(): string | void {
-    if (!this.options.name) {
-      return;
-    }
-    return this.options.name;
-  }
-
-  private getSystemPid(): string | void {
-    if (!this.options.pid) {
-      return;
-    }
-    return this.wrapData(process.pid.toString(), [this.color.cyan]);
-  }
-
-  private getSystemDate(): string | void {
-    if (!this.options.date) {
-      return;
-    }
-    const date = new Date();
-    if (this.options.color === false) {
-      return [
-        `${date.getFullYear()}`.padStart(2, '0'),
-        '-',
-        `${date.getMonth() + 1}`.padStart(2, '0'),
-        '-',
-        `${date.getDate()}`.padStart(2, '0'),
-      ].join('');
-    }
-    return [
-      this.wrapData(`${date.getFullYear()}`.padStart(2, '0'), [this.color.magenta]),
-      this.wrapData('-', [this.color.cyan]),
-      this.wrapData(`${date.getMonth() + 1}`.padStart(2, '0'), [this.color.magenta]),
-      this.wrapData('-', [this.color.cyan]),
-      this.wrapData(`${date.getDate()}`.padStart(2, '0'), [this.color.magenta]),
-    ].join('');
-  }
-
-  private getSystemTime(): string | void {
-    if (!this.options.time) {
-      return;
-    }
-    const date = new Date();
-    if (this.options.color === false) {
-      return [
-        `${date.getHours()}`.padStart(2, '0'),
-        ':',
-        `${date.getMinutes()}`.padStart(2, '0'),
-        ':',
-        `${date.getSeconds()}`.padStart(2, '0'),
-        '.',
-        `${date.getMilliseconds()}`.padStart(2, '0'),
-      ].join('');
-    }
-    return [
-      this.wrapData(`${date.getHours()}`.padStart(2, '0'), [this.color.cyan]),
-      this.wrapData(':', [this.color.magenta]),
-      this.wrapData(`${date.getMinutes()}`.padStart(2, '0'), [this.color.cyan]),
-      this.wrapData(':', [this.color.magenta]),
-      this.wrapData(`${date.getSeconds()}`.padStart(2, '0'), [this.color.cyan]),
-      this.wrapData('.', [this.color.magenta]),
-      this.wrapData(`${date.getMilliseconds()}`.padStart(2, '0'), [EFFECT_MAP.dim, this.color.cyan]),
-    ].join('');
-  }
-
-  private getStack(stack?: string): LoggerNestMetadataInterface[] {
-    return this.stackToTrace(stack).map((item) => {
-      return {
-        caller: item.caller,
-        method: item.method,
-        file: this.excludePath(item.file),
-      };
-    });
-  }
-
-  private getBackground(level: LoggerNestLevelType): string {
-    switch (level) {
-      case 'LOG':
-        return this.background.green;
-      case 'INF':
-        return this.background.blue;
-      case 'WRN':
-        return this.background.yellow;
-      case 'ERR':
-        return this.background.red;
-      case 'DBG':
-        return this.background.white;
-      default:
-        return this.background.magenta;
-    }
-  }
-
-  private getForeground(level: LoggerNestLevelType): string {
-    switch (level) {
-      case 'LOG':
-        return this.color.green;
-      case 'INF':
-        return this.color.blue;
-      case 'WRN':
-        return this.color.yellow;
-      case 'ERR':
-        return this.color.red;
-      case 'DBG':
-        return this.color.white;
-      default:
-        return this.color.magenta;
-    }
-  }
-
-  private stdoutRaw(data: string): void {
+  private stdout(data: string): void {
     try {
       process.stdout.write(data);
     } catch (e) {
