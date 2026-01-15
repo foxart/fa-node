@@ -201,9 +201,6 @@ export class LoggerNestClass {
     if (typeof message === 'string') {
       const useLevelColor = NEST_CALLERS.includes(caller);
       const color = useLevelColor ? this.getLevelColor(level) : this.foreground.white;
-      if (this.options.color === false) {
-        return message;
-      }
       return this.colorizeString(message, color);
     }
     return this.prettify(message);
@@ -310,9 +307,6 @@ export class LoggerNestClass {
   }
 
   private colorizeString(message: string, baseColor: string): string {
-    if (this.options.color === false) {
-      return message;
-    }
     const withBraces = message.replace(
       /(\{[^}]*}|\[[^\]]*]|\([^)]*\)|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g,
       (match) => {
