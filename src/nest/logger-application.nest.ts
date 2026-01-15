@@ -13,31 +13,31 @@ export class LoggerApplicationNest implements LoggerService {
     this.logger = new LoggerNestClass(options);
   }
 
-  private get metadata(): LoggerNestMetadataInterface {
+  protected get metadata(): LoggerNestMetadataInterface {
     return this.logger.metadata(new Error().stack, 2);
   }
 
   public log(message: unknown, ...args: unknown[]): void {
-    this.write('LOG', this.metadata, message, ...args);
+    this.stdout('LOG', this.metadata, message, ...args);
   }
 
   public error(...args: unknown[]): void {
-    this.write('ERR', this.metadata, ...args);
+    this.stdout('ERR', this.metadata, ...args);
   }
 
   public warn(message: unknown, ...args: unknown[]): void {
-    this.write('WRN', this.metadata, message, ...args);
+    this.stdout('WRN', this.metadata, message, ...args);
   }
 
   public debug(message: unknown, ...args: unknown[]): void {
-    this.write('DBG', this.metadata, message, ...args);
+    this.stdout('DBG', this.metadata, message, ...args);
   }
 
   public info(message: unknown, ...args: unknown[]): void {
-    this.write('INF', this.metadata, message, ...args);
+    this.stdout('INF', this.metadata, message, ...args);
   }
 
-  protected write(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface, ...params: unknown[]): void {
+  protected stdout(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface, ...params: unknown[]): void {
     this.logger.print(level, metadata, params, undefined);
   }
 }

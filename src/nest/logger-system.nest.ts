@@ -13,13 +13,13 @@ export class LoggerSystemNest implements LoggerService {
     this.logger = new LoggerNestClass(options);
   }
 
-  private get traceMetadata(): LoggerNestMetadataInterface {
+  protected get metadata(): LoggerNestMetadataInterface {
     return this.logger.metadata(new Error().stack, 2);
   }
 
   public log(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
-    this.write('LOG', this.traceMetadata, context, message, ...params);
+    this.stdout('LOG', this.metadata, context, message, ...params);
   }
 
   public error(message: unknown, ...params: unknown[]): void {
@@ -52,31 +52,31 @@ export class LoggerSystemNest implements LoggerService {
     }
     const [firstMessage, ...restMessages] = outputMessages.length > 0 ? outputMessages : [undefined];
     if (firstMessage !== undefined) {
-      this.write('ERR', this.traceMetadata, caller, firstMessage, ...restMessages);
+      this.stdout('ERR', this.metadata, caller, firstMessage, ...restMessages);
     }
   }
 
   public warn(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
-    this.write('WRN', this.traceMetadata, context, message, ...params);
+    this.stdout('WRN', this.metadata, context, message, ...params);
   }
 
   public debug(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
-    this.write('DBG', this.traceMetadata, context, message, ...params);
+    this.stdout('DBG', this.metadata, context, message, ...params);
   }
 
   public verbose(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
-    this.write('INF', this.traceMetadata, context, message, ...params);
+    this.stdout('INF', this.metadata, context, message, ...params);
   }
 
   public fatal(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
-    this.write('FTL', this.traceMetadata, context, message, ...params);
+    this.stdout('FTL', this.metadata, context, message, ...params);
   }
 
-  protected write(
+  protected stdout(
     level: LoggerNestLevelType,
     metadata: LoggerNestMetadataInterface,
     context: string | undefined,
