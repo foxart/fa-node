@@ -1,5 +1,6 @@
 import {
   CryptClass,
+  LoggerNestClass,
   LoggerSystemClass,
   NestLoggerApplicationAbstract,
   NestLoggerSystemAbstract,
@@ -69,7 +70,7 @@ export function run(): void {
     /** */
     sort: true,
   });
-  const application = new NestLoggerApplicationAbstract({
+  const loggerNest = new LoggerNestClass({
     pid: true,
     date: true,
     time: true,
@@ -82,23 +83,9 @@ export function run(): void {
     stackError: true,
     stackDebug: true,
   });
-  const system = new NestLoggerSystemAbstract({
-    pid: true,
-    date: true,
-    time: true,
-    link: true,
-    hidden: true,
-    sort: true,
-    color: true,
-    info: true,
-    performance: true,
-    stackError: true,
-    stackDebug: true,
-  });
+  const application = new NestLoggerApplicationAbstract(loggerNest);
+  const system = new NestLoggerSystemAbstract(loggerNest);
   application.warn(new Error('Error').message, '{a}', [1, 2, 3]);
   system.error(new Error('Error').name, '{a}', [1, 2, 3]);
   customConsole.log(process.cwd(), __dirname);
 }
-//
-// AQCYEmmGWt9czQLi7GViYJeiVmI0HdMBCAFsCz2CACDIFof4RCUyAShXOO8YjjFmyHKwho1hG9FlnD2iOQPgy0T5IXX0gyaruaGZ7d32W0EDgozaYXNCyOk0XAlzfZwXuwGfE/0Mnv3xonV5qfBPV3XLVPWbgNAJPMMhl9kajT1hLYYM0rCU2n7M7Udij6rk8wqmDA==
-// AQBBmIfVsp58aQ4LjFFsWlxOnM/AIMKKcNi0gupgACDxBi/vFlQdVm3tt81XW3+tqvSYts/UTm6banrf9w0JvetfGKGMvL+wD97AC+A2RI2pG8m+OjhAajnuMJCmtUgnQ9xOjH9sY9wF3SzWSCG0K1K6rZf6ahiUEd/EYhik9ZeRglU+FeVkCJlaFPCIBj491rproA==

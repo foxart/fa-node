@@ -48,7 +48,6 @@ export interface LoggerNestOutputterInterface {
   error: (...args: unknown[]) => void;
   debug: (...args: unknown[]) => void;
   fatal?: (...args: unknown[]) => void;
-  stdout?: (data: string) => void;
 }
 
 const COLOR_MAP = {

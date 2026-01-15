@@ -2,19 +2,15 @@ import { LoggerService } from '@nestjs/common';
 import type {
   LoggerNestFormatterInterface,
   LoggerNestMetadataInterface,
-  LoggerNestOptionsInterface,
   LoggerNestOutputterInterface,
 } from './logger-nest.class';
-import { LoggerNestClass, LoggerNestLevelType } from './logger-nest.class';
+import { LoggerNestLevelType } from './logger-nest.class';
 
 export class NestLoggerSystemAbstract implements LoggerService {
   private readonly outputter: LoggerNestFormatterInterface | LoggerNestOutputterInterface;
 
-  public constructor(
-    options: LoggerNestOptionsInterface,
-    outputter?: LoggerNestFormatterInterface | LoggerNestOutputterInterface,
-  ) {
-    this.outputter = outputter ?? new LoggerNestClass(options);
+  public constructor(outputter: LoggerNestFormatterInterface | LoggerNestOutputterInterface) {
+    this.outputter = outputter;
   }
 
   private get traceMetadata(): LoggerNestMetadataInterface {
@@ -22,8 +18,7 @@ export class NestLoggerSystemAbstract implements LoggerService {
       const { caller, file } = this.outputter.metadata(new Error().stack, 2);
       return { caller, file, method: undefined };
     }
-    const { caller, file } = this.fallbackMetadata(new Error().stack, 2);
-    return { caller, file, method: undefined };
+    return this.fallbackMetadata(new Error().stack, 2);
   }
 
   public log(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {

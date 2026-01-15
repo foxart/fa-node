@@ -2,19 +2,15 @@ import { LoggerService } from '@nestjs/common';
 import type {
   LoggerNestFormatterInterface,
   LoggerNestMetadataInterface,
-  LoggerNestOptionsInterface,
   LoggerNestOutputterInterface,
 } from './logger-nest.class';
-import { LoggerNestClass, LoggerNestLevelType } from './logger-nest.class';
+import { LoggerNestLevelType } from './logger-nest.class';
 
 export class NestLoggerApplicationAbstract implements LoggerService {
   private readonly outputter: LoggerNestFormatterInterface | LoggerNestOutputterInterface;
 
-  public constructor(
-    options: LoggerNestOptionsInterface,
-    outputter?: LoggerNestFormatterInterface | LoggerNestOutputterInterface,
-  ) {
-    this.outputter = outputter ?? new LoggerNestClass(options);
+  public constructor(outputter: LoggerNestFormatterInterface | LoggerNestOutputterInterface) {
+    this.outputter = outputter;
   }
 
   private get traceMetadata(): LoggerNestMetadataInterface {
