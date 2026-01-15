@@ -1,5 +1,7 @@
 import * as util from 'node:util';
 
+export type LoggerNestLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
+
 export interface LoggerNestOptionsInterface {
   color?: boolean;
   info?: boolean;
@@ -22,38 +24,58 @@ export interface LoggerNestMetadataInterface {
   method: string | undefined;
 }
 
-const COLOR_MAP = {
-  red: '\u001b[31m',
-  green: '\u001b[32m',
-  blue: '\u001b[34m',
-  yellow: '\u001b[33m',
-  magenta: '\u001b[35m',
-  cyan: '\u001b[36m',
-  white: '\x1b[37m',
-  gray: '\x1b[90m',
-  reset: '\u001b[0m',
+const COLOR = {
+  foreground: {
+    red: '\u001b[31m',
+    green: '\u001b[32m',
+    blue: '\u001b[34m',
+    yellow: '\u001b[33m',
+    magenta: '\u001b[35m',
+    cyan: '\u001b[36m',
+    white: '\u001b[37m',
+  },
+  background: {
+    red: '\u001b[41m',
+    green: '\u001b[42m',
+    blue: '\u001b[44m',
+    yellow: '\u001b[43m',
+    magenta: '\u001b[45m',
+    cyan: '\u001b[46m',
+    white: '\u001b[47m',
+  },
+  effect: {
+    bold: '\u001b[1m',
+    dim: '\u001b[2m',
+    reset: '\u001b[0m',
+  },
 };
-const NO_COLOR_MAP = {
-  red: '',
-  green: '',
-  blue: '',
-  yellow: '',
-  magenta: '',
-  cyan: '',
-  white: '',
-  gray: '',
-  reset: '',
+
+const NO_COLOR: typeof COLOR = {
+  foreground: {
+    red: '',
+    green: '',
+    blue: '',
+    yellow: '',
+    magenta: '',
+    cyan: '',
+    white: '',
+  },
+  background: {
+    red: '',
+    green: '',
+    blue: '',
+    yellow: '',
+    magenta: '',
+    cyan: '',
+    white: '',
+  },
+  effect: {
+    bold: '',
+    dim: '',
+    reset: '',
+  },
 };
-const EFFECT_MAP = {
-  bold: '\u001b[1m',
-  dim: '\u001b[2m',
-  reset: '\u001b[0m',
-};
-const NO_EFFECT_MAP = {
-  bold: '',
-  dim: '',
-  reset: '',
-};
+
 const NEST_CALLERS = [
   'NestFactory',
   'InstanceLoader',
@@ -63,17 +85,20 @@ const NEST_CALLERS = [
   'GraphQLModule',
   'NestApplication',
 ];
+
 const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
-export type LoggerNestLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 
 export class LoggerNestClass {
   private readonly performanceStart = performance.now();
-  private readonly color: typeof COLOR_MAP;
-  private readonly effect: typeof EFFECT_MAP;
+  private readonly color: typeof COLOR;
+  private readonly foreground: typeof COLOR.foreground;
+  private readonly effect: typeof COLOR.effect;
 
   public constructor(protected readonly options: LoggerNestOptionsInterface) {
-    this.color = this.options.color === true ? COLOR_MAP : NO_COLOR_MAP;
-    this.effect = this.options.color === true ? EFFECT_MAP : NO_EFFECT_MAP;
+    const color = options.color === true ? COLOR : NO_COLOR;
+    this.foreground = color.foreground;
+    // this.background = color.background;
+    this.effect = color.effect;
   }
 
   public resolveMetadata(stack = '', level: number): LoggerNestMetadataInterface {
@@ -142,13 +167,13 @@ export class LoggerNestClass {
   private formatHeader(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface): string {
     const parts: string[] = [];
     if (this.options.info) {
-      parts.push(`${this.color.reset}[${this.getLevelColor(level)}${level}${this.color.reset}] `);
+      parts.push(`${this.effect.reset}[${this.getLevelColor(level)}${level}${this.effect.reset}] `);
     }
     if (this.options.name) {
       parts.push(`${this.options.name} `);
     }
     if (this.options.pid) {
-      parts.push(`${this.color.cyan}${process.pid}${this.color.reset} `);
+      parts.push(`${this.foreground.cyan}${process.pid}${this.effect.reset} `);
     }
     if (this.options.date) {
       parts.push(`${this.getDate()} `);
@@ -167,7 +192,7 @@ export class LoggerNestClass {
 
   private formatMessage(level: LoggerNestLevelType, message: unknown, caller: string): string {
     if (message instanceof Error) {
-      const header = `${this.color.red}${message.name}${this.color.reset}: ${message.message}`;
+      const header = `${this.foreground.red}${message.name}${this.effect.reset}: ${message.message}`;
       if (this.options.stackError && message.stack) {
         return `${header}\n${message.stack}`;
       }
@@ -175,7 +200,7 @@ export class LoggerNestClass {
     }
     if (typeof message === 'string') {
       const useLevelColor = NEST_CALLERS.includes(caller);
-      const color = useLevelColor ? this.getLevelColor(level) : this.color.white;
+      const color = useLevelColor ? this.getLevelColor(level) : this.foreground.white;
       if (this.options.color === false) {
         return message;
       }
@@ -200,70 +225,70 @@ export class LoggerNestClass {
       })
       .map((item) => {
         if (this.options.info) {
-          return `${color} at ${this.color.reset}${this.excludePath(item.file)}`;
+          return `${color} at ${this.effect.reset}${this.excludePath(item.file)}`;
         }
         return `    ${this.excludePath(item.file)}`;
       });
-    return `\n${this.color.cyan}{${this.color.reset}\n${lines.join('\n')}\n${this.color.cyan}}${this.color.reset} `;
+    return `\n${this.foreground.cyan}{${this.effect.reset}\n${lines.join('\n')}\n${this.foreground.cyan}}${this.effect.reset} `;
   }
 
   private formatPerformance(): string {
     const elapsed = Math.floor(performance.now() - this.performanceStart);
-    return ` ${this.effect.dim}${this.color.cyan}+${this.effect.reset}${this.color.cyan}${elapsed}${this.effect.dim}${this.color.cyan}ms${this.color.reset}`;
+    return ` ${this.effect.dim}${this.foreground.cyan}+${this.effect.reset}${this.foreground.cyan}${elapsed}${this.effect.dim}${this.foreground.cyan}ms${this.effect.reset}`;
   }
 
   private getDate(): string {
     const date = new Date();
     return [
-      this.color.magenta,
+      this.foreground.magenta,
       `${date.getFullYear()}`.padStart(2, '0'),
       '-',
       `${date.getMonth() + 1}`.padStart(2, '0'),
       '-',
       `${date.getDate()}`.padStart(2, '0'),
-      this.color.reset,
+      this.effect.reset,
     ].join('');
   }
 
   private getTime(): string {
     const date = new Date();
     return [
-      this.color.cyan,
+      this.foreground.cyan,
       `${date.getHours()}`.padStart(2, '0'),
       ':',
       `${date.getMinutes()}`.padStart(2, '0'),
       ':',
       `${date.getSeconds()}`.padStart(2, '0'),
-      this.color.reset,
+      this.effect.reset,
     ].join('');
   }
 
   private getCaller(caller: string): string {
-    return [this.color.yellow, caller, this.color.reset].join('');
+    return [this.foreground.yellow, caller, this.effect.reset].join('');
   }
 
   private getMethod(method: string): string {
-    return [this.color.blue, method, this.color.reset].join('');
+    return [this.foreground.blue, method, this.effect.reset].join('');
   }
 
   private getLink(file: string): string {
-    return [this.color.cyan, 'at ', this.color.reset, this.excludePath(file), this.color.reset].join('');
+    return [this.foreground.cyan, 'at ', this.effect.reset, this.excludePath(file), this.effect.reset].join('');
   }
 
   private getLevelColor(level: LoggerNestLevelType): string {
     switch (level) {
       case 'LOG':
-        return this.color.green;
+        return this.foreground.green;
       case 'INF':
-        return this.color.blue;
+        return this.foreground.blue;
       case 'WRN':
-        return this.color.yellow;
+        return this.foreground.yellow;
       case 'ERR':
-        return this.color.red;
+        return this.foreground.red;
       case 'DBG':
-        return this.color.magenta;
+        return this.foreground.magenta;
       default:
-        return this.color.white;
+        return this.foreground.white;
     }
   }
 
@@ -274,7 +299,7 @@ export class LoggerNestClass {
 
   private prettify(data: unknown): string {
     if (typeof data === 'string') {
-      return `${this.color.white}${data}${this.color.reset}`;
+      return `${this.foreground.white}${data}${this.effect.reset}`;
     }
     return util.inspect(data, {
       colors: this.options.color,
@@ -295,11 +320,13 @@ export class LoggerNestClass {
         const close = match[match.length - 1];
         const inner = match.slice(1, -1);
         return (
-          `${this.color.yellow}${open}` + `${this.color.white}${inner}` + `${this.color.yellow}${close}${baseColor}`
+          `${this.foreground.yellow}${open}` +
+          `${this.foreground.white}${inner}` +
+          `${this.foreground.yellow}${close}${baseColor}`
         );
       },
     );
-    return `${baseColor}${withBraces}${this.color.reset}`;
+    return `${baseColor}${withBraces}${this.effect.reset}`;
   }
 
   private stdout(data: string): void {

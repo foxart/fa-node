@@ -231,39 +231,44 @@ class DataSingleton {
     return data;
   }
 
-  public filterCircular<T>(data: T): T {
+  public filterCircular(data: unknown): unknown {
     const cache = new WeakSet();
     const walk = (item: unknown): unknown => {
       if (item instanceof Error) {
         const error = item as Error & { messageIsJson?: boolean };
         return {
-          name: item.name,
+          name: error.name,
           message: error.messageIsJson ? this.jsonParse(error.message) : error.message,
-          stack: this.stackToTrace(error.stack, true),
+          stack: this.stackToTrace(error.stack ?? ''),
         };
       }
-      if (!CheckHelper.isObject(item)) {
+      if (item === null || typeof item !== 'object') {
         return item;
       }
-      // Циклическая проверка
-      if (cache.has(item as object)) {
+      if (cache.has(item)) {
         return '[Circular]';
       }
-      cache.add(item as object);
-      if (CheckHelper.isInstance(item)) {
+      cache.add(item);
+      if (Array.isArray(item)) {
+        const arr = new Array(item.length);
+        for (let i = 0; i < item.length; i++) {
+          arr[i] = walk(item[i]);
+        }
+        return arr;
+      }
+      const proto = Object.getPrototypeOf(item) as object;
+      if (proto !== Object.prototype && proto !== null) {
         return item;
       }
-      if (Array.isArray(item)) {
-        return item.map(walk);
-      }
-      // Объект/класс
       const result: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(item as object)) {
-        result[key] = walk(value);
+      for (const key in item as Record<string, unknown>) {
+        if (Object.prototype.hasOwnProperty.call(item, key)) {
+          result[key] = walk((item as Record<string, unknown>)[key]);
+        }
       }
       return result;
     };
-    return walk(data) as T;
+    return walk(data);
   }
 
   public stackToTrace(stack = '', filterNode = false): StackToTraceInterface[] {
