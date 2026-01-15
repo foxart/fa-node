@@ -27,13 +27,13 @@ export interface ConsoleOptionsInterface {
 }
 
 export class LoggerSystemClass {
-  public readonly console: Console;
+  // public readonly console: Console;
   private readonly pid: string;
   private readonly performance: number;
   private readonly traceIndex: number;
 
   public constructor(private readonly options: ConsoleOptionsInterface) {
-    this.console = Object.assign({}, console);
+    // this.console = Object.assign({}, console);
     this.pid = process.pid.toString();
     this.performance = performance.now();
     this.traceIndex = options.traceIndex ?? 1;
@@ -273,10 +273,14 @@ export class LoggerSystemClass {
       process.stdout.write(data);
     } catch (e) {
       const error = e as Error;
-      this.console.error('\n', this.constructor.name);
-      this.console.error('Name:', error.name);
-      this.console.error('Message:', error.message);
-      this.console.error('Data:', data, '\n');
+      process.stdout.write('\n---------');
+      process.stdout.write(`${this.constructor.name}\n`);
+      process.stdout.write(`Message: ${error.message}\n`);
+      process.stdout.write(`Name: ${error.name}\n`);
+      process.stdout.write('Data: ');
+      process.stdout.write(data);
+      process.stdout.write('\n');
+      process.stdout.write('---------\n');
     }
   }
 
