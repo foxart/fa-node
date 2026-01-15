@@ -6,7 +6,7 @@ import {
   LoggerNestOptionsInterface,
 } from '../classes/logger-nest.class';
 
-export class LoggerApplicationNest implements LoggerService {
+export class LoggerApplicationAbstract implements LoggerService {
   private readonly logger: LoggerNestClass;
 
   public constructor(options: LoggerNestOptionsInterface) {

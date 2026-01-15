@@ -183,8 +183,12 @@ export class LoggerNestClass {
             string | undefined,
             string | undefined,
           ];
-          if (bracket || single || double) {
-            return this.wrapData(bracket ?? single ?? double ?? '', [this.color.white]);
+          if (bracket) {
+            const inner = bracket.slice(1, -1);
+            return `${this.color.yellow}{` + `${this.color.white}${inner}` + `${this.color.yellow}}${this.color.reset}`;
+          }
+          if (single || double) {
+            return this.wrapData(single ?? double ?? '', [this.color.white]);
           }
           return this.wrapData(plain ?? '', [color]);
         });

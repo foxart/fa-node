@@ -1,6 +1,6 @@
 /** NEST */
-export * from './nest/logger-application.nest';
-export * from './nest/logger-system.nest';
+export * from './abstract/logger-application.abstract';
+export * from './abstract/logger-system.abstract';
 
 /** CLASSES */
 export * from './classes/configuration.class';

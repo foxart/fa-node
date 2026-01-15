@@ -6,7 +6,7 @@ import {
   LoggerNestOptionsInterface,
 } from '../classes/logger-nest.class';
 
-export class LoggerSystemNest implements LoggerService {
+export class LoggerSystemAbstract implements LoggerService {
   private readonly logger: LoggerNestClass;
 
   public constructor(options: LoggerNestOptionsInterface) {
@@ -87,6 +87,7 @@ export class LoggerSystemNest implements LoggerService {
       return;
     }
     const caller = context ? context : metadata.caller;
-    this.logger.print(level, metadata, [message, ...params], caller);
+    const safeMetadata = context ? { ...metadata, method: undefined } : metadata;
+    this.logger.print(level, safeMetadata, [message, ...params], caller);
   }
 }
