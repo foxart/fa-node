@@ -14,7 +14,7 @@ export class LoggerApplicationAbstract implements LoggerService {
   }
 
   protected get metadata(): LoggerNestMetadataInterface {
-    return this.logger.metadata(new Error().stack, 2);
+    return this.logger.resolveMetadata(new Error().stack, 2);
   }
 
   public log(message: unknown, ...args: unknown[]): void {
@@ -38,6 +38,13 @@ export class LoggerApplicationAbstract implements LoggerService {
   }
 
   protected stdout(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface, ...params: unknown[]): void {
-    this.logger.print(level, metadata, params, undefined);
+    const caller = this.logger.resolveCaller(metadata);
+    const method = metadata.method?.split('.').pop() ?? 'anonymous';
+    const safeMetadata: LoggerNestMetadataInterface = {
+      ...metadata,
+      caller,
+      method,
+    };
+    this.logger.print(level, safeMetadata, params, undefined);
   }
 }

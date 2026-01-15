@@ -14,7 +14,7 @@ export class LoggerSystemAbstract implements LoggerService {
   }
 
   protected get metadata(): LoggerNestMetadataInterface {
-    return this.logger.metadata(new Error().stack, 2);
+    return this.logger.resolveMetadata(new Error().stack, 2);
   }
 
   public log(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
@@ -86,8 +86,8 @@ export class LoggerSystemAbstract implements LoggerService {
     if (message === 'Nest application successfully started') {
       return;
     }
-    const caller = context ? context : metadata.caller;
-    const safeMetadata = context ? { ...metadata, method: undefined } : metadata;
+    const caller = context && context !== '<anonymous>' ? context : this.logger.resolveCaller(metadata);
+    const safeMetadata = { ...metadata, method: undefined };
     this.logger.print(level, safeMetadata, [message, ...params], caller);
   }
 }

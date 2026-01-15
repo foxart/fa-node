@@ -33,7 +33,6 @@ const COLOR_MAP = {
   gray: '\x1b[90m',
   reset: '\u001b[0m',
 };
-
 const NO_COLOR_MAP = {
   red: '',
   green: '',
@@ -45,19 +44,16 @@ const NO_COLOR_MAP = {
   gray: '',
   reset: '',
 };
-
 const EFFECT_MAP = {
   bold: '\u001b[1m',
   dim: '\u001b[2m',
   reset: '\u001b[0m',
 };
-
 const NO_EFFECT_MAP = {
   bold: '',
   dim: '',
   reset: '',
 };
-
 const NEST_CALLERS = [
   'NestFactory',
   'InstanceLoader',
@@ -67,14 +63,10 @@ const NEST_CALLERS = [
   'GraphQLModule',
   'NestApplication',
 ];
-
 const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
-
 export type LoggerNestLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 
 export class LoggerNestClass {
-  private readonly placeholderRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")/g;
-  private readonly placeholderSplitRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")|([^{}'"]+)/g;
   private readonly performanceStart = performance.now();
   private readonly color: typeof COLOR_MAP;
   private readonly effect: typeof EFFECT_MAP;
@@ -84,7 +76,7 @@ export class LoggerNestClass {
     this.effect = this.options.color === true ? EFFECT_MAP : NO_EFFECT_MAP;
   }
 
-  public metadata(stack = '', level: number): LoggerNestMetadataInterface {
+  public resolveMetadata(stack = '', level: number): LoggerNestMetadataInterface {
     const trace = this.stackToTrace(stack);
     const traceLevel = this.options.traceIndex ?? level;
     const metadata = trace[traceLevel];
@@ -103,6 +95,21 @@ export class LoggerNestClass {
       caller: nextMetadata?.caller ?? 'unknown',
       method: nextMetadata?.method,
     };
+  }
+
+  public resolveCaller(metadata: LoggerNestMetadataInterface): string {
+    if (metadata.caller && metadata.caller !== '<anonymous>') {
+      return metadata.caller;
+    }
+    const file = metadata.file || '';
+    const base = file.split('/').pop() || file.split('\\').pop() || 'App';
+    const stem = base.replace(/\.[^/.]+$/, '');
+    if (!stem) return 'App';
+    return stem
+      .split(/[._-]/g)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join('');
   }
 
   public print(
@@ -149,7 +156,7 @@ export class LoggerNestClass {
     if (this.options.time) {
       parts.push(`${this.getTime()} `);
     }
-    parts.push(this.getCaller(metadata.caller));
+    parts.push(this.getCaller(this.resolveCaller(metadata)));
     const method = this.getMethodName(metadata.method);
     if (method) {
       parts.push(` ${this.getMethod(method)}`);
@@ -171,27 +178,6 @@ export class LoggerNestClass {
       const color = useLevelColor ? this.getLevelColor(level) : this.color.white;
       if (this.options.color === false) {
         return message;
-      }
-      this.placeholderRegExp.lastIndex = 0;
-      if (useLevelColor && this.placeholderRegExp.test(message)) {
-        this.placeholderSplitRegExp.lastIndex = 0;
-        return message.replace(this.placeholderSplitRegExp, (...args) => {
-          const [, bracket, single, double, plain] = args as [
-            string,
-            string | undefined,
-            string | undefined,
-            string | undefined,
-            string | undefined,
-          ];
-          if (bracket) {
-            const inner = bracket.slice(1, -1);
-            return `${this.color.yellow}{` + `${this.color.white}${inner}` + `${this.color.yellow}}${this.color.reset}`;
-          }
-          if (single || double) {
-            return this.wrapData(single ?? double ?? '', [this.color.white]);
-          }
-          return this.wrapData(plain ?? '', [color]);
-        });
       }
       return this.colorizeString(message, color);
     }
@@ -302,18 +288,18 @@ export class LoggerNestClass {
     if (this.options.color === false) {
       return message;
     }
-    const withBraces = message.replace(/\{[^}]+}/g, (match) => {
-      const inner = match.slice(1, -1);
-      return `${this.color.yellow}{${this.color.white}${inner}${this.color.yellow}}${baseColor}`;
-    });
+    const withBraces = message.replace(
+      /(\{[^}]*}|\[[^\]]*]|\([^)]*\)|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g,
+      (match) => {
+        const open = match[0];
+        const close = match[match.length - 1];
+        const inner = match.slice(1, -1);
+        return (
+          `${this.color.yellow}${open}` + `${this.color.white}${inner}` + `${this.color.yellow}${close}${baseColor}`
+        );
+      },
+    );
     return `${baseColor}${withBraces}${this.color.reset}`;
-  }
-
-  private wrapData(data: string, styles: string[]): string {
-    if (this.options.color === false) {
-      return data;
-    }
-    return `${styles.join('')}${data}${EFFECT_MAP.reset}`;
   }
 
   private stdout(data: string): void {
