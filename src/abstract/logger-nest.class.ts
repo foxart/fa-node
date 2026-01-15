@@ -1,6 +1,6 @@
 import * as util from 'node:util';
 
-export interface NestLoggerOptionsInterface {
+export interface LoggerNestOptionsInterface {
   color?: boolean;
   info?: boolean;
   name?: string;
@@ -16,21 +16,40 @@ export interface NestLoggerOptionsInterface {
   hidden?: boolean;
 }
 
-export interface LoggerMetadataInterface {
+export interface LoggerNestMetadataInterface {
   file: string;
   caller: string;
   method: string | undefined;
 }
 
-export interface NestLoggerOutputterInterface {
-  stdout: (data: string) => void;
-}
-
-export interface NestLoggerRawOutputterInterface {
+export interface LoggerNestFormatterInterface {
+  metadata: (stack?: string, level?: number) => LoggerNestMetadataInterface;
+  stdout: (
+    level: LoggerNestLevelType,
+    metadata: LoggerNestMetadataInterface,
+    message: unknown | unknown[],
+    callerOverride?: string,
+    mode?: 'system' | 'application',
+  ) => void;
+  format: (
+    level: LoggerNestLevelType,
+    metadata: LoggerNestMetadataInterface,
+    message: unknown | unknown[],
+    callerOverride?: string,
+    mode?: 'system' | 'application',
+  ) => string;
   raw: (data: string) => void;
 }
 
-export type NestLoggerMetadataInterface = LoggerMetadataInterface;
+export interface LoggerNestOutputterInterface {
+  log: (...args: unknown[]) => void;
+  info: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+  debug: (...args: unknown[]) => void;
+  fatal?: (...args: unknown[]) => void;
+  stdout?: (data: string) => void;
+}
 
 const COLOR_MAP = {
   red: '\u001b[31m',
@@ -94,9 +113,9 @@ const NEST_CALLERS = [
 
 const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
 
-export type NestLoggerLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
+export type LoggerNestLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 
-export class NestLoggerAbstract {
+export class LoggerNestClass {
   private readonly placeholderRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")/g;
   private readonly placeholderSplitRegExp = /(\{[^}]+})|('[^']+')|("[^"]+")|([^{}'"]+)/g;
   private readonly performanceStart = performance.now();
@@ -104,7 +123,7 @@ export class NestLoggerAbstract {
   private readonly background: typeof BACKGROUND_MAP;
   private readonly traceIndex: number;
 
-  public constructor(protected readonly options: NestLoggerOptionsInterface) {
+  public constructor(protected readonly options: LoggerNestOptionsInterface) {
     this.color = this.options.color === false ? NO_COLOR_MAP : COLOR_MAP;
     this.background = this.options.color === false ? NO_BACKGROUND_MAP : BACKGROUND_MAP;
     this.traceIndex = this.options.traceIndex ?? 1;
@@ -134,7 +153,7 @@ export class NestLoggerAbstract {
     this.print('FTL', this.getStack(new Error().stack), data);
   }
 
-  public metadata(stack = '', level: number): LoggerMetadataInterface {
+  public metadata(stack = '', level: number): LoggerNestMetadataInterface {
     const trace = this.stackToTrace(stack);
     const traceLevel = this.options.traceIndex ?? level;
     const metadata = trace[traceLevel];
@@ -156,16 +175,13 @@ export class NestLoggerAbstract {
   }
 
   public stdout(
-    level: NestLoggerLevelType,
-    metadata: LoggerMetadataInterface,
+    level: LoggerNestLevelType,
+    metadata: LoggerNestMetadataInterface,
     message: unknown | unknown[],
     callerOverride?: string,
     mode: 'system' | 'application' = 'system',
   ): void {
-    const caller = callerOverride ?? metadata.caller;
-    const data = Array.isArray(message) ? message : [message];
-    const normalizedMetadata = { ...metadata, caller };
-    const line = this.formatLine(level, normalizedMetadata, data, mode);
+    const line = this.format(level, metadata, message, callerOverride, mode);
     this.output(level, line);
   }
 
@@ -173,13 +189,26 @@ export class NestLoggerAbstract {
     this.stdoutRaw(data);
   }
 
-  protected output(_level: NestLoggerLevelType, line: string): void {
+  public format(
+    level: LoggerNestLevelType,
+    metadata: LoggerNestMetadataInterface,
+    message: unknown | unknown[],
+    callerOverride?: string,
+    mode: 'system' | 'application' = 'system',
+  ): string {
+    const caller = callerOverride ?? metadata.caller;
+    const data = Array.isArray(message) ? message : [message];
+    const normalizedMetadata = { ...metadata, caller };
+    return this.formatLine(level, normalizedMetadata, data, mode);
+  }
+
+  protected output(_level: LoggerNestLevelType, line: string): void {
     this.stdoutRaw(line);
   }
 
   private formatLine(
-    level: NestLoggerLevelType,
-    metadata: LoggerMetadataInterface,
+    level: LoggerNestLevelType,
+    metadata: LoggerNestMetadataInterface,
     data: unknown[],
     mode: 'system' | 'application',
   ): string {
@@ -198,7 +227,7 @@ export class NestLoggerAbstract {
     return `${parts.join('')}\n`;
   }
 
-  private formatHeader(level: NestLoggerLevelType, metadata: LoggerMetadataInterface): string {
+  private formatHeader(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface): string {
     const parts: string[] = [];
     if (this.options.info) {
       parts.push(`${this.color.reset}[${this.getLevelColor(level)}${level}${this.color.reset}] `);
@@ -225,7 +254,7 @@ export class NestLoggerAbstract {
   }
 
   private formatMessage(
-    level: NestLoggerLevelType,
+    level: LoggerNestLevelType,
     message: unknown,
     caller: string,
     mode: 'system' | 'application',
@@ -266,7 +295,7 @@ export class NestLoggerAbstract {
   }
 
   private formatMessages(
-    level: NestLoggerLevelType,
+    level: LoggerNestLevelType,
     data: unknown[],
     caller: string,
     mode: 'system' | 'application',
@@ -278,7 +307,7 @@ export class NestLoggerAbstract {
       .join(' ');
   }
 
-  private formatTrace(level: NestLoggerLevelType, trace: LoggerMetadataInterface[]): string {
+  private formatTrace(level: LoggerNestLevelType, trace: LoggerNestMetadataInterface[]): string {
     const color = this.getLevelColor(level);
     const lines = trace
       .filter((item) => {
@@ -339,7 +368,7 @@ export class NestLoggerAbstract {
     return [this.color.cyan, 'at ', this.color.reset, this.excludePath(file), this.color.reset].join('');
   }
 
-  private getLevelColor(level: NestLoggerLevelType): string {
+  private getLevelColor(level: LoggerNestLevelType): string {
     switch (level) {
       case 'LOG':
         return this.color.green;
@@ -391,7 +420,7 @@ export class NestLoggerAbstract {
     return `${styles.join('')}${data}${EFFECT_MAP.reset}`;
   }
 
-  private print(level: NestLoggerLevelType, trace: LoggerMetadataInterface[], args: unknown[]): void {
+  private print(level: LoggerNestLevelType, trace: LoggerNestMetadataInterface[], args: unknown[]): void {
     this.printLevel(level);
     this.printInfo(level);
     args.forEach((item, index) => {
@@ -413,7 +442,7 @@ export class NestLoggerAbstract {
     this.stdoutRaw('\n');
   }
 
-  private printInfo(level: NestLoggerLevelType): void {
+  private printInfo(level: LoggerNestLevelType): void {
     const info = [this.getSystemName(), this.getSystemPid(), this.getSystemDate(), this.getSystemTime()].filter(
       (item) => {
         return item;
@@ -425,7 +454,7 @@ export class NestLoggerAbstract {
     }
   }
 
-  private printLevel(level: NestLoggerLevelType): void {
+  private printLevel(level: LoggerNestLevelType): void {
     if (!this.options.info) {
       return;
     }
@@ -433,7 +462,7 @@ export class NestLoggerAbstract {
     this.stdoutRaw(' ');
   }
 
-  private printTrace(level: NestLoggerLevelType, trace: LoggerMetadataInterface[]): void {
+  private printTrace(level: LoggerNestLevelType, trace: LoggerNestMetadataInterface[]): void {
     this.stdoutRaw(this.wrapData('{', [EFFECT_MAP.bold, this.color.cyan]));
     trace
       .filter((item) => {
@@ -466,7 +495,7 @@ export class NestLoggerAbstract {
     this.stdoutRaw(' ');
   }
 
-  private printLink(level: NestLoggerLevelType, link: string): void {
+  private printLink(level: LoggerNestLevelType, link: string): void {
     if (!this.options.link) {
       return;
     }
@@ -561,7 +590,7 @@ export class NestLoggerAbstract {
     ].join('');
   }
 
-  private getStack(stack?: string): LoggerMetadataInterface[] {
+  private getStack(stack?: string): LoggerNestMetadataInterface[] {
     return this.stackToTrace(stack).map((item) => {
       return {
         caller: item.caller,
@@ -571,7 +600,7 @@ export class NestLoggerAbstract {
     });
   }
 
-  private getBackground(level: NestLoggerLevelType): string {
+  private getBackground(level: LoggerNestLevelType): string {
     switch (level) {
       case 'LOG':
         return this.background.green;
@@ -588,7 +617,7 @@ export class NestLoggerAbstract {
     }
   }
 
-  private getForeground(level: NestLoggerLevelType): string {
+  private getForeground(level: LoggerNestLevelType): string {
     switch (level) {
       case 'LOG':
         return this.color.green;
@@ -617,9 +646,9 @@ export class NestLoggerAbstract {
     }
   }
 
-  private stackToTrace(stack = '', filterNode = false): LoggerMetadataInterface[] {
+  private stackToTrace(stack = '', filterNode = false): LoggerNestMetadataInterface[] {
     if (!stack) return [];
-    const result: LoggerMetadataInterface[] = [];
+    const result: LoggerNestMetadataInterface[] = [];
     for (const match of stack.matchAll(STACK_REGEXP)) {
       const context = match[1];
       const dotIndex = context.indexOf('.');

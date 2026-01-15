@@ -1,5 +1,5 @@
 /** ABSTRACT */
-export * from './abstract/nest-logger.abstract';
+export * from './abstract/logger-nest.class';
 export * from './abstract/nest-logger-application.abstract';
 export * from './abstract/nest-logger-system.abstract';
 

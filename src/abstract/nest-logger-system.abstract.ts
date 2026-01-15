@@ -1,59 +1,37 @@
 import { LoggerService } from '@nestjs/common';
 import type {
-  LoggerMetadataInterface,
-  NestLoggerOptionsInterface,
-  NestLoggerOutputterInterface,
-  NestLoggerRawOutputterInterface,
-} from './nest-logger.abstract';
-import { NestLoggerAbstract, NestLoggerLevelType } from './nest-logger.abstract';
+  LoggerNestFormatterInterface,
+  LoggerNestMetadataInterface,
+  LoggerNestOptionsInterface,
+  LoggerNestOutputterInterface,
+} from './logger-nest.class';
+import { LoggerNestClass, LoggerNestLevelType } from './logger-nest.class';
 
-export class NestLoggerSystemAbstract extends NestLoggerAbstract implements LoggerService {
-  private readonly outputter?: NestLoggerOutputterInterface | NestLoggerRawOutputterInterface;
+export class NestLoggerSystemAbstract implements LoggerService {
+  private readonly outputter: LoggerNestFormatterInterface | LoggerNestOutputterInterface;
 
   public constructor(
-    options: NestLoggerOptionsInterface,
-    outputter?: NestLoggerOutputterInterface | NestLoggerRawOutputterInterface,
+    options: LoggerNestOptionsInterface,
+    outputter?: LoggerNestFormatterInterface | LoggerNestOutputterInterface,
   ) {
-    super(options);
-    this.outputter = outputter;
+    this.outputter = outputter ?? new LoggerNestClass(options);
   }
 
-  private get traceMetadata(): LoggerMetadataInterface {
-    const { caller, file } = this.metadata(new Error().stack, 2);
+  private get traceMetadata(): LoggerNestMetadataInterface {
+    if (this.isFormatter(this.outputter)) {
+      const { caller, file } = this.outputter.metadata(new Error().stack, 2);
+      return { caller, file, method: undefined };
+    }
+    const { caller, file } = this.fallbackMetadata(new Error().stack, 2);
     return { caller, file, method: undefined };
   }
 
-  public override log(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
+  public log(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
     this.write('LOG', this.traceMetadata, context, message, ...params);
   }
 
-  protected write(
-    level: NestLoggerLevelType,
-    metadata: LoggerMetadataInterface,
-    context: string | undefined,
-    message: unknown,
-    ...params: unknown[]
-  ): void {
-    if (message === 'Nest application successfully started') {
-      return;
-    }
-    const caller = context ? context : metadata.caller;
-    this.stdout(level, metadata, [message, ...params], caller, 'system');
-  }
-
-  protected override output(level: NestLoggerLevelType, line: string): void {
-    if (this.outputter) {
-      if ('raw' in this.outputter) {
-        this.outputter.raw(line);
-        return;
-      }
-      this.outputter.stdout(line);
-      return;
-    }
-    super.output(level, line);
-  }
-  public override error(message: unknown, ...params: unknown[]): void {
+  public error(message: unknown, ...params: unknown[]): void {
     let context: string | undefined;
     let stack: string | undefined;
     if (params.length > 0 && typeof params[0] === 'string' && /\n\s*at\s+/m.test(params[0])) {
@@ -87,12 +65,12 @@ export class NestLoggerSystemAbstract extends NestLoggerAbstract implements Logg
     }
   }
 
-  public override warn(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
+  public warn(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
     this.write('WRN', this.traceMetadata, context, message, ...params);
   }
 
-  public override debug(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
+  public debug(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
     this.write('DBG', this.traceMetadata, context, message, ...params);
   }
@@ -102,8 +80,76 @@ export class NestLoggerSystemAbstract extends NestLoggerAbstract implements Logg
     this.write('INF', this.traceMetadata, context, message, ...params);
   }
 
-  public override fatal(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
+  public fatal(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
     this.write('FTL', this.traceMetadata, context, message, ...params);
+  }
+
+  protected write(
+    level: LoggerNestLevelType,
+    metadata: LoggerNestMetadataInterface,
+    context: string | undefined,
+    message: unknown,
+    ...params: unknown[]
+  ): void {
+    if (message === 'Nest application successfully started') {
+      return;
+    }
+    const caller = context ? context : metadata.caller;
+    if (this.isFormatter(this.outputter)) {
+      this.outputter.stdout(level, metadata, [message, ...params], caller, 'system');
+      return;
+    }
+    this.outputByLevel(level, message, ...params, caller);
+  }
+
+  private outputByLevel(level: LoggerNestLevelType, ...data: unknown[]): void {
+    if (this.isFormatter(this.outputter)) {
+      return;
+    }
+    const outputter = this.outputter;
+    switch (level) {
+      case 'INF':
+        outputter.info(...data);
+        break;
+      case 'WRN':
+        outputter.warn(...data);
+        break;
+      case 'ERR':
+      case 'FTL':
+        if (outputter.fatal && level === 'FTL') {
+          outputter.fatal(...data);
+        } else {
+          outputter.error(...data);
+        }
+        break;
+      case 'DBG':
+        outputter.debug(...data);
+        break;
+      default:
+        outputter.log(...data);
+        break;
+    }
+  }
+
+  private isFormatter(
+    outputter: LoggerNestFormatterInterface | LoggerNestOutputterInterface,
+  ): outputter is LoggerNestFormatterInterface {
+    return (
+      typeof (outputter as LoggerNestFormatterInterface).format === 'function' &&
+      typeof (outputter as LoggerNestFormatterInterface).metadata === 'function' &&
+      typeof (outputter as LoggerNestFormatterInterface).stdout === 'function'
+    );
+  }
+
+  private fallbackMetadata(stack = '', level: number): LoggerNestMetadataInterface {
+    const trace = stack.split('\n');
+    const line = trace[level] ?? '';
+    const cleaned = line.trim().replace('at ', '');
+    const fileMatch = cleaned.match(/\((.*\.ts:\d+:\d+)\)/) || cleaned.match(/(.*\.ts:\d+:\d+)/);
+    const file = fileMatch ? fileMatch[1] : 'unknown';
+    const callerMatch = cleaned.match(/([^/\\]+\.ts:\d+:\d+)/);
+    const caller = callerMatch ? callerMatch[1] : 'unknown';
+    return { caller, file, method: undefined };
   }
 }
