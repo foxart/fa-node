@@ -162,12 +162,12 @@ class RandomSingleton {
   /* CONTACT                                                             */
   /* ------------------------------------------------------------------ */
   public domain(code?: string): string {
-    return `${this.word(this.integer(5, 10)).toLowerCase()}.${code ? code : this.randomLocation().countryCode.toLowerCase()}`;
+    return `${this.word(this.integer(5, 10)).toLowerCase()}.${(code ? code : this.randomLocation().countryCode).toLowerCase()}`;
   }
 
   public email(code?: string): string {
     const user = `${this.word(this.integer(3, 8))}.${this.word(this.integer(3, 8))}`.toLowerCase();
-    return `${user}@${this.word(this.integer(5, 10)).toLowerCase()}.${code ? code : this.randomLocation().countryCode.toLowerCase()}`;
+    return `${user}@${this.word(this.integer(5, 10)).toLowerCase()}.${(code ? code : this.randomLocation().countryCode).toLowerCase()}`;
   }
 
   public address(): AddressInterface {

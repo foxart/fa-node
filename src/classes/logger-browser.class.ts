@@ -73,7 +73,7 @@ interface ConsoleBrowserOptionsInterface {
   performance?: boolean;
 }
 
-class LoggerBrowserClass {
+class LoggerBrowser {
   private readonly performanceStart: number;
 
   public constructor(private readonly options: ConsoleBrowserOptionsInterface = {}) {
@@ -146,11 +146,11 @@ const consoleInfo = console.info.bind(console);
 const consoleError = console.error.bind(console);
 const consoleDebug = console.debug.bind(console);
 
-export class ConsoleClass {
-  private readonly consoleClass: LoggerBrowserClass;
+export class LoggerBrowserClass {
+  private readonly logger: LoggerBrowser;
 
   public constructor(options: ConsoleBrowserOptionsInterface) {
-    this.consoleClass = new LoggerBrowserClass(options);
+    this.logger = new LoggerBrowser(options);
   }
 
   public override(): void {
@@ -163,10 +163,10 @@ export class ConsoleClass {
     // console.info = (...args: unknown[]): void => {
     //   consoleInfo.bind(console, ...this.consoleClass.info(...args))(...args);
     // };
-    console.log = console.log.bind(this, ...this.consoleClass.log());
-    console.warn = console.warn.bind(this, ...this.consoleClass.warn());
-    console.info = console.info.bind(this, ...this.consoleClass.info());
-    console.error = console.error.bind(this, ...this.consoleClass.error());
+    console.log = console.log.bind(this, ...this.logger.log());
+    console.warn = console.warn.bind(this, ...this.logger.warn());
+    console.info = console.info.bind(this, ...this.logger.info());
+    console.error = console.error.bind(this, ...this.logger.error());
   }
 
   public restore(): void {
