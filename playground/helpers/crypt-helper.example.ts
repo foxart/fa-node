@@ -1,4 +1,4 @@
-import { CryptClass, SystemHelper } from '../../src';
+import { CryptClass, NestLoggerApplicationAbstract, NestLoggerSystemAbstract, SystemHelper } from '../../src';
 
 function rotate(rawPayload: string, oldCrypt: CryptClass, newCrypt: CryptClass): string {
   const { dek, encryptedData, ivData, tagData } = oldCrypt.unwrapDek(rawPayload);
@@ -47,6 +47,34 @@ export function run(): void {
   //   }),
   // );
   console.log(process.cwd(), __dirname);
+  const application = new NestLoggerApplicationAbstract({
+    pid: true,
+    date: true,
+    time: true,
+    link: true,
+    hidden: true,
+    sort: true,
+    color: true,
+    info: true,
+    performance: true,
+    stackError: true,
+    stackDebug: true,
+  });
+  const system = new NestLoggerSystemAbstract({
+    pid: true,
+    date: true,
+    time: true,
+    link: true,
+    hidden: true,
+    sort: true,
+    color: true,
+    info: true,
+    performance: true,
+    stackError: true,
+    stackDebug: true,
+  });
+  application.warn(new Error('Error').message, '{a}', [1, 2, 3]);
+  system.error(new Error('Error').name, '{a}', [1, 2, 3]);
 }
 //
 // AQCYEmmGWt9czQLi7GViYJeiVmI0HdMBCAFsCz2CACDIFof4RCUyAShXOO8YjjFmyHKwho1hG9FlnD2iOQPgy0T5IXX0gyaruaGZ7d32W0EDgozaYXNCyOk0XAlzfZwXuwGfE/0Mnv3xonV5qfBPV3XLVPWbgNAJPMMhl9kajT1hLYYM0rCU2n7M7Udij6rk8wqmDA==

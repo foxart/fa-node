@@ -1,50 +1,41 @@
 import { LoggerService } from '@nestjs/common';
-import { ConsoleOptionsInterface } from '../classes/logger-system.class';
-import { StackToTraceInterface } from '../helpers/data.helper';
+import type {
+  NestLoggerInterface,
+  NestLoggerMetadataInterface,
+  NestLoggerOptionsInterface,
+} from './nest-logger.abstract';
 import { NestLoggerAbstract, NestLoggerLevelType } from './nest-logger.abstract';
 
-class Console extends NestLoggerAbstract {
-  public constructor(options: ConsoleOptionsInterface) {
-    super(options);
-  }
-}
-
-export abstract class NestLoggerApplicationAbstract implements LoggerService {
-  private readonly console: Console;
-
-  protected constructor(options: ConsoleOptionsInterface) {
-    this.console = new Console(options);
+export class NestLoggerApplicationAbstract extends NestLoggerAbstract implements LoggerService {
+  public constructor(options: NestLoggerOptionsInterface, outputter?: NestLoggerInterface) {
+    super(options, outputter);
   }
 
-  protected get metadata(): StackToTraceInterface {
-    return this.console.metadata(new Error().stack, 2);
+  private get traceMetadata(): NestLoggerMetadataInterface {
+    return this.metadata(new Error().stack, 2);
   }
 
   public log(message: unknown, ...args: unknown[]): void {
-    this.stdout('LOG', this.metadata, message, ...args);
+    this.write('LOG', this.traceMetadata, message, ...args);
   }
 
   public error(...args: unknown[]): void {
-    this.stdout('ERR', this.metadata, ...args);
+    this.write('ERR', this.traceMetadata, ...args);
   }
 
   public warn(message: unknown, ...args: unknown[]): void {
-    this.stdout('WRN', this.metadata, message, ...args);
+    this.write('WRN', this.traceMetadata, message, ...args);
   }
 
   public debug(message: unknown, ...args: unknown[]): void {
-    this.stdout('DBG', this.metadata, message, ...args);
+    this.write('DBG', this.traceMetadata, message, ...args);
   }
 
   public info(message: unknown, ...args: unknown[]): void {
-    this.stdout('INF', this.metadata, message, ...args);
+    this.write('INF', this.traceMetadata, message, ...args);
   }
 
-  protected stdout(
-    level: NestLoggerLevelType,
-    metadata: StackToTraceInterface,
-    ...params: [...unknown[]] | [...unknown[], string]
-  ): void {
-    this.console.stdout(level, metadata, params);
+  protected write(level: NestLoggerLevelType, metadata: NestLoggerMetadataInterface, ...params: unknown[]): void {
+    this.stdout(level, metadata, params, undefined, 'application');
   }
 }

@@ -52,7 +52,7 @@ export function initConsole(): void {
 }
 
 initCatch();
-initConsole();
+// initConsole();
 console.clear();
 /**
  * Console Helper
