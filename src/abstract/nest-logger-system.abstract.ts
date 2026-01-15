@@ -1,10 +1,21 @@
 import { LoggerService } from '@nestjs/common';
-import type { LoggerMetadataInterface, NestLoggerOptionsInterface } from './nest-logger.abstract';
+import type {
+  LoggerMetadataInterface,
+  NestLoggerOptionsInterface,
+  NestLoggerOutputterInterface,
+  NestLoggerRawOutputterInterface,
+} from './nest-logger.abstract';
 import { NestLoggerAbstract, NestLoggerLevelType } from './nest-logger.abstract';
 
 export class NestLoggerSystemAbstract extends NestLoggerAbstract implements LoggerService {
-  public constructor(options: NestLoggerOptionsInterface) {
+  private readonly outputter?: NestLoggerOutputterInterface | NestLoggerRawOutputterInterface;
+
+  public constructor(
+    options: NestLoggerOptionsInterface,
+    outputter?: NestLoggerOutputterInterface | NestLoggerRawOutputterInterface,
+  ) {
     super(options);
+    this.outputter = outputter;
   }
 
   private get traceMetadata(): LoggerMetadataInterface {
@@ -29,6 +40,18 @@ export class NestLoggerSystemAbstract extends NestLoggerAbstract implements Logg
     }
     const caller = context ? context : metadata.caller;
     this.stdout(level, metadata, [message, ...params], caller, 'system');
+  }
+
+  protected override output(level: NestLoggerLevelType, line: string): void {
+    if (this.outputter) {
+      if ('raw' in this.outputter) {
+        this.outputter.raw(line);
+        return;
+      }
+      this.outputter.stdout(line);
+      return;
+    }
+    super.output(level, line);
   }
   public override error(message: unknown, ...params: unknown[]): void {
     let context: string | undefined;

@@ -1,10 +1,21 @@
 import { LoggerService } from '@nestjs/common';
-import type { LoggerMetadataInterface, NestLoggerOptionsInterface } from './nest-logger.abstract';
+import type {
+  LoggerMetadataInterface,
+  NestLoggerOptionsInterface,
+  NestLoggerOutputterInterface,
+  NestLoggerRawOutputterInterface,
+} from './nest-logger.abstract';
 import { NestLoggerAbstract, NestLoggerLevelType } from './nest-logger.abstract';
 
 export class NestLoggerApplicationAbstract extends NestLoggerAbstract implements LoggerService {
-  public constructor(options: NestLoggerOptionsInterface) {
+  private readonly outputter?: NestLoggerOutputterInterface | NestLoggerRawOutputterInterface;
+
+  public constructor(
+    options: NestLoggerOptionsInterface,
+    outputter?: NestLoggerOutputterInterface | NestLoggerRawOutputterInterface,
+  ) {
     super(options);
+    this.outputter = outputter;
   }
 
   private get traceMetadata(): LoggerMetadataInterface {
@@ -21,6 +32,18 @@ export class NestLoggerApplicationAbstract extends NestLoggerAbstract implements
 
   protected write(level: NestLoggerLevelType, metadata: LoggerMetadataInterface, ...params: unknown[]): void {
     this.stdout(level, metadata, params, undefined, 'application');
+  }
+
+  protected override output(level: NestLoggerLevelType, line: string): void {
+    if (this.outputter) {
+      if ('raw' in this.outputter) {
+        this.outputter.raw(line);
+        return;
+      }
+      this.outputter.stdout(line);
+      return;
+    }
+    super.output(level, line);
   }
   public override error(...args: unknown[]): void {
     this.write('ERR', this.traceMetadata, ...args);

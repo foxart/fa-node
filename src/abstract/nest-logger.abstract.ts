@@ -22,6 +22,14 @@ export interface LoggerMetadataInterface {
   method: string | undefined;
 }
 
+export interface NestLoggerOutputterInterface {
+  stdout: (data: string) => void;
+}
+
+export interface NestLoggerRawOutputterInterface {
+  raw: (data: string) => void;
+}
+
 export type NestLoggerMetadataInterface = LoggerMetadataInterface;
 
 const COLOR_MAP = {
@@ -161,12 +169,12 @@ export class NestLoggerAbstract {
     this.output(level, line);
   }
 
-  private output(level: NestLoggerLevelType, line: string): void {
-    if (level === 'ERR' || level === 'FTL') {
-      process.stderr.write(line);
-      return;
-    }
-    process.stdout.write(line);
+  public raw(data: string): void {
+    this.stdoutRaw(data);
+  }
+
+  protected output(_level: NestLoggerLevelType, line: string): void {
+    this.stdoutRaw(line);
   }
 
   private formatLine(
@@ -328,13 +336,7 @@ export class NestLoggerAbstract {
   }
 
   private getLink(file: string): string {
-    return [
-      this.color.cyan,
-      'at ',
-      this.color.reset,
-      this.excludePath(file),
-      this.color.reset,
-    ].join('');
+    return [this.color.cyan, 'at ', this.color.reset, this.excludePath(file), this.color.reset].join('');
   }
 
   private getLevelColor(level: NestLoggerLevelType): string {
@@ -412,14 +414,11 @@ export class NestLoggerAbstract {
   }
 
   private printInfo(level: NestLoggerLevelType): void {
-    const info = [
-      this.getSystemName(),
-      this.getSystemPid(),
-      this.getSystemDate(),
-      this.getSystemTime(),
-    ].filter((item) => {
-      return item;
-    });
+    const info = [this.getSystemName(), this.getSystemPid(), this.getSystemDate(), this.getSystemTime()].filter(
+      (item) => {
+        return item;
+      },
+    );
     if (info.length) {
       this.stdoutRaw(info.join(this.wrapData(' \u2503 ', [this.getForeground(level)])));
       this.stdoutRaw(' ');
