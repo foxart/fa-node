@@ -1,27 +1,36 @@
 import { LoggerService } from '@nestjs/common';
-import type {
-  NestLoggerInterface,
-  NestLoggerMetadataInterface,
-  NestLoggerOptionsInterface,
-} from './nest-logger.abstract';
+import type { LoggerMetadataInterface, NestLoggerOptionsInterface } from './nest-logger.abstract';
 import { NestLoggerAbstract, NestLoggerLevelType } from './nest-logger.abstract';
 
 export class NestLoggerSystemAbstract extends NestLoggerAbstract implements LoggerService {
-  public constructor(options: NestLoggerOptionsInterface, outputter?: NestLoggerInterface) {
-    super(options, outputter);
+  public constructor(options: NestLoggerOptionsInterface) {
+    super(options);
   }
 
-  private get traceMetadata(): NestLoggerMetadataInterface {
+  private get traceMetadata(): LoggerMetadataInterface {
     const { caller, file } = this.metadata(new Error().stack, 2);
     return { caller, file, method: undefined };
   }
 
-  public log(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
+  public override log(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
     this.write('LOG', this.traceMetadata, context, message, ...params);
   }
 
-  public error(message: unknown, ...params: unknown[]): void {
+  protected write(
+    level: NestLoggerLevelType,
+    metadata: LoggerMetadataInterface,
+    context: string | undefined,
+    message: unknown,
+    ...params: unknown[]
+  ): void {
+    if (message === 'Nest application successfully started') {
+      return;
+    }
+    const caller = context ? context : metadata.caller;
+    this.stdout(level, metadata, [message, ...params], caller, 'system');
+  }
+  public override error(message: unknown, ...params: unknown[]): void {
     let context: string | undefined;
     let stack: string | undefined;
     if (params.length > 0 && typeof params[0] === 'string' && /\n\s*at\s+/m.test(params[0])) {
@@ -55,12 +64,12 @@ export class NestLoggerSystemAbstract extends NestLoggerAbstract implements Logg
     }
   }
 
-  public warn(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
+  public override warn(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
     this.write('WRN', this.traceMetadata, context, message, ...params);
   }
 
-  public debug(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
+  public override debug(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
     this.write('DBG', this.traceMetadata, context, message, ...params);
   }
@@ -70,22 +79,8 @@ export class NestLoggerSystemAbstract extends NestLoggerAbstract implements Logg
     this.write('INF', this.traceMetadata, context, message, ...params);
   }
 
-  public fatal(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
+  public override fatal(message: unknown, ...params: [...unknown[]] | [...unknown[], string]): void {
     const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
     this.write('FTL', this.traceMetadata, context, message, ...params);
-  }
-
-  protected write(
-    level: NestLoggerLevelType,
-    metadata: NestLoggerMetadataInterface,
-    context: string | undefined,
-    message: unknown,
-    ...params: unknown[]
-  ): void {
-    if (message === 'Nest application successfully started') {
-      return;
-    }
-    const caller = context ? context : metadata.caller;
-    this.stdout(level, metadata, [message, ...params], caller, 'system');
   }
 }

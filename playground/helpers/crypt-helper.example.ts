@@ -1,4 +1,10 @@
-import { CryptClass, NestLoggerApplicationAbstract, NestLoggerSystemAbstract, SystemHelper } from '../../src';
+import {
+  CryptClass,
+  LoggerSystemClass,
+  NestLoggerApplicationAbstract,
+  NestLoggerSystemAbstract,
+  SystemHelper,
+} from '../../src';
 
 function rotate(rawPayload: string, oldCrypt: CryptClass, newCrypt: CryptClass): string {
   const { dek, encryptedData, ivData, tagData } = oldCrypt.unwrapDek(rawPayload);
@@ -46,7 +52,23 @@ export function run(): void {
   //     message: { a: 1 },
   //   }),
   // );
-  console.log(process.cwd(), __dirname);
+  // console.log(process.cwd(), __dirname);
+  const customConsole = new LoggerSystemClass({
+    // traceIndex: 2,
+    color: true,
+    info: true,
+    name: 'NAME',
+    pid: true,
+    date: true,
+    time: true,
+    performance: true,
+    link: true,
+    /** */
+    stackError: true,
+    stackDebug: true,
+    /** */
+    sort: true,
+  });
   const application = new NestLoggerApplicationAbstract({
     pid: true,
     date: true,
@@ -75,6 +97,7 @@ export function run(): void {
   });
   application.warn(new Error('Error').message, '{a}', [1, 2, 3]);
   system.error(new Error('Error').name, '{a}', [1, 2, 3]);
+  customConsole.log(process.cwd(), __dirname);
 }
 //
 // AQCYEmmGWt9czQLi7GViYJeiVmI0HdMBCAFsCz2CACDIFof4RCUyAShXOO8YjjFmyHKwho1hG9FlnD2iOQPgy0T5IXX0gyaruaGZ7d32W0EDgozaYXNCyOk0XAlzfZwXuwGfE/0Mnv3xonV5qfBPV3XLVPWbgNAJPMMhl9kajT1hLYYM0rCU2n7M7Udij6rk8wqmDA==

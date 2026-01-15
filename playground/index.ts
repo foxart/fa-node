@@ -1,4 +1,4 @@
-import { LoggerSystemClass } from '../src';
+import { ConsoleHelper, LoggerSystemClass } from '../src';
 
 export function initCatch(): void {
   process.on('uncaughtException', (error) => {
@@ -12,9 +12,9 @@ export function initCatch(): void {
 }
 
 export function initConsole(): void {
-  Array.from(Array(5).keys()).forEach(() => console.log('|'));
-  const Console = new LoggerSystemClass({
-    traceIndex: 2,
+  // Array.from(Array(5).keys()).forEach(() => console.log('|'));
+  const myConsole = new LoggerSystemClass({
+    // traceIndex: 2,
     color: true,
     info: true,
     name: 'NAME',
@@ -29,30 +29,11 @@ export function initConsole(): void {
     /** */
     sort: true,
   });
-  console.log = (...args: unknown[]): void => {
-    Console.log(...args);
-    process.stdout.write('\n');
-  };
-  console.info = (...args: unknown[]): void => {
-    Console.info(...args);
-    process.stdout.write('\n');
-  };
-  console.warn = (...args: unknown[]): void => {
-    Console.warn(...args);
-    process.stdout.write('\n');
-  };
-  console.error = (...args: unknown[]): void => {
-    Console.error(...args);
-    process.stdout.write('\n');
-  };
-  console.debug = (...args: unknown[]): void => {
-    Console.debug(...args);
-    process.stdout.write('\n');
-  };
+  ConsoleHelper.override(myConsole);
 }
 
 initCatch();
-// initConsole();
+initConsole();
 console.clear();
 /**
  * Console Helper
