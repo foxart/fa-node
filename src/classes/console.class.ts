@@ -22,6 +22,7 @@ interface EffectInterface {
   bold: string;
   dim: string;
   reset: string;
+  underline: string;
 }
 
 interface ArrowInterface {
@@ -41,6 +42,7 @@ const EFFECT_ON: EffectInterface = {
   bold: '\u001b[1m',
   dim: '\u001b[2m',
   reset: '\u001b[0m',
+  underline: '\u001b[4m',
 };
 const FOREGROUND_ON: ForegroundInterface = {
   red: '\u001b[31m',
@@ -64,6 +66,7 @@ const EFFECT_OFF: EffectInterface = {
   bold: '',
   dim: '',
   reset: '',
+  underline: '',
 };
 const FOREGROUND_OFF: ForegroundInterface = {
   red: '',

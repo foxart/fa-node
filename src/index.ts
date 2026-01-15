@@ -4,6 +4,7 @@ export * from './abstract/logger-system.abstract';
 
 /** CLASSES */
 export * from './classes/configuration.class';
+export * from './classes/console.class';
 export * from './classes/crypt.class';
 export * from './classes/decorator.class';
 export * from './classes/error.class';
