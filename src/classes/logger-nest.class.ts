@@ -50,7 +50,7 @@ export class LoggerNestClass {
     const metadata = trace[traceLevel];
     if (metadata) {
       return {
-        file: this.excludePath(metadata.file),
+        file: metadata.file,
         caller: metadata.caller,
         method: metadata.method,
       };
@@ -59,7 +59,7 @@ export class LoggerNestClass {
       return item.caller && item.method;
     });
     return {
-      file: this.excludePath(nextMetadata?.file ?? ''),
+      file: nextMetadata?.file ?? '',
       caller: nextMetadata?.caller ?? 'unknown',
       method: nextMetadata?.method,
     };
@@ -165,9 +165,9 @@ export class LoggerNestClass {
       })
       .map((item) => {
         if (this.options.info) {
-          return `${this.color.wrap(' at ', [this.color.effect.dim, color])}${this.excludePath(item.file)}`;
+          return `${this.color.wrap(' at ', [this.color.effect.dim, color])}${item.file}`;
         }
-        return `    ${this.excludePath(item.file)}`;
+        return `    ${item.file}`;
       });
     return `\n${this.color.wrap('{', [this.color.foreground.cyan])}\n${lines.join('\n')}\n${this.color.wrap('}', [this.color.foreground.cyan])} `;
   }
@@ -211,7 +211,7 @@ export class LoggerNestClass {
   }
 
   private getLink(file: string): string {
-    return `${this.color.wrap('at ', [this.color.foreground.cyan])}${this.excludePath(file)}`;
+    return `${this.color.wrap('at ', [this.color.foreground.cyan])}${file}`;
   }
 
   private getLevelColor(level: LoggerNestLevelType): string {
@@ -341,7 +341,7 @@ export class LoggerNestClass {
                 color.wrap(item.caller, [color.foreground.yellow]) +
                 (item.method ? color.wrap(`.${item.method}`, [color.foreground.blue]) : '') +
                 ' ' +
-                color.wrap(this.excludePath(item.file), [color.foreground.cyan]) +
+                color.wrap(item.file, [color.foreground.cyan]) +
                 '\n',
             );
           }
@@ -353,34 +353,31 @@ export class LoggerNestClass {
     }
   }
 
-  private stackToTrace(stack = ''): LoggerNestMetadataInterface[] {
+  private stackToTrace(stack = '', filterNode = false): LoggerNestMetadataInterface[] {
     if (!stack) {
       return [];
     }
+    const root = process.cwd();
     const result: LoggerNestMetadataInterface[] = [];
     for (const match of stack.matchAll(STACK_REGEXP)) {
       const context = match[1];
       const dotIndex = context.indexOf('.');
       const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
       const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
-      const file = match[2];
-      if (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === '')) {
+      let file = match[2];
+      if (
+        filterNode &&
+        (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === ''))
+      ) {
         continue;
+      }
+      if (root && file.startsWith(root)) {
+        file = file.slice(root.length).replace(/^\/|\/$/g, '') || '.';
+      } else {
+        file = file.replace(/^\/|\/$/g, '');
       }
       result.push({ caller, method, file });
     }
     return result;
-  }
-
-  private excludePath(path: string): string {
-    const root = process.cwd();
-    if (!root) {
-      return path;
-    }
-    if (path.startsWith(root)) {
-      const rest = path.slice(root.length).replace(/^\/|\/$/g, '');
-      return rest || '.';
-    }
-    return path.replace(/^\/|\/$/g, '');
   }
 }

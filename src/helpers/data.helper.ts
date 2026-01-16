@@ -24,9 +24,10 @@ interface MergeDeepOptionsInterface {
 
 type ApplyCallbackType = (key: string | number, value: unknown) => [string | number, unknown];
 
+const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
+
 class DataSingleton {
   private static self: DataSingleton;
-  private readonly stackRegExp = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
   private readonly isNode: boolean;
 
   private constructor() {
@@ -89,12 +90,12 @@ class DataSingleton {
   }
 
   public excludePath(fromPath: string, excludePath = ''): string {
-    const path = excludePath ? excludePath : this.isNode ? process.cwd() : '';
-    if (!path) {
+    // const path = excludePath ? excludePath : this.isNode ? process.cwd() : '';
+    if (!excludePath) {
       return fromPath;
     }
-    if (fromPath.startsWith(path)) {
-      const rest = fromPath.slice(path.length).replace(/^\/|\/$/g, '');
+    if (fromPath.startsWith(excludePath)) {
+      const rest = fromPath.slice(excludePath.length).replace(/^\/|\/$/g, '');
       return rest || '.';
     }
     return fromPath.replace(/^\/|\/$/g, '');
@@ -276,24 +277,27 @@ class DataSingleton {
     if (!stack) {
       return [];
     }
-    const stackRegExp = new RegExp(this.stackRegExp.source, 'gm');
     const result: StackToTraceInterface[] = [];
-    for (const match of stack.matchAll(stackRegExp)) {
+    for (const match of stack.matchAll(STACK_REGEXP)) {
       const context = match[1];
       const dotIndex = context.indexOf('.');
       const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
       const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
-      let file = match[2];
+      const file = match[2];
       if (
         filterNode &&
         (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === ''))
       ) {
         continue;
       }
-      if (filterNode && this.isNode) {
-        file = DataHelper.excludePath(file, process.cwd());
-      }
-      result.push({ caller, method, file });
+      // if (this.isNode) {
+      //   file = DataHelper.excludePath(file, process.cwd());
+      // }
+      result.push({
+        caller,
+        method,
+        file: this.isNode ? DataHelper.excludePath(file, process.cwd()) : file,
+      });
     }
     return result;
   }

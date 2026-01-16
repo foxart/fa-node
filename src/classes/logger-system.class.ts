@@ -124,7 +124,7 @@ export class LoggerSystemClass {
         } else {
           this.stdout('    ');
         }
-        this.stdout(this.excludePath(item.file));
+        this.stdout(item.file);
       });
     this.stdout(`\n${this.color.wrap('}', [this.color.effect.bold, this.color.foreground.cyan])}`);
     this.stdout(' ');
@@ -151,7 +151,7 @@ export class LoggerSystemClass {
       this.stdout(this.color.wrap(' at ', [this.getBackground(level)]));
       this.stdout(' ');
     }
-    this.stdout(this.excludePath(link));
+    this.stdout(link);
   }
 
   public printError(error: Error): void {
@@ -218,11 +218,11 @@ export class LoggerSystemClass {
   }
 
   public getStack(stack?: string): TraceInterface[] {
-    return this.stackToTrace(stack).map((item) => {
+    return this.stackToTrace(stack, false).map((item) => {
       return {
         caller: item.caller,
         method: item.method,
-        file: this.excludePath(item.file),
+        file: item.file,
       };
     });
   }
@@ -304,7 +304,7 @@ export class LoggerSystemClass {
                 color.wrap(item.caller, [color.foreground.yellow]) +
                 (item.method ? color.wrap(`.${item.method}`, [color.foreground.blue]) : '') +
                 ' ' +
-                color.wrap(this.excludePath(item.file), [color.foreground.cyan]) +
+                color.wrap(item.file, [color.foreground.cyan]) +
                 '\n',
             );
           }
@@ -316,35 +316,32 @@ export class LoggerSystemClass {
     }
   }
 
-  private stackToTrace(stack = ''): LoggerNestMetadataInterface[] {
+  private stackToTrace(stack = '', filterNode = false): LoggerNestMetadataInterface[] {
     if (!stack) {
       return [];
     }
+    const root = process.cwd();
     const result: LoggerNestMetadataInterface[] = [];
     for (const match of stack.matchAll(STACK_REGEXP)) {
       const context = match[1];
       const dotIndex = context.indexOf('.');
       const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
       const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
-      const file = match[2];
-      if (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === '')) {
+      let file = match[2];
+      if (
+        filterNode &&
+        (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === ''))
+      ) {
         continue;
+      }
+      if (root && file.startsWith(root)) {
+        file = file.slice(root.length).replace(/^\/|\/$/g, '') || '.';
+      } else {
+        file = file.replace(/^\/|\/$/g, '');
       }
       result.push({ caller, method, file });
     }
     return result;
-  }
-
-  private excludePath(path: string): string {
-    const root = process.cwd();
-    if (!root) {
-      return path;
-    }
-    if (path.startsWith(root)) {
-      const rest = path.slice(root.length).replace(/^\/|\/$/g, '');
-      return rest || '.';
-    }
-    return path.replace(/^\/|\/$/g, '');
   }
 
   private filterCircular(data: unknown): unknown {
