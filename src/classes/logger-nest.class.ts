@@ -252,60 +252,95 @@ export class LoggerNestClass {
     if (!this.options.color) {
       return message;
     }
-    if (!/[{}\[\]()'"\/]/.test(message)) {
-      return `${baseColor}${message}${this.color.effect.reset}`;
-    }
-    const tokenRegex = /(\{[^}]*}|\[[^\]]*]|\([^)]*\)|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;
-    let result = '';
-    let lastIndex = 0;
-    for (const match of message.matchAll(tokenRegex)) {
-      const index = match.index;
-      const token = match[0];
-      if (index > lastIndex) {
-        const plain = message.slice(lastIndex, index);
-        result += baseColor + this.colorizePathsInText(plain, baseColor);
+    const color = this.color;
+    let out = '';
+    let mode: 'normal' | 'single' | 'double' = 'normal';
+    let path = '';
+    const flushPath = (): void => {
+      if (!path) return;
+      out += this.colorizePath(path);
+      path = '';
+    };
+    for (let i = 0; i < message.length; i++) {
+      const ch = message[i];
+      // ───────── кавычки ─────────
+      if (ch === "'" && mode !== 'double') {
+        flushPath();
+        mode = mode === 'single' ? 'normal' : 'single';
+        out += color.wrap(ch, [color.effect.bold, color.foreground.yellow]);
+        continue;
       }
-      const open = token[0];
-      const close = token[token.length - 1];
-      const inner = token.slice(1, -1);
-      let frameColor = this.color.foreground.yellow;
-      if (open === '[') frameColor = this.color.foreground.cyan;
-      else if (open === '(') frameColor = this.color.foreground.magenta;
-      else if (open === '"' || open === "'") frameColor = this.color.foreground.green;
-      const innerWithPaths = this.colorizePathsInText(inner, this.color.foreground.white);
-      result += this.color.wrap(open, [frameColor]) + innerWithPaths + this.color.wrap(close, [frameColor]);
-      lastIndex = index + token.length;
+      if (ch === '"' && mode !== 'single') {
+        flushPath();
+        mode = mode === 'double' ? 'normal' : 'double';
+        out += color.wrap(ch, [color.effect.bold, color.foreground.yellow]);
+        continue;
+      }
+      // ───────── скобки ─────────
+      if (mode === 'normal') {
+        if (ch === '{' || ch === '}') {
+          flushPath();
+          out += color.wrap(ch, [color.effect.bold, color.foreground.magenta]);
+          continue;
+        }
+        if (ch === '[' || ch === ']') {
+          flushPath();
+          out += color.wrap(ch, [color.effect.bold, color.foreground.cyan]);
+          continue;
+        }
+        if (ch === '(' || ch === ')') {
+          flushPath();
+          out += color.wrap(ch, [color.effect.bold, color.foreground.blue]);
+          continue;
+        }
+      }
+      // ───────── путь ─────────
+      if (mode === 'normal' && ch === '/') {
+        flushPath();
+        path = '/';
+        continue;
+      }
+      if (path) {
+        if (
+          ch === ' ' ||
+          ch === '"' ||
+          ch === "'" ||
+          ch === '{' ||
+          ch === '}' ||
+          ch === '[' ||
+          ch === ']' ||
+          ch === '(' ||
+          ch === ')'
+        ) {
+          flushPath();
+          out += baseColor + ch;
+          // out += color.wrap(ch, [baseColor]);
+        } else {
+          path += ch;
+        }
+        continue;
+      }
+      // ───────── обычный текст ─────────
+      out += baseColor + ch;
+      // out += color.wrap(ch, [baseColor]);
     }
-    if (lastIndex < message.length) {
-      const tail = message.slice(lastIndex);
-      result += baseColor + this.colorizePathsInText(tail, baseColor);
-    }
-    return `${result}${this.color.effect.reset}`;
-  }
-
-  private colorizePathsInText(text: string, baseColor: string): string {
-    if (text.indexOf('/') === -1) {
-      return text;
-    }
-    const pathRegex = /(^|[\s,:;=])(\/?[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+)/g;
-    return text.replace(pathRegex, (_m, prefix: string, path: string) => {
-      return `${prefix}${this.colorizePath(path)}${baseColor}`;
-    });
+    flushPath();
+    return out + color.effect.reset;
   }
 
   private colorizePath(path: string): string {
+    const color = this.color;
     const isAbsolute = path.startsWith('/');
     const parts = path.split('/').filter(Boolean);
     let out = '';
-    // ведущий слеш
     if (isAbsolute) {
-      out += this.color.wrap('/', [this.color.effect.dim, this.color.foreground.cyan]);
+      out += color.wrap('/', [color.effect.dim, color.foreground.cyan]);
     }
     for (let i = 0; i < parts.length; i++) {
       if (i > 0) {
-        out += this.color.wrap('/', [this.color.effect.dim, this.color.foreground.cyan]);
+        out += color.wrap('/', [color.effect.dim, color.foreground.cyan]);
       }
-      out += this.color.wrap(parts[i], [this.color.foreground.cyan]);
+      out += color.wrap(parts[i], [color.foreground.cyan]);
     }
     return out;
   }

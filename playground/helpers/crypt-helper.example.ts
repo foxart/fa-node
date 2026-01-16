@@ -95,8 +95,8 @@ export function run(): void {
     stackError: true,
     stackDebug: true,
   });
-  const data = { a: 1, b: [1, 2, 3], c: new Error().name };
-  application.warn(data);
-  system.error(data);
+  const data = { a: 1, b: [1, 2, 3], c: new Error().name, d: '/abc/def' };
   customConsole.log(data);
+  application.warn('/abc/"def"/test/{xxx}/\'asdf\'/[123]/(xxx)');
+  system.error('/abc/def');
 }
