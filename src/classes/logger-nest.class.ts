@@ -35,6 +35,8 @@ const NEST_CALLER_LIST = [
   'NestApplication',
 ];
 const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
+// const PATH_REGEX = /(^|[\s,:;=([{])(\/?[^\s)\],}]+\/[^\s)\],}]+|\/)/g;
+export const PATH_REGEX = /(^|[\s,:;=])([^\s"'()\[\]{}]*\/[^\s"'()\[\]{}]*)/g;
 
 export class LoggerNestClass {
   private readonly performanceStart = performance.now();
@@ -66,9 +68,9 @@ export class LoggerNestClass {
   }
 
   public resolveCaller(metadata: LoggerNestMetadataInterface): string {
-    if (metadata.caller && metadata.caller !== '<anonymous>') {
-      return metadata.caller;
-    }
+    // if (metadata.caller && metadata.caller !== '<anonymous>') {
+    // return metadata.caller;
+    // }
     const file = metadata.file || '';
     const base = file.split('/').pop() || file.split('\\').pop() || 'App';
     const stem = base.replace(/\.[^/.]+$/, '');

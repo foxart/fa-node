@@ -86,8 +86,15 @@ export class LoggerSystemAbstract implements LoggerService {
     if (message === 'Nest application successfully started') {
       return;
     }
-    const caller = context && context !== '<anonymous>' ? context : this.logger.resolveCaller(metadata);
-    const safeMetadata = { ...metadata, method: undefined };
+    const caller = context ? context : this.logger.resolveCaller(metadata);
+    const safeMetadata = {
+      ...metadata,
+      method: metadata.method
+        ? ['log', 'error', 'warn', 'debug', 'verbose', 'fatal'].includes(metadata.method)
+          ? undefined
+          : metadata.method
+        : undefined,
+    };
     this.logger.print(level, safeMetadata, [message, ...params], caller);
   }
 }

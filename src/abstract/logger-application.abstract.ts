@@ -39,7 +39,7 @@ export class LoggerApplicationAbstract implements LoggerService {
 
   protected stdout(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface, ...params: unknown[]): void {
     const caller = this.logger.resolveCaller(metadata);
-    const method = metadata.method?.split('.').pop() ?? 'anonymous';
+    const method = metadata.method?.split('.').pop() ?? metadata.method;
     const safeMetadata: LoggerNestMetadataInterface = {
       ...metadata,
       caller,
