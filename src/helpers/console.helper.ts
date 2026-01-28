@@ -6,7 +6,7 @@ interface ConsoleInterface {
   debug: (...args: unknown[]) => void;
 }
 
-export class Console {
+class Console {
   private readonly consoleInterface: ConsoleInterface;
 
   public constructor() {
