@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 type ConfigurationType<T> =
-  T extends ConfigurationSchemaInterface<infer R>
+  T extends ConfigurationDicrionaryInterface<infer R>
     ? R
     : T extends readonly (infer U)[]
       ? readonly ConfigurationType<U>[]
@@ -15,7 +15,7 @@ interface ConfigurationResultInterface<T> {
   errors: string[];
 }
 
-interface ConfigurationSchemaInterface<T = string> {
+interface ConfigurationDicrionaryInterface<T = string> {
   placeholder: string;
   default?: T;
   required?: boolean;
@@ -88,7 +88,7 @@ export class ConfigurationClass<T extends object> {
     throw new Error(`Invalid boolean: ${value}`);
   }
 
-  private static isReference(value: unknown): value is ConfigurationSchemaInterface {
+  private static isReference(value: unknown): value is ConfigurationDicrionaryInterface {
     if (typeof value !== 'object' || value === null) {
       return false;
     }
@@ -104,14 +104,18 @@ export class ConfigurationClass<T extends object> {
     };
   }
 
-  private extractRecursive(schema: Record<string, unknown>): {
+  public mask(configuration: ConfigurationType<T>, fullList: string[], partialList: string[]): ConfigurationType<T> {
+    return this.maskRecursive(configuration as Record<string, unknown>, fullList, partialList) as ConfigurationType<T>;
+  }
+
+  private extractRecursive(dictionary: Record<string, unknown>): {
     configuration: Record<string, unknown>;
     errors: string[];
   } {
     const result: Record<string, unknown> = {};
     const errors: string[] = [];
-    for (const key in schema) {
-      const value = schema[key];
+    for (const key in dictionary) {
+      const value = dictionary[key];
       if (ConfigurationClass.isReference(value)) {
         const { placeholder, default: def, required = false, transform } = value;
         if (!placeholder) continue;
@@ -145,5 +149,50 @@ export class ConfigurationClass<T extends object> {
       result[key] = value;
     }
     return { configuration: result, errors };
+  }
+
+  private maskRecursive(
+    dictionary: Record<string, unknown>,
+    fullList: string[],
+    partialList: string[],
+  ): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const key in dictionary) {
+      const value = dictionary[key];
+      if (Array.isArray(value)) {
+        result[key] = value;
+        continue;
+      }
+      if (typeof value === 'object' && value !== null) {
+        result[key] = this.maskRecursive(value as Record<string, unknown>, fullList, partialList);
+        continue;
+      }
+      const str = value?.toString?.() ?? '';
+      const lowerKey = key.toLowerCase();
+      // FULL MASK
+      if (fullList.some((maskKey) => lowerKey.includes(maskKey))) {
+        result[key] = str.replace(/[A-Za-z0-9]/g, '*');
+        continue;
+      }
+      // PARTIAL MASK
+      if (partialList.some((maskKey) => lowerKey.includes(maskKey))) {
+        const prefixLength = 3;
+        const suffixLength = 3;
+        if (str.length <= prefixLength + suffixLength) {
+          const first = str[0] ?? '';
+          const last = str.length > 1 ? str[str.length - 1] : '';
+          const middle = str.length > 2 ? str.slice(1, -1).replace(/[A-Za-z0-9]/g, '*') : '';
+          result[key] = first + middle + last;
+        } else {
+          const prefix = str.slice(0, prefixLength);
+          const suffix = str.slice(-suffixLength);
+          const middle = str.slice(prefixLength, -suffixLength).replace(/[A-Za-z0-9]/g, '*');
+          result[key] = prefix + middle + suffix;
+        }
+        continue;
+      }
+      result[key] = value;
+    }
+    return result;
   }
 }
