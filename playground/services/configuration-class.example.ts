@@ -9,7 +9,7 @@ export function run(): void {
     },
   };
   const config = new ConfigurationClass(configuration);
-  const result = config.extract();
+  const result = config.process();
   console.error(result.errors);
   console.log(new Error('Error'));
   console.log(new ErrorClass({ name: 'ErrorString', message: 'Message' }));

@@ -1,51 +1,57 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-type ConfigurationType<T> =
-  T extends ConfigurationDicrionaryInterface<infer R>
+export type ConfigurationType<T> = {
+  [K in keyof T]: T[K] extends object ? ConfigurationType<T[K]> : ConfigurationInterface<T[K]> | T[K];
+};
+
+// type ConfigurationInterface<T = string> = DictionaryRequired<T> | DictionaryWithDefault<T> | DictionaryOptional<T>;
+// type DictionaryBase<T> = {
+//   placeholder: string;
+//   transform?: (value: string) => T;
+// };
+// type DictionaryRequired<T> = DictionaryBase<T> & {
+//   required: true;
+//   default?: never;
+// };
+// type DictionaryWithDefault<T> = DictionaryBase<T> & {
+//   default: T;
+//   required?: false;
+// };
+// type DictionaryOptional<T> = DictionaryBase<T> & {
+//   required?: false;
+//   default?: undefined;
+// };
+
+type ConfigurationInterface<T = string> = {
+  placeholder: string;
+  transform?: (value: string) => T;
+} & (
+  | { required: true; default?: never }
+  | { default: T; required?: false }
+  | { required?: false; default?: undefined }
+);
+
+type DictionaryType<T> =
+  T extends DictionaryInterface<infer R>
     ? R
     : T extends readonly (infer U)[]
-      ? readonly ConfigurationType<U>[]
+      ? readonly DictionaryType<U>[]
       : T extends object
-        ? { readonly [K in keyof T]: ConfigurationType<T[K]> }
+        ? { readonly [K in keyof T]: DictionaryType<T[K]> }
         : T;
 
-interface ConfigurationResultInterface<T> {
-  configuration: ConfigurationType<T>;
+interface ResultInterface<T> {
+  environments: DictionaryType<T>;
   errors: string[];
 }
 
-interface ConfigurationDicrionaryInterface<T = string> {
+interface DictionaryInterface<T = string> {
   placeholder: string;
   default?: T;
   required?: boolean;
   transform?: (value: string) => T;
 }
-
-type ConfigurationSchemaBase<T> = {
-  placeholder: string;
-  transform?: (value: string) => T;
-};
-
-type ConfigurationSchemaRequired<T> = ConfigurationSchemaBase<T> & {
-  required: true;
-  default?: never;
-};
-
-type ConfigurationSchemaWithDefault<T> = ConfigurationSchemaBase<T> & {
-  default: T;
-  required?: false;
-};
-
-type ConfigurationSchemaOptional<T> = ConfigurationSchemaBase<T> & {
-  required?: false;
-  default?: undefined;
-};
-
-export type ConfigurationInterface<T = string> =
-  | ConfigurationSchemaRequired<T>
-  | ConfigurationSchemaWithDefault<T>
-  | ConfigurationSchemaOptional<T>;
 
 export class ConfigurationClass<T extends object> {
   public static loadEnv(filePath = '.env'): void {
@@ -88,7 +94,7 @@ export class ConfigurationClass<T extends object> {
     throw new Error(`Invalid boolean: ${value}`);
   }
 
-  private static isReference(value: unknown): value is ConfigurationDicrionaryInterface {
+  private static isReference(value: unknown): value is DictionaryInterface {
     if (typeof value !== 'object' || value === null) {
       return false;
     }
@@ -96,20 +102,20 @@ export class ConfigurationClass<T extends object> {
     return typeof ref.placeholder === 'string';
   }
 
-  public extract(schema: T): ConfigurationResultInterface<T> {
-    const { configuration, errors } = this.extractRecursive(schema as Record<string, unknown>);
+  public process(configuration: T): ResultInterface<T> {
+    const { environments, errors } = this.extractRecursive(configuration as Record<string, unknown>);
     return {
-      configuration: configuration as ConfigurationType<T>,
+      environments: environments as DictionaryType<T>,
       errors,
     };
   }
 
-  public mask(configuration: ConfigurationType<T>, fullList: string[], partialList: string[]): ConfigurationType<T> {
-    return this.maskRecursive(configuration as Record<string, unknown>, fullList, partialList) as ConfigurationType<T>;
+  public mask(dictionary: DictionaryType<T>, fullList: string[], partialList: string[]): DictionaryType<T> {
+    return this.maskRecursive(dictionary as Record<string, unknown>, fullList, partialList) as DictionaryType<T>;
   }
 
   private extractRecursive(dictionary: Record<string, unknown>): {
-    configuration: Record<string, unknown>;
+    environments: Record<string, unknown>;
     errors: string[];
   } {
     const result: Record<string, unknown> = {};
@@ -142,13 +148,13 @@ export class ConfigurationClass<T extends object> {
       }
       if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
         const nested = this.extractRecursive(value as Record<string, unknown>);
-        result[key] = nested.configuration;
+        result[key] = nested.environments;
         errors.push(...nested.errors);
         continue;
       }
       result[key] = value;
     }
-    return { configuration: result, errors };
+    return { environments: result, errors };
   }
 
   private maskRecursive(
