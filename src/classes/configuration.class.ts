@@ -1,149 +1,149 @@
-import { IoHelper } from '../helpers/io.helper';
+import * as fs from 'fs';
+import * as path from 'path';
 
-interface EnvironmentInterface<T> {
-  configuration: T;
+type ConfigurationType<T> =
+  T extends ConfigurationSchemaInterface<infer R>
+    ? R
+    : T extends readonly (infer U)[]
+      ? readonly ConfigurationType<U>[]
+      : T extends object
+        ? { readonly [K in keyof T]: ConfigurationType<T[K]> }
+        : T;
+
+interface ConfigurationResultInterface<T> {
+  configuration: ConfigurationType<T>;
   errors: string[];
 }
 
+interface ConfigurationSchemaInterface<T = string> {
+  placeholder: string;
+  default?: T;
+  required?: boolean;
+  transform?: (value: string) => T;
+}
+
+type ConfigurationSchemaBase<T> = {
+  placeholder: string;
+  transform?: (value: string) => T;
+};
+
+type ConfigurationSchemaRequired<T> = ConfigurationSchemaBase<T> & {
+  required: true;
+  default?: never;
+};
+
+type ConfigurationSchemaWithDefault<T> = ConfigurationSchemaBase<T> & {
+  default: T;
+  required?: false;
+};
+
+type ConfigurationSchemaOptional<T> = ConfigurationSchemaBase<T> & {
+  required?: false;
+  default?: undefined;
+};
+
+export type ConfigurationInterface<T = string> =
+  | ConfigurationSchemaRequired<T>
+  | ConfigurationSchemaWithDefault<T>
+  | ConfigurationSchemaOptional<T>;
+
 export class ConfigurationClass<T extends object> {
-  private readonly configuration: T;
-
-  public constructor(configuration: T) {
-    this.configuration = configuration;
-  }
-
-  public load(filePath = '.env'): void {
-    try {
-      if (!IoHelper.checkPath(filePath)) {
-        return;
+  public static loadEnv(filePath = '.env'): void {
+    const absPath = path.resolve(filePath);
+    if (!fs.existsSync(absPath)) return;
+    const raw = fs.readFileSync(absPath, 'utf8');
+    if (!raw) return;
+    raw.split(/\r?\n/).forEach((line) => {
+      const clean = line.trim();
+      if (!clean || clean.startsWith('#')) return;
+      const eqIndex = clean.indexOf('=');
+      if (eqIndex === -1) return;
+      const key = clean.slice(0, eqIndex).trim();
+      let value = clean.slice(eqIndex + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
       }
-      const raw = IoHelper.readFileSync(filePath, 'utf8') as string;
-      if (!raw) {
-        return;
-      }
-      raw.split('\n').forEach((line: string) => {
-        const clean = line.trim();
-        if (!clean || clean.startsWith('#')) return;
-        const eqIndex = clean.indexOf('=');
-        if (eqIndex === -1) return;
-        const key = clean.slice(0, eqIndex).trim();
-        let value = clean.slice(eqIndex + 1).trim();
-        // Убираем кавычки
-        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-          value = value.slice(1, -1);
-        }
-        // Поддержка ${OTHER_ENV}
-        value = value.replace(/\$\{([A-Z0-9_]+)}/g, (_, varName: string) => {
-          return process.env[varName] ?? '';
-        });
-        // Не перезаписывать существующие переменные окружения
-        if (process.env[key] === undefined) {
-          process.env[key] = value;
-        }
+      value = value.replace(/\r$/, '');
+      value = value.replace(/\$\{([A-Z0-9_]+)}/g, (_: string, envKey: string) => {
+        return process.env[String(envKey)] ?? '';
       });
-    } catch (e) {
-      console.error(e);
-    }
+      if (process.env[key] === undefined || process.env[key] === '') {
+        process.env[key] = value;
+      }
+    });
   }
 
-  public extract(): EnvironmentInterface<T> {
-    // return this.extractRecursive(this.configuration);
-    const { configuration, errors } = this.extractRecursive(this.configuration as Record<string, unknown>);
+  public static toNumber(this: void, value: string): number {
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+      throw new Error(`Invalid number: ${value}`);
+    }
+    return n;
+  }
+
+  public static toBoolean(this: void, value: string): boolean {
+    const v = value.toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(v)) return true;
+    if (['false', '0', 'no', 'off'].includes(v)) return false;
+    throw new Error(`Invalid boolean: ${value}`);
+  }
+
+  private static isReference(value: unknown): value is ConfigurationSchemaInterface {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+    const ref = value as { placeholder?: unknown };
+    return typeof ref.placeholder === 'string';
+  }
+
+  public extract(schema: T): ConfigurationResultInterface<T> {
+    const { configuration, errors } = this.extractRecursive(schema as Record<string, unknown>);
     return {
-      configuration: configuration as T,
+      configuration: configuration as ConfigurationType<T>,
       errors,
     };
   }
 
-  public mask(configuration: T, fullList: string[], partialList: string[]): EnvironmentInterface<T> {
-    return this.maskRecursive(
-      configuration as Record<string, unknown>,
-      fullList,
-      partialList,
-    ) as unknown as EnvironmentInterface<T>;
-  }
-
-  private extractRecursive(
-    dictionary: Record<string, unknown>,
-    parentKey = '',
-  ): EnvironmentInterface<Record<string, unknown>> {
+  private extractRecursive(schema: Record<string, unknown>): {
+    configuration: Record<string, unknown>;
+    errors: string[];
+  } {
     const result: Record<string, unknown> = {};
     const errors: string[] = [];
-    for (const key in dictionary) {
-      const fullKey = parentKey ? parentKey + '.' + key : key;
-      if (Array.isArray(dictionary[key])) {
-        result[key] = dictionary[key];
+    for (const key in schema) {
+      const value = schema[key];
+      if (ConfigurationClass.isReference(value)) {
+        const { placeholder, default: def, required = false, transform } = value;
+        if (!placeholder) continue;
+        const rawValue = process.env[placeholder];
+        if (rawValue !== undefined && rawValue !== '') {
+          try {
+            // ✅ trim CR just in case env came with \r
+            const raw = String(rawValue).replace(/\r$/, '');
+            result[key] = transform ? transform(raw) : raw;
+          } catch {
+            errors.push(`${placeholder} (transform failed)`);
+          }
+        } else if (def !== undefined) {
+          // ✅ apply transform to default too (keeps types; avoids mismatch env/default)
+          try {
+            result[key] = transform ? transform(String(def)) : def;
+          } catch {
+            errors.push(`${placeholder} (default transform failed)`);
+          }
+        } else if (required) {
+          errors.push(placeholder);
+        }
         continue;
       }
-      // Рекурсивный объект
-      if (typeof dictionary[key] === 'object' && dictionary[key] !== null) {
-        const nested = this.extractRecursive(dictionary[key] as Record<string, unknown>, fullKey);
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        const nested = this.extractRecursive(value as Record<string, unknown>);
         result[key] = nested.configuration;
         errors.push(...nested.errors);
         continue;
       }
-      // Новый синтаксис: `$ENV_VAR`
-      if (typeof dictionary[key] === 'string' && /^\$[A-Z0-9_]+$/.test(dictionary[key])) {
-        const envKey = dictionary[key].slice(1); // убираем $
-        if (process.env[envKey] !== undefined) {
-          result[key] = process.env[envKey];
-        } else {
-          errors.push(envKey);
-        }
-        continue;
-      }
-      // Иначе — обычное значение
-      result[key] = dictionary[key];
-    }
-
-    return { configuration: result, errors };
-  }
-
-  private maskRecursive(
-    dictionary: Record<string, unknown>,
-    fullList: string[],
-    partialList: string[],
-  ): Record<string, unknown> {
-    if (!dictionary || typeof dictionary !== 'object') return dictionary;
-    const result: Record<string, unknown> = {};
-    for (const key in dictionary) {
-      const value = dictionary[key];
-      if (Array.isArray(dictionary[key])) {
-        result[key] = dictionary[key];
-        continue;
-      }
-      // Nested object or array
-      if (typeof value === 'object' && value !== null) {
-        result[key] = this.maskRecursive(value as Record<string, unknown>, fullList, partialList);
-        continue;
-      }
-      const lowerKey = key.toLowerCase();
-      const str = value?.toString?.() || '';
-      // FULL MASK
-      if (fullList.some((maskKey) => lowerKey.includes(maskKey))) {
-        result[key] = str.replace(/[A-Za-z0-9]/g, '*');
-        continue;
-      }
-      // PARTIAL MASK
-      if (partialList.some((maskKey) => lowerKey.includes(maskKey))) {
-        const prefixLength = 3;
-        const suffixLength = 3;
-        if (str.length <= prefixLength + suffixLength) {
-          const first = str[0] || '';
-          const last = str.length > 1 ? str[str.length - 1] : '';
-          const middle = str.length > 2 ? str.slice(1, -1).replace(/[A-Za-z0-9]/g, '*') : '';
-          result[key] = first + middle + last;
-        } else {
-          const prefix = str.slice(0, prefixLength);
-          const suffix = str.slice(-suffixLength);
-          const middle = str.slice(prefixLength, -suffixLength).replace(/[A-Za-z0-9]/g, '*');
-          result[key] = prefix + middle + suffix;
-        }
-        continue;
-      }
-      // No mask
       result[key] = value;
     }
-    return result;
+    return { configuration: result, errors };
   }
 }
