@@ -1,15 +1,15 @@
 /** NEST */
-export * from './abstract/logger-application.abstract';
-export * from './abstract/logger-system.abstract';
+export * from './abstract/logger-nest.abstract';
+export * from './abstract/logger-node.abstract';
 
 /** CLASSES */
 export * from './classes/configuration.class';
-export * from './classes/console.class';
 export * from './classes/crypt.class';
 export * from './classes/decorator.class';
 export * from './classes/error.class';
+export * from './classes/logger.class';
+export * from './classes/logger-node.class';
 export * from './classes/logger-nest.class';
-export * from './classes/logger-system.class';
 export * from './classes/middleware.class';
 export * from './classes/transformer.class';
 export * from './classes/validator.class';

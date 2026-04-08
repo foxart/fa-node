@@ -3,17 +3,17 @@ import fs from 'fs';
 import { buildClientSchema, IntrospectionQuery, printSchema } from 'graphql';
 import path from 'path';
 import { promisify } from 'util';
-import { ConsoleClass } from '../classes/console.class';
+import { LoggerClass } from '../classes/logger.class';
 
 type JsonType = string | number | boolean | null | { [key: string]: JsonType } | JsonType[];
 
 class CodegenSingleton {
   private static self: CodegenSingleton;
 
-  private readonly color: ConsoleClass;
+  private readonly logger: LoggerClass;
 
   private constructor() {
-    this.color = new ConsoleClass(true);
+    this.logger = new LoggerClass(true);
   }
 
   public static getInstance(): CodegenSingleton {
@@ -25,35 +25,35 @@ class CodegenSingleton {
 
   public displayMessage(name: string, message: string): void {
     const result = [
-      this.color.wrap(` ${name.toUpperCase()} `, [this.color.background.cyan]),
-      this.color.wrap(` ${message}`, [this.color.foreground.cyan]),
+      this.logger.wrap(` ${name.toUpperCase()} `, [this.logger.background.cyan]),
+      this.logger.wrap(` ${message}`, [this.logger.foreground.cyan]),
     ];
     console.log(result.join(''));
   }
 
   public logSuccess(context: string, message: string): void {
     const result = [
-      this.color.wrap(context, [this.color.foreground.white]),
-      this.color.wrap(` ${this.color.status.success} `, [this.color.effect.bold, this.color.foreground.green]),
-      this.color.wrap(message, [this.color.effect.dim, this.color.foreground.green]),
+      this.logger.wrap(context, [this.logger.foreground.white]),
+      this.logger.wrap(` ${this.logger.status.success} `, [this.logger.effect.bold, this.logger.foreground.green]),
+      this.logger.wrap(message, [this.logger.effect.dim, this.logger.foreground.green]),
     ];
     console.log(result.join(''));
   }
 
   public logWarning(context: string, message: string): void {
     const result = [
-      this.color.wrap(context, [this.color.foreground.white]),
-      this.color.wrap(` ${this.color.status.warning} `, [this.color.effect.bold, this.color.foreground.yellow]),
-      this.color.wrap(message, [this.color.effect.dim, this.color.foreground.yellow]),
+      this.logger.wrap(context, [this.logger.foreground.white]),
+      this.logger.wrap(` ${this.logger.status.warning} `, [this.logger.effect.bold, this.logger.foreground.yellow]),
+      this.logger.wrap(message, [this.logger.effect.dim, this.logger.foreground.yellow]),
     ];
     console.log(result.join(''));
   }
 
   public logError(context: string, err: Error): void {
     const result = [
-      this.color.wrap(context, [this.color.foreground.white]),
-      this.color.wrap(` ${this.color.status.error} `, [this.color.effect.bold, this.color.foreground.red]),
-      this.color.wrap(err.message, [this.color.effect.dim, this.color.foreground.red]),
+      this.logger.wrap(context, [this.logger.foreground.white]),
+      this.logger.wrap(` ${this.logger.status.error} `, [this.logger.effect.bold, this.logger.foreground.red]),
+      this.logger.wrap(err.message, [this.logger.effect.dim, this.logger.foreground.red]),
     ];
     console.log(result.join(''));
   }

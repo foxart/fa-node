@@ -1,10 +1,4 @@
-import {
-  CryptClass,
-  LoggerApplicationAbstract,
-  LoggerSystemAbstract,
-  LoggerSystemClass,
-  SystemHelper,
-} from '../../src';
+import { CryptClass, LoggerNestClass, LoggerNodeClass, SystemHelper } from '../../src';
 
 function rotate(rawPayload: string, oldCrypt: CryptClass, newCrypt: CryptClass): string {
   const { dek, encryptedData, ivData, tagData } = oldCrypt.unwrapDek(rawPayload);
@@ -53,23 +47,7 @@ export function run(): void {
   //   }),
   // );
   // console.log(process.cwd(), __dirname);
-  const customConsole = new LoggerSystemClass({
-    // traceIndex: 2,
-    color: true,
-    info: true,
-    name: 'NAME',
-    pid: true,
-    date: true,
-    time: true,
-    performance: true,
-    link: true,
-    /** */
-    stackError: true,
-    stackDebug: true,
-    /** */
-    sort: true,
-  });
-  const application = new LoggerApplicationAbstract({
+  const nest = new LoggerNestClass({
     pid: true,
     date: true,
     time: true,
@@ -82,7 +60,7 @@ export function run(): void {
     stackError: true,
     stackDebug: true,
   });
-  const system = new LoggerSystemAbstract({
+  const system = new LoggerNodeClass({
     pid: true,
     date: true,
     time: true,
@@ -96,7 +74,7 @@ export function run(): void {
     stackDebug: true,
   });
   const data = { a: 1, b: [1, 2, 3], c: new Error().name, d: '/abc/def' };
-  customConsole.log(data);
-  application.warn('/abc/"def"/test/{xxx}/\'asdf\'/[123]/(xxx)');
+  system.log(data);
+  system.warn('/abc/"def"/test/{xxx}/\'asdf\'/[123]/(xxx)');
   system.error('/abc/def');
 }

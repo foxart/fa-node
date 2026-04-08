@@ -1,29 +1,4 @@
-import * as util from 'node:util';
-import { ConsoleClass } from './console.class';
-
-export type LoggerNestLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
-
-export interface LoggerNestOptionsInterface {
-  color?: boolean;
-  info?: boolean;
-  name?: string;
-  pid?: boolean;
-  date?: boolean;
-  time?: boolean;
-  performance?: boolean;
-  link?: boolean;
-  traceIndex?: number;
-  stackError?: boolean;
-  stackDebug?: boolean;
-  sort?: boolean;
-  hidden?: boolean;
-}
-
-export interface LoggerNestMetadataInterface {
-  file: string;
-  caller: string;
-  method: string | undefined;
-}
+import { LoggerClass, LoggerLevelType, LoggerMetadataInterface, LoggerOptionsInterface } from './logger.class';
 
 const NEST_CALLER_LIST = [
   'NestFactory',
@@ -34,57 +9,36 @@ const NEST_CALLER_LIST = [
   'GraphQLModule',
   'NestApplication',
 ];
-const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
-// const PATH_REGEX = /(^|[\s,:;=([{])(\/?[^\s)\],}]+\/[^\s)\],}]+|\/)/g;
-export const PATH_REGEX = /(^|[\s,:;=])([^\s"'()\[\]{}]*\/[^\s"'()\[\]{}]*)/g;
+const HTTP_METHOD_SET = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']);
+type TokenType =
+  | 'text'
+  | 'systemText'
+  | 'quote'
+  | 'braceOpen'
+  | 'braceClose'
+  | 'bracket'
+  | 'parenthesis'
+  | 'comma'
+  | 'httpMethod'
+  | 'pathSeparator'
+  | 'pathSegment';
 
-export class LoggerNestClass {
-  private readonly performanceStart = performance.now();
-  private readonly color: ConsoleClass;
-
-  public constructor(protected readonly options: LoggerNestOptionsInterface) {
-    this.color = this.options.color ? new ConsoleClass(true) : new ConsoleClass(false);
+export class LoggerNestClass extends LoggerClass {
+  public constructor(options: LoggerOptionsInterface) {
+    super(options);
   }
 
-  public resolveMetadata(stack = '', level: number): LoggerNestMetadataInterface {
-    const trace = this.stackToTrace(stack);
-    const traceLevel = this.options.traceIndex ?? level;
-    const metadata = trace[traceLevel];
-    if (metadata) {
-      return {
-        file: metadata.file,
-        caller: metadata.caller,
-        method: metadata.method,
-      };
-    }
-    const nextMetadata = trace.slice(traceLevel).find((item) => {
-      return item.caller && item.method;
-    });
-    return {
-      file: nextMetadata?.file ?? '',
-      caller: nextMetadata?.caller ?? 'unknown',
-      method: nextMetadata?.method,
-    };
+  public resolveMetadata(stack = '', level: number): LoggerMetadataInterface {
+    return this.resolveMetadataFromTrace(this.stackToTrace(stack), level);
   }
 
-  public resolveCaller(metadata: LoggerNestMetadataInterface): string {
-    // if (metadata.caller && metadata.caller !== '<anonymous>') {
-    // return metadata.caller;
-    // }
-    const file = metadata.file || '';
-    const base = file.split('/').pop() || file.split('\\').pop() || 'App';
-    const stem = base.replace(/\.[^/.]+$/, '');
-    if (!stem) return 'App';
-    return stem
-      .split(/[._-]/g)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join('');
+  public resolveCaller(metadata: LoggerMetadataInterface): string {
+    return this.resolveCallerValue(metadata);
   }
 
   public print(
-    level: LoggerNestLevelType,
-    metadata: LoggerNestMetadataInterface,
+    level: LoggerLevelType,
+    metadata: LoggerMetadataInterface,
     message: unknown | unknown[],
     callerOverride?: string,
   ): void {
@@ -93,211 +47,108 @@ export class LoggerNestClass {
     this.stdout(this.format(level, { ...metadata, caller }, data));
   }
 
-  private format(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface, data: unknown[]): string {
+  private format(level: LoggerLevelType, metadata: LoggerMetadataInterface, data: unknown[]): string {
     const parts: string[] = [];
-    parts.push(this.formatHeader(level, metadata));
-    parts.push(this.formatMessages(level, data, metadata.caller));
-    if (level === 'DBG' && this.options.stackDebug) {
-      parts.push(this.formatTrace(level, this.stackToTrace(new Error().stack)));
-    }
-    if (this.options.performance) {
-      parts.push(this.formatPerformance());
-    }
-    if (this.options.link) {
-      parts.push(`\n${this.getLink(metadata.file)}`);
-    }
+    this.pushPart(parts, this.formatStandardHeader(level, this.resolveCaller(metadata), metadata.method));
+    this.pushPart(parts, this.formatMessageSeparator(level));
+    this.pushPart(
+      parts,
+      this.formatMessageList(
+        data,
+        (trace) => this.formatTraceBlock('ERR', trace),
+        (value) => {
+          if (typeof value === 'string') {
+            return this.colorizeString(value, 'text');
+          }
+          return this.prettifyValue(value);
+        },
+        (value) => {
+          const useLevelColor = NEST_CALLER_LIST.includes(metadata.caller);
+          return this.colorizeString(value, useLevelColor ? 'systemText' : 'text');
+        },
+      ),
+    );
+    this.pushPart(
+      parts,
+      this.formatTraceSuffix(level, this.stackToTrace(new Error().stack), this.shouldRenderDebugTrace(level)),
+    );
+    this.pushPart(parts, this.formatPerformanceSuffix());
+    this.pushPart(parts, this.formatLinkSuffix(level, metadata.file));
     return `${parts.join('')}\n`;
   }
 
-  private formatHeader(level: LoggerNestLevelType, metadata: LoggerNestMetadataInterface): string {
-    const parts: string[] = [];
-    if (this.options.info) {
-      parts.push(`${this.color.wrap(`[${level}]`, [this.getLevelColor(level)])} `);
-    }
-    if (this.options.name) {
-      parts.push(`${this.options.name} `);
-    }
-    if (this.options.pid) {
-      parts.push(`${this.color.wrap(process.pid.toString(), [this.color.foreground.cyan])} `);
-    }
-    if (this.options.date) {
-      parts.push(`${this.getDate()} `);
-    }
-    if (this.options.time) {
-      parts.push(`${this.getTime()} `);
-    }
-    parts.push(this.getCaller(this.resolveCaller(metadata)));
-    const method = this.getMethodName(metadata.method);
-    if (method) {
-      parts.push(` ${this.getMethod(method)}`);
-    }
-    parts.push(' ');
-    return parts.join('');
-  }
-
-  private formatMessage(level: LoggerNestLevelType, message: unknown, caller: string): string {
-    if (message instanceof Error) {
-      const header = `${this.color.wrap(message.name, [this.color.foreground.red])}${this.color.wrap(': ', [this.color.effect.dim, this.color.foreground.red])}${message.message}`;
-      if (this.options.stackError && message.stack) {
-        return `${header}\n${message.stack}`;
-      }
-      return header;
-    }
-    if (typeof message === 'string') {
-      const useLevelColor = NEST_CALLER_LIST.includes(caller);
-      const color = useLevelColor ? this.getLevelColor(level) : this.color.foreground.white;
-      return this.colorizeString(message, color);
-    }
-    return this.prettify(message);
-  }
-
-  private formatMessages(level: LoggerNestLevelType, data: unknown[], caller: string): string {
-    return data
-      .map((item) => {
-        return this.formatMessage(level, item, caller);
-      })
-      .join(' ');
-  }
-
-  private formatTrace(level: LoggerNestLevelType, trace: LoggerNestMetadataInterface[]): string {
-    const color = this.getLevelColor(level);
-    const lines = trace
-      .filter((item) => {
-        return !item.file.includes('node_modules/') && !item.file.includes('node:');
-      })
-      .map((item) => {
-        if (this.options.info) {
-          return `${this.color.wrap(' at ', [this.color.effect.dim, color])}${item.file}`;
-        }
-        return `    ${item.file}`;
-      });
-    return `\n${this.color.wrap('{', [this.color.foreground.cyan])}\n${lines.join('\n')}\n${this.color.wrap('}', [this.color.foreground.cyan])} `;
-  }
-
-  private formatPerformance(): string {
-    const elapsed = Math.floor(performance.now() - this.performanceStart);
-    return ` ${this.color.wrap('+', [this.color.effect.dim, this.color.foreground.cyan])}${this.color.wrap(
-      elapsed.toString(),
-      [this.color.foreground.cyan],
-    )}${this.color.wrap('ms', [this.color.effect.dim, this.color.foreground.cyan])}`;
-  }
-
-  private getDate(): string {
-    const date = new Date();
-    return [
-      this.color.wrap(`${date.getFullYear()}`.padStart(2, '0'), [this.color.foreground.magenta]),
-      this.color.wrap('-', [this.color.foreground.cyan]),
-      this.color.wrap(`${date.getMonth() + 1}`.padStart(2, '0'), [this.color.foreground.magenta]),
-      this.color.wrap('-', [this.color.foreground.cyan]),
-      this.color.wrap(`${date.getDate()}`.padStart(2, '0'), [this.color.foreground.magenta]),
-    ].join('');
-  }
-
-  private getTime(): string {
-    const date = new Date();
-    return [
-      this.color.wrap(`${date.getHours()}`.padStart(2, '0'), [this.color.foreground.cyan]),
-      this.color.wrap(':', [this.color.foreground.magenta]),
-      this.color.wrap(`${date.getMinutes()}`.padStart(2, '0'), [this.color.foreground.cyan]),
-      this.color.wrap(':', [this.color.foreground.magenta]),
-      this.color.wrap(`${date.getSeconds()}`.padStart(2, '0'), [this.color.foreground.cyan]),
-    ].join('');
-  }
-
-  private getCaller(caller: string): string {
-    return this.color.wrap(caller, [this.color.foreground.yellow]);
-  }
-
-  private getMethod(method: string): string {
-    return this.color.wrap(method, [this.color.foreground.blue]);
-  }
-
-  private getLink(file: string): string {
-    return `${this.color.wrap('at ', [this.color.foreground.cyan])}${file}`;
-  }
-
-  private getLevelColor(level: LoggerNestLevelType): string {
-    switch (level) {
-      case 'LOG':
-        return this.color.foreground.green;
-      case 'INF':
-        return this.color.foreground.blue;
-      case 'WRN':
-        return this.color.foreground.yellow;
-      case 'ERR':
-        return this.color.foreground.red;
-      case 'DBG':
-        return this.color.foreground.magenta;
-      default:
-        return this.color.foreground.white;
-    }
-  }
-
-  private getMethodName(method: string | undefined): string | undefined {
-    const result = method?.split('.').pop();
-    return result === '<anonymous>' ? undefined : result;
-  }
-
-  private prettify(data: unknown): string {
-    if (typeof data === 'string') {
-      return this.color.wrap(data, [this.color.foreground.white]);
-    }
-    return util.inspect(data, {
-      colors: this.options.color,
-      showHidden: this.options.hidden,
-      sorted: this.options.sort,
-      depth: null,
-    });
-  }
-
-  private colorizeString(message: string, baseColor: string): string {
+  private colorizeString(message: string, baseType: TokenType): string {
     if (!this.options.color) {
       return message;
     }
-    const color = this.color;
+    const applyToken = (type: TokenType, value: string): string => {
+      return `${this.effect.reset}${this.wrap(value, this.getTokenColorList(type))}`;
+    };
     let out = '';
     let mode: 'normal' | 'single' | 'double' = 'normal';
     let path = '';
+    let word = '';
     const flushPath = (): void => {
       if (!path) return;
-      out += this.colorizePath(path);
+      out += `${this.effect.reset}${this.colorizePath(path)}`;
       path = '';
+    };
+    const flushWord = (): void => {
+      if (!word) return;
+      if (HTTP_METHOD_SET.has(word)) {
+        out += applyToken('httpMethod', word);
+      } else {
+        out += applyToken(baseType, word);
+      }
+      word = '';
     };
     for (let i = 0; i < message.length; i++) {
       const ch = message[i];
       // ───────── кавычки ─────────
       if (ch === "'" && mode !== 'double') {
         flushPath();
+        flushWord();
         mode = mode === 'single' ? 'normal' : 'single';
-        out += color.wrap(ch, [color.effect.bold, color.foreground.yellow]);
+        out += applyToken('quote', ch);
         continue;
       }
       if (ch === '"' && mode !== 'single') {
         flushPath();
+        flushWord();
         mode = mode === 'double' ? 'normal' : 'double';
-        out += color.wrap(ch, [color.effect.bold, color.foreground.yellow]);
+        out += applyToken('quote', ch);
         continue;
       }
       // ───────── скобки ─────────
       if (mode === 'normal') {
         if (ch === '{' || ch === '}') {
           flushPath();
-          out += color.wrap(ch, [color.effect.bold, color.foreground.magenta]);
+          flushWord();
+          out += applyToken(ch === '{' ? 'braceOpen' : 'braceClose', ch);
           continue;
         }
         if (ch === '[' || ch === ']') {
           flushPath();
-          out += color.wrap(ch, [color.effect.bold, color.foreground.cyan]);
+          flushWord();
+          out += applyToken('bracket', ch);
           continue;
         }
         if (ch === '(' || ch === ')') {
           flushPath();
-          out += color.wrap(ch, [color.effect.bold, color.foreground.blue]);
+          flushWord();
+          out += applyToken('parenthesis', ch);
+          continue;
+        }
+        if (ch === ',') {
+          flushPath();
+          flushWord();
+          out += applyToken('comma', ch);
           continue;
         }
       }
       // ───────── путь ─────────
       if (mode === 'normal' && ch === '/') {
+        flushWord();
         flushPath();
         path = '/';
         continue;
@@ -315,106 +166,67 @@ export class LoggerNestClass {
           ch === ')'
         ) {
           flushPath();
-          out += baseColor + ch;
-          // out += color.wrap(ch, [baseColor]);
+          flushWord();
+          out += applyToken(baseType, ch);
         } else {
           path += ch;
         }
         continue;
       }
-      // ───────── обычный текст ─────────
-      out += baseColor + ch;
-      // out += color.wrap(ch, [baseColor]);
+      if (mode === 'normal' && /[A-Z]/.test(ch)) {
+        word += ch;
+        continue;
+      }
+      flushWord();
+      out += applyToken(baseType, ch);
     }
     flushPath();
-    return out + color.effect.reset;
+    flushWord();
+    return out + this.effect.reset;
+  }
+
+  private getTokenColorList(type: TokenType): string[] {
+    switch (type) {
+      case 'text':
+        return [this.foreground.green];
+      case 'systemText':
+        return [this.effect.dim, this.foreground.yellow];
+      case 'quote':
+        return [this.effect.bold, this.foreground.yellow];
+      case 'braceOpen':
+        return [this.effect.bold, this.foreground.magenta];
+      case 'braceClose':
+        return [this.effect.bold, this.foreground.magenta];
+      case 'bracket':
+        return [this.effect.bold, this.foreground.cyan];
+      case 'parenthesis':
+        return [this.effect.bold, this.foreground.blue];
+      case 'comma':
+        return [this.foreground.magenta];
+      case 'httpMethod':
+        return [this.foreground.cyan];
+      case 'pathSeparator':
+        return [this.effect.dim, this.foreground.blue];
+      case 'pathSegment':
+        return [this.foreground.blue];
+      default:
+        return [this.foreground.white];
+    }
   }
 
   private colorizePath(path: string): string {
-    const color = this.color;
     const isAbsolute = path.startsWith('/');
     const parts = path.split('/').filter(Boolean);
     let out = '';
     if (isAbsolute) {
-      out += color.wrap('/', [color.effect.dim, color.foreground.cyan]);
+      out += this.wrap('/', this.getTokenColorList('pathSeparator'));
     }
     for (let i = 0; i < parts.length; i++) {
       if (i > 0) {
-        out += color.wrap('/', [color.effect.dim, color.foreground.cyan]);
+        out += this.wrap('/', this.getTokenColorList('pathSeparator'));
       }
-      out += color.wrap(parts[i], [color.foreground.cyan]);
+      out += this.wrap(parts[i], this.getTokenColorList('pathSegment'));
     }
     return out;
-  }
-
-  private stdout(data: string): void {
-    try {
-      process.stdout.write(data);
-    } catch (e) {
-      const error = e as Error;
-      const color = this.color; // ConsoleClass
-      const message = '---------------[LOGGER STDOUT ERROR]---------------';
-      process.stderr.write('\n');
-      process.stderr.write(color.wrap(message, [color.effect.bold, color.foreground.red]) + '\n');
-      process.stderr.write(
-        color.wrap('Source: ', [color.effect.dim]) +
-          color.wrap(this.constructor.name, [color.foreground.yellow]) +
-          '\n',
-      );
-      process.stderr.write(
-        color.wrap('Error : ', [color.effect.dim]) +
-          color.wrap(`${error.name}: ${error.message}`, [color.foreground.red]) +
-          '\n',
-      );
-      // аккуратно разобранный стек
-      if (error.stack) {
-        const trace = this.stackToTrace(error.stack);
-        if (trace.length) {
-          process.stderr.write(color.wrap('Stack trace:\n', [color.effect.bold, color.foreground.magenta]));
-          for (const item of trace) {
-            process.stderr.write(
-              '  ' +
-                color.wrap('at ', [color.effect.dim]) +
-                color.wrap(item.caller, [color.foreground.yellow]) +
-                (item.method ? color.wrap(`.${item.method}`, [color.foreground.blue]) : '') +
-                ' ' +
-                color.wrap(item.file, [color.foreground.cyan]) +
-                '\n',
-            );
-          }
-        }
-      }
-      process.stderr.write(color.wrap('Original log payload:\n', [color.effect.bold, color.foreground.magenta]));
-      process.stderr.write(data.endsWith('\n') ? data : data + '\n');
-      process.stderr.write(color.wrap('-'.repeat(message.length), [color.foreground.red]));
-    }
-  }
-
-  private stackToTrace(stack = '', filterNode = false): LoggerNestMetadataInterface[] {
-    if (!stack) {
-      return [];
-    }
-    const root = process.cwd();
-    const result: LoggerNestMetadataInterface[] = [];
-    for (const match of stack.matchAll(STACK_REGEXP)) {
-      const context = match[1];
-      const dotIndex = context.indexOf('.');
-      const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
-      const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
-      let file = match[2];
-      if (
-        filterNode &&
-        (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === ''))
-      ) {
-        continue;
-      }
-      if (root && file.startsWith(root)) {
-        file = file.slice(root.length).replace(/^\/|\/$/g, '') || '.';
-      } else {
-        file = file.replace(/^\/|\/$/g, '');
-      }
-      result.push({ caller, method, file });
-    }
-    return result;
   }
 }
