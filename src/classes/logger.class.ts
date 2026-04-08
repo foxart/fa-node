@@ -154,9 +154,13 @@ export class LoggerClass {
   protected readonly options: LoggerOptionsInterface;
   protected readonly colorEnabled: boolean;
 
-  public constructor(color: boolean | LoggerOptionsInterface) {
-    const colorEnabled = typeof color === 'boolean' ? color : Boolean(color.color);
-    this.options = typeof color === 'boolean' ? { color } : color;
+  public constructor(options: LoggerOptionsInterface) {
+    const normalizedOptions: LoggerOptionsInterface = {
+      metadata: false,
+      ...options,
+    };
+    const colorEnabled = Boolean(normalizedOptions.color);
+    this.options = normalizedOptions;
     this.colorEnabled = colorEnabled;
     if (colorEnabled) {
       this.effect = EFFECT_ON;
@@ -230,6 +234,9 @@ export class LoggerClass {
     if (data instanceof Error) {
       return transformError(data);
     }
+    if (this.isErrorLike(data)) {
+      return this.normalizeErrorLikeForInspect(data, seen);
+    }
     if (!data || typeof data !== 'object') {
       return data;
     }
@@ -247,6 +254,40 @@ export class LoggerClass {
     const normalized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       normalized[key] = this.normalizeCircular(value, transformError, seen);
+    }
+    return normalized;
+  }
+
+  protected normalizeErrorLikeForInspect(
+    error: {
+      name?: unknown;
+      message?: unknown;
+      stack?: unknown;
+      cause?: unknown;
+      code?: unknown;
+      status?: unknown;
+      statusCode?: unknown;
+    },
+    seen = new WeakSet(),
+  ): Record<string, unknown> {
+    const normalized: Record<string, unknown> = {
+      name: typeof error.name === 'string' && error.name ? error.name : 'Error',
+      message: this.parseErrorMessage(typeof error.message === 'string' ? error.message : ''),
+    };
+    if (error.code !== undefined) {
+      normalized.code = error.code;
+    }
+    if (error.status !== undefined) {
+      normalized.status = error.status;
+    }
+    if (error.statusCode !== undefined) {
+      normalized.statusCode = error.statusCode;
+    }
+    if (error.cause !== undefined) {
+      normalized.cause = this.normalizeCircular(error.cause, (item) => this.normalizeErrorForInspect(item, seen), seen);
+    }
+    if (this.options.stackError && typeof error.stack === 'string' && error.stack) {
+      normalized.stack = this.filterTraceItems(this.stackToTrace(error.stack));
     }
     return normalized;
   }
@@ -358,6 +399,12 @@ export class LoggerClass {
     };
   }
 
+  protected filterTraceItems(trace: LoggerMetadataInterface[]): LoggerMetadataInterface[] {
+    return trace.filter((item) => {
+      return !item.file.includes('node_modules/') && !item.file.includes('node:');
+    });
+  }
+
   protected normalizeErrorForInspect(error: Error, seen = new WeakSet()): Record<string, unknown> {
     const source = error as Error & {
       code?: unknown;
@@ -386,7 +433,7 @@ export class LoggerClass {
       );
     }
     if (this.options.stackError && error.stack) {
-      normalized.stack = this.stackToTrace(error.stack);
+      normalized.stack = this.filterTraceItems(this.stackToTrace(error.stack));
     }
     return normalized;
   }
@@ -457,6 +504,8 @@ export class LoggerClass {
     for (let index = 0; index < message.length; index++) {
       const char = message[index];
       const isString = mode === 'single' || mode === 'double';
+      const isUrlSchemeSeparator =
+        char === '/' && (message[index - 1] === ':' || (message[index - 1] === '/' && message[index - 2] === ':'));
 
       if (isString && char === '$' && message[index + 1] === '{') {
         out += applyToken('interpolationOpen', '${');
@@ -532,7 +581,7 @@ export class LoggerClass {
           continue;
         }
       }
-      if (mode === 'normal' && char === '/') {
+      if (mode === 'normal' && char === '/' && !isUrlSchemeSeparator) {
         flushWord();
         flushPath();
         path = '/';
@@ -754,16 +803,12 @@ export class LoggerClass {
   }
 
   protected formatTraceBlock(level: LoggerLevelType, trace: LoggerMetadataInterface[]): string {
-    const lines = trace
-      .filter((item) => {
-        return !item.file.includes('node_modules/') && !item.file.includes('node:');
-      })
-      .map((item) => {
-        if (this.options.info) {
-          return `${this.wrap(' at ', [this.effect.dim, this.getTraceForeground(level)])}${item.file}`;
-        }
-        return `    ${item.file}`;
-      });
+    const lines = this.filterTraceItems(trace).map((item) => {
+      if (this.options.info) {
+        return `${this.wrap(' at ', [this.effect.dim, this.getTraceForeground(level)])}${item.file}`;
+      }
+      return `    ${item.file}`;
+    });
     return `${this.wrap('{', [this.effect.bold, this.foreground.cyan])}\n${lines.join('\n')}\n${this.wrap('}', [this.effect.bold, this.foreground.cyan])}`;
   }
 
@@ -868,15 +913,15 @@ export class LoggerClass {
         this.formatPid(),
         this.formatHeaderDate(),
         this.formatHeaderTime(),
-        this.formatCallerMethod(caller, method),
+        this.formatMetadata(caller, method),
       ]),
     ]
       .filter((part) => part)
       .join(' ');
   }
 
-  protected formatCallerMethod(caller?: string, method?: string): string | undefined {
-    if (this.options.metadata === false) {
+  protected formatMetadata(caller?: string, method?: string): string | undefined {
+    if (!this.options.metadata) {
       return undefined;
     }
     const callerLabel = caller ? this.wrap(caller, [this.effect.bold]) : undefined;

@@ -13,7 +13,9 @@ class CodegenSingleton {
   private readonly logger: LoggerClass;
 
   private constructor() {
-    this.logger = new LoggerClass(true);
+    this.logger = new LoggerClass({
+      color: true,
+    });
   }
 
   public static getInstance(): CodegenSingleton {

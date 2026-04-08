@@ -20,6 +20,10 @@ export class LoggerNodeAbstract implements LoggerNodeInterface {
     this.stdout('ERR', this.metadata, message, ...params);
   }
 
+  // TODO: metadata here can come from two different sources:
+  // current logger call stack (`this.metadata`) or explicit error stack
+  // (`this.logger.resolveMetadata(stack, 0)`). Unify this with LoggerNestAbstract
+
   public warn(message?: unknown, ...params: unknown[]): void {
     this.stdout('WRN', this.metadata, message, ...params);
   }
@@ -30,6 +34,12 @@ export class LoggerNodeAbstract implements LoggerNodeInterface {
 
   public info(message?: unknown, ...params: unknown[]): void {
     this.stdout('INF', this.metadata, message, ...params);
+  }
+
+  // via one shared helper so node/nest resolve caller/link the same way.
+  public errorWithStack(stack: string | undefined, message?: unknown, ...params: unknown[]): void {
+    const metadata = stack ? this.logger.resolveMetadata(stack, 0) : this.metadata;
+    this.stdout('ERR', metadata, message, ...params);
   }
 
   protected stdout(level: LoggerLevelType, metadata: LoggerMetadataInterface, ...params: unknown[]): void {

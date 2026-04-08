@@ -29,6 +29,7 @@ export class LoggerNestAbstract implements LoggerService {
   }
 
   public error(message: unknown, ...params: unknown[]): void {
+    const metadata = this.metadata;
     let context: string | undefined;
     let stack: string | undefined;
     if (params.length > 0 && typeof params[0] === 'string' && /\n\s*at\s+/m.test(params[0])) {
@@ -39,19 +40,28 @@ export class LoggerNestAbstract implements LoggerService {
     }
     const caller = context ?? '';
     const outputMessages: unknown[] = [];
-    const isErrorMessageDuplicatedInStack = typeof message === 'string' && stack?.includes(message);
-    if (!isErrorMessageDuplicatedInStack) {
+    if (stack && typeof message === 'string') {
+      const match = message.match(/^([^:]+):\s*(.*)$/);
+      outputMessages.push({
+        name: match?.[1] || 'Error',
+        message: match?.[2] || message,
+        stack,
+      });
+    } else if (message !== undefined) {
       outputMessages.push(message);
-    }
-    if (stack) {
-      outputMessages.push(stack);
     }
     for (const param of params) {
       outputMessages.push(param);
     }
     const [firstMessage, ...restMessages] = outputMessages.length > 0 ? outputMessages : [undefined];
     if (firstMessage !== undefined) {
-      this.stdout('ERR', this.metadata, caller, firstMessage, ...restMessages);
+      const errorMetadata = stack
+        ? {
+            ...metadata,
+            file: this.logger.resolveMetadata(stack, 0).file || metadata.file,
+          }
+        : metadata;
+      this.stdout('ERR', errorMetadata, caller, firstMessage, ...restMessages);
     }
   }
 
