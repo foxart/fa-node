@@ -1,23 +1,4 @@
-import { LogLevel } from '@nestjs/common/services/logger.service';
 import * as util from 'node:util';
-
-export interface LoggerNodeInterface {
-  log(message: unknown, ...optionalParams: unknown[]): unknown;
-  error(message: unknown, ...optionalParams: unknown[]): unknown;
-  warn(message: unknown, ...optionalParams: unknown[]): unknown;
-  debug(message: unknown, ...optionalParams: unknown[]): unknown;
-  info(message: unknown, ...optionalParams: unknown[]): unknown;
-}
-
-export interface LoggerNestInterface {
-  log(message: unknown, ...optionalParams: unknown[]): unknown;
-  error(message: unknown, ...optionalParams: unknown[]): unknown;
-  warn(message: unknown, ...optionalParams: unknown[]): unknown;
-  debug?(message: unknown, ...optionalParams: unknown[]): unknown;
-  verbose?(message: unknown, ...optionalParams: unknown[]): unknown;
-  fatal?(message: unknown, ...optionalParams: unknown[]): unknown;
-  setLogLevels?(levels: LogLevel[]): unknown;
-}
 
 export interface LoggerOptionsInterface {
   color?: boolean;
@@ -43,6 +24,23 @@ export interface LoggerMetadataInterface {
 }
 
 export type LoggerLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
+
+export type LoggerTokenType =
+  | 'text'
+  | 'systemText'
+  | 'quote'
+  | 'braceOpen'
+  | 'braceClose'
+  | 'bracket'
+  | 'parenthesis'
+  | 'comma'
+  | 'httpMethod'
+  | 'pathSeparator'
+  | 'pathSegment'
+  | 'number'
+  | 'interpolationOpen'
+  | 'interpolationClose'
+  | 'stringContent';
 
 interface ForegroundInterface {
   red: string;
@@ -178,6 +176,10 @@ export class LoggerClass {
       return data;
     }
     return `${colorList.join('')}${data}${this.effect.reset}`;
+  }
+
+  public formatText(value: string): string {
+    return this.colorizeString(value, 'text');
   }
 
   public resolveMethod(method: string | undefined): string | undefined {
@@ -395,6 +397,229 @@ export class LoggerClass {
 
   protected prettifyValue(data: unknown): string {
     return this.formatInspectable(data, (value) => this.normalizeForInspect(value));
+  }
+
+  protected colorizeString(
+    message: string,
+    baseType: LoggerTokenType,
+    isHttpMethod: (value: string) => boolean = () => false,
+  ): string {
+    if (!this.options.color) {
+      return message;
+    }
+    const applyToken = (type: LoggerTokenType, value: string): string => {
+      return `${this.effect.reset}${this.wrap(value, this.getTokenColorList(type))}`;
+    };
+    const applySymbol = (value: string, fallbackType: LoggerTokenType = baseType): string => {
+      switch (value) {
+        case "'":
+        case '"':
+          return applyToken('quote', value);
+        case '{':
+          return applyToken('braceOpen', value);
+        case '}':
+          return applyToken('braceClose', value);
+        case '[':
+        case ']':
+          return applyToken('bracket', value);
+        case '(':
+        case ')':
+          return applyToken('parenthesis', value);
+        case ',':
+          return applyToken('comma', value);
+        default:
+          return applyToken(fallbackType, value);
+      }
+    };
+    let out = '';
+    let mode: 'normal' | 'single' | 'double' = 'normal';
+    let path = '';
+    let word = '';
+    let interpolationDepth = 0;
+    const flushPath = (): void => {
+      if (!path) {
+        return;
+      }
+      out += `${this.effect.reset}${this.colorizePath(path)}`;
+      path = '';
+    };
+    const flushWord = (): void => {
+      if (!word) {
+        return;
+      }
+      if (isHttpMethod(word)) {
+        out += applyToken('httpMethod', word);
+      } else {
+        out += applyToken(baseType, word);
+      }
+      word = '';
+    };
+    for (let index = 0; index < message.length; index++) {
+      const char = message[index];
+      const isString = mode === 'single' || mode === 'double';
+
+      if (isString && char === '$' && message[index + 1] === '{') {
+        out += applyToken('interpolationOpen', '${');
+        index++;
+        interpolationDepth++;
+        continue;
+      }
+
+      if (interpolationDepth > 0) {
+        if (char === '{') {
+          interpolationDepth++;
+          out += applyToken('braceOpen', char);
+          continue;
+        }
+        if (char === '}') {
+          interpolationDepth--;
+          out += applyToken(interpolationDepth === 0 ? 'interpolationClose' : 'braceClose', char);
+          continue;
+        }
+        out += applySymbol(char);
+        continue;
+      }
+
+      if (char === "'" && mode !== 'double') {
+        flushPath();
+        flushWord();
+        mode = mode === 'single' ? 'normal' : 'single';
+        out += applyToken('quote', char);
+        continue;
+      }
+      if (char === '"' && mode !== 'single') {
+        flushPath();
+        flushWord();
+        mode = mode === 'double' ? 'normal' : 'double';
+        out += applyToken('quote', char);
+        continue;
+      }
+      if (isString && char !== '"' && char !== "'") {
+        out += applySymbol(char, 'stringContent');
+        continue;
+      }
+      if (mode === 'normal' && /[0-9]/.test(char)) {
+        let number = char;
+        while (index + 1 < message.length && /[0-9.]/.test(message[index + 1])) {
+          number += message[++index];
+        }
+        out += applyToken('number', number);
+        continue;
+      }
+      if (mode === 'normal') {
+        if (char === '{' || char === '}') {
+          flushPath();
+          flushWord();
+          out += applyToken(char === '{' ? 'braceOpen' : 'braceClose', char);
+          continue;
+        }
+        if (char === '[' || char === ']') {
+          flushPath();
+          flushWord();
+          out += applyToken('bracket', char);
+          continue;
+        }
+        if (char === '(' || char === ')') {
+          flushPath();
+          flushWord();
+          out += applyToken('parenthesis', char);
+          continue;
+        }
+        if (char === ',') {
+          flushPath();
+          flushWord();
+          out += applyToken('comma', char);
+          continue;
+        }
+      }
+      if (mode === 'normal' && char === '/') {
+        flushWord();
+        flushPath();
+        path = '/';
+        continue;
+      }
+      if (path) {
+        if (
+          char === ' ' ||
+          char === '"' ||
+          char === "'" ||
+          char === '{' ||
+          char === '}' ||
+          char === '[' ||
+          char === ']' ||
+          char === '(' ||
+          char === ')'
+        ) {
+          flushPath();
+          flushWord();
+          out += applySymbol(char);
+        } else {
+          path += char;
+        }
+        continue;
+      }
+      if (mode === 'normal' && /[A-Z]/.test(char)) {
+        word += char;
+        continue;
+      }
+      flushWord();
+      out += applySymbol(char);
+    }
+    flushPath();
+    flushWord();
+    return out + this.effect.reset;
+  }
+
+  protected getTokenColorList(type: LoggerTokenType): string[] {
+    switch (type) {
+      case 'text':
+        return [this.foreground.green];
+      case 'stringContent':
+        return [this.foreground.green];
+      case 'systemText':
+        return [this.effect.dim, this.foreground.yellow];
+      case 'quote':
+        return [this.effect.bold, this.foreground.yellow];
+      case 'braceOpen':
+        return [this.effect.bold, this.foreground.magenta];
+      case 'braceClose':
+        return [this.effect.bold, this.foreground.magenta];
+      case 'bracket':
+        return [this.effect.bold, this.foreground.cyan];
+      case 'parenthesis':
+        return [this.effect.bold, this.foreground.blue];
+      case 'comma':
+        return [this.foreground.magenta];
+      case 'httpMethod':
+        return [this.foreground.cyan];
+      case 'pathSeparator':
+        return [this.effect.dim, this.foreground.cyan];
+      case 'pathSegment':
+        return [this.foreground.blue];
+      case 'number':
+        return [this.foreground.magenta];
+      case 'interpolationOpen':
+      case 'interpolationClose':
+        return [this.effect.bold, this.foreground.magenta];
+      default:
+        return [this.foreground.white];
+    }
+  }
+
+  protected colorizePath(path: string): string {
+    const isAbsolute = path.startsWith('/');
+    const parts = path.split('/').filter(Boolean);
+    let out = '';
+    if (isAbsolute) {
+      out += this.wrap('/', this.getTokenColorList('pathSeparator'));
+    }
+    for (let index = 0; index < parts.length; index++) {
+      if (index > 0) {
+        out += this.wrap('/', this.getTokenColorList('pathSeparator'));
+      }
+      out += this.wrap(parts[index], this.getTokenColorList('pathSegment'));
+    }
+    return out;
   }
 
   protected formatTopLevelError(

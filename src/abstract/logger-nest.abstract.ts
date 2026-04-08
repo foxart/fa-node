@@ -1,12 +1,17 @@
+import { LoggerService } from '@nestjs/common/services/logger.service';
 import { LoggerNestClass } from '../classes/logger-nest.class';
-import {
-  LoggerLevelType,
-  LoggerMetadataInterface,
-  LoggerNestInterface,
-  LoggerOptionsInterface,
-} from '../classes/logger.class';
+import { LoggerLevelType, LoggerMetadataInterface, LoggerOptionsInterface } from '../classes/logger.class';
+// interface LoggerNestInterface {
+//   log(message: unknown, ...optionalParams: unknown[]): unknown;
+//   error(message: unknown, ...optionalParams: unknown[]): unknown;
+//   warn(message: unknown, ...optionalParams: unknown[]): unknown;
+//   debug?(message: unknown, ...optionalParams: unknown[]): unknown;
+//   verbose?(message: unknown, ...optionalParams: unknown[]): unknown;
+//   fatal?(message: unknown, ...optionalParams: unknown[]): unknown;
+//   setLogLevels?(levels: LogLevel[]): unknown;
+// }
 
-export class LoggerNestAbstract implements LoggerNestInterface {
+export class LoggerNestAbstract implements LoggerService {
   private static readonly LOGGER_METHOD_SET = new Set(['log', 'error', 'warn', 'debug', 'verbose', 'fatal']);
   private readonly logger: LoggerNestClass;
 

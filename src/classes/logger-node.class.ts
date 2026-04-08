@@ -1,10 +1,12 @@
-import {
-  LoggerClass,
-  LoggerLevelType,
-  LoggerMetadataInterface,
-  LoggerNodeInterface,
-  LoggerOptionsInterface,
-} from './logger.class';
+import { LoggerClass, LoggerLevelType, LoggerMetadataInterface, LoggerOptionsInterface } from './logger.class';
+
+export interface LoggerNodeInterface {
+  log(message: unknown, ...optionalParams: unknown[]): unknown;
+  error(message: unknown, ...optionalParams: unknown[]): unknown;
+  warn(message: unknown, ...optionalParams: unknown[]): unknown;
+  debug(message: unknown, ...optionalParams: unknown[]): unknown;
+  info(message: unknown, ...optionalParams: unknown[]): unknown;
+}
 
 interface TraceInterface {
   file: string;
@@ -85,6 +87,7 @@ export class LoggerNodeClass extends LoggerClass implements LoggerNodeInterface 
         args,
         (stackTrace) => this.formatTraceBlock('ERR', stackTrace),
         (value) => this.prettifyValue(value),
+        (value) => this.formatText(value),
       ),
     );
     this.pushPart(
