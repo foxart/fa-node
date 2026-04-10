@@ -154,15 +154,7 @@ class CodegenSingleton {
       const source = error as Error & {
         code?: string | number;
         status?: string | number;
-        statusCode?: string | number;
         url?: string;
-        uri?: string;
-        path?: string;
-        host?: string;
-        method?: string;
-        details?: unknown;
-        cause?: unknown;
-        response?: unknown;
       };
 
       const entries: Array<[string, unknown]> = [
@@ -170,39 +162,35 @@ class CodegenSingleton {
         ['message', source.message],
         ['code', source.code],
         ['status', source.status],
-        ['statusCode', source.statusCode],
-        ['method', source.method],
         ['url', source.url],
-        ['uri', source.uri],
-        ['path', source.path],
-        ['host', source.host],
-        ['details', source.details],
-        ['cause', source.cause],
-        ['response', source.response],
       ];
 
       return entries
         .filter(([, value]) => value !== undefined && value !== null && value !== '')
-        .map(([label, value]) => `${label}: ${this.stringifyErrorValue(value)}`)
+        .map(([label, value]) => {
+          if (value instanceof Error) {
+            return `${label}: ${this.formatError(value)}`;
+          }
+          if (typeof value === 'string') {
+            return `${label}: ${value}`;
+          }
+          try {
+            return `${label}: ${JSON.stringify(value)}`;
+          } catch {
+            return `${label}: ${String(value)}`;
+          }
+        })
         .join('\n');
     }
 
-    return this.stringifyErrorValue(error);
-  }
-
-  private stringifyErrorValue(value: unknown): string {
-    if (value instanceof Error) {
-      return this.formatError(value);
-    }
-
-    if (typeof value === 'string') {
-      return value;
+    if (typeof error === 'string') {
+      return error;
     }
 
     try {
-      return JSON.stringify(value, null, 2);
+      return JSON.stringify(error);
     } catch {
-      return String(value);
+      return String(error);
     }
   }
 
