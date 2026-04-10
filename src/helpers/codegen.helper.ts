@@ -62,7 +62,13 @@ class CodegenSingleton {
     try {
       const response = await fetch(host, init);
       if (!response.ok) {
-        this.logError(this.fetchJson.name, `HTTP ${response.status} ${response.statusText} (${host})`);
+        const error = Object.assign(new Error(response.statusText || 'Request failed'), {
+          name: 'HttpError',
+          status: response.status,
+          url: host,
+          method: init.method ?? 'GET',
+        });
+        this.logError(this.fetchJson.name, error);
         return null;
       }
       const json = (await response.json()) as T;
@@ -78,7 +84,13 @@ class CodegenSingleton {
     try {
       const response = await fetch(host, init);
       if (!response.ok) {
-        this.logError(this.fetchTxt.name, `HTTP ${response.status} ${response.statusText} (${host})`);
+        const error = Object.assign(new Error(response.statusText || 'Request failed'), {
+          name: 'HttpError',
+          status: response.status,
+          url: host,
+          method: init.method ?? 'GET',
+        });
+        this.logError(this.fetchTxt.name, error);
         return null;
       }
       const text = await response.text();
@@ -136,19 +148,58 @@ class CodegenSingleton {
 
   private formatError(error: unknown): string {
     if (error instanceof Error) {
-      const details = [error.name, error.message].filter(Boolean).join(': ');
-      if (!error.stack) {
-        return details;
-      }
-      return error.stack.startsWith(details) ? error.stack : `${details}\n${error.stack}`;
+      const source = error as Error & {
+        code?: string | number;
+        status?: string | number;
+        statusCode?: string | number;
+        url?: string;
+        uri?: string;
+        path?: string;
+        host?: string;
+        method?: string;
+        details?: unknown;
+        cause?: unknown;
+        response?: unknown;
+      };
+
+      const entries: Array<[string, unknown]> = [
+        ['name', source.name],
+        ['message', source.message],
+        ['code', source.code],
+        ['status', source.status],
+        ['statusCode', source.statusCode],
+        ['method', source.method],
+        ['url', source.url],
+        ['uri', source.uri],
+        ['path', source.path],
+        ['host', source.host],
+        ['details', source.details],
+        ['cause', source.cause],
+        ['response', source.response],
+      ];
+
+      return entries
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .map(([label, value]) => `${label}: ${this.stringifyErrorValue(value)}`)
+        .join('\n');
     }
-    if (typeof error === 'string') {
-      return error;
+
+    return this.stringifyErrorValue(error);
+  }
+
+  private stringifyErrorValue(value: unknown): string {
+    if (value instanceof Error) {
+      return this.formatError(value);
     }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
     try {
-      return JSON.stringify(error, null, 2);
+      return JSON.stringify(value, null, 2);
     } catch {
-      return String(error);
+      return String(value);
     }
   }
 
