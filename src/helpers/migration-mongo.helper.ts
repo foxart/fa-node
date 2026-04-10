@@ -210,7 +210,7 @@ class MigrationMongoSingleton {
     const timestamp = new Date().getTime();
     const migrationName = ConverterHelper.tokenizeWords(migration.replace(/[^a-zA-Z0-9]/g, '-'), '-').toLowerCase();
     const fileName = `${timestamp}_${migrationName}`;
-    const filePath = `${this.configuration.path}/${fileName}${this.getRuntimeMigrationExtension()}`;
+    const filePath = `${this.configuration.path}/${fileName}${this.getMigrationExtension()}`;
     IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
     CodegenHelper.logSuccess(`${fileName}`, DataHelper.excludePath(filePath, this.configuration.path));
     process.exit(0);
@@ -295,7 +295,6 @@ class MigrationMongoSingleton {
   private getTemplate(timestamp: number, migrationName: string): string {
     const pascalCase = ConverterHelper.toPascalCase(migrationName, '-');
     const camelCase = ConverterHelper.toCamelCase(migrationName, '-');
-    console.log({ migrationName, pascalCase });
     const className = `${pascalCase}_${timestamp}`;
     const collectionName = `${camelCase}_${timestamp}`;
     const fieldName = `${camelCase}_${timestamp}`;
@@ -345,9 +344,10 @@ class MigrationMongoSingleton {
 
   private async getMigration(filePath: string): Promise<MigrationMongoInterface> {
     try {
-      const module = (await import(
-        `${this.configuration.path}/${this.getMigrationRuntimeFileName(filePath)}`
-      )) as Record<string, unknown>;
+      const module = (await import(`${this.configuration.path}/${this.getMigrationFileName(filePath)}`)) as Record<
+        string,
+        unknown
+      >;
       const className = Object.keys(module).find((key) => typeof module[key] === 'function');
       if (!className) {
         CodegenHelper.logError(filePath, new Error(`No valid constructor in: ${filePath}`));
@@ -394,12 +394,12 @@ class MigrationMongoSingleton {
     }
   }
 
-  private getRuntimeMigrationExtension(): '.ts' | '.js' {
-    return __filename.endsWith('.ts') ? '.ts' : '.js';
+  private getMigrationExtension(): '.ts' | '.js' {
+    return this.isTypeScriptExecution() ? '.ts' : '.js';
   }
 
-  private getRuntimeMigrationFilter(): RegExp[] {
-    return [this.getRuntimeMigrationExtension() === '.ts' ? /\.ts$/ : /\.js$/];
+  private getMigrationFileFilter(): RegExp[] {
+    return [this.getMigrationExtension() === '.ts' ? /\.ts$/ : /\.js$/];
   }
 
   private normalizeMigrationFileName(fileName: string): string {
@@ -407,13 +407,21 @@ class MigrationMongoSingleton {
   }
 
   private scanMigrationFiles(): string[] {
-    return IoHelper.scanFilesSync(this.configuration.path, { filter: this.getRuntimeMigrationFilter() }).map(
-      (filePath) => DataHelper.excludePath(filePath, this.configuration.path),
+    return IoHelper.scanFilesSync(this.configuration.path, { filter: this.getMigrationFileFilter() }).map((filePath) =>
+      DataHelper.excludePath(filePath, this.configuration.path),
     );
   }
 
-  private getMigrationRuntimeFileName(fileName: string): string {
-    return `${this.normalizeMigrationFileName(fileName)}${this.getRuntimeMigrationExtension()}`;
+  private getMigrationFileName(fileName: string): string {
+    return `${this.normalizeMigrationFileName(fileName)}${this.getMigrationExtension()}`;
+  }
+
+  private isTypeScriptExecution(): boolean {
+    return (
+      process.argv.some((argument) => argument.includes('ts-node')) ||
+      process.execArgv.some((argument) => argument.includes('ts-node')) ||
+      Boolean((process as NodeJS.Process & { [key: symbol]: unknown })[Symbol.for('ts-node.register.instance')])
+    );
   }
 }
 
