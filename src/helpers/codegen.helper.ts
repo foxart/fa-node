@@ -46,38 +46,23 @@ class CodegenSingleton {
   }
 
   public logSuccess(context: string, message: string): void {
-    const result = [
-      this.applyColor(context, [this.colors.fg.white]),
-      this.applyColor(` ${this.status.success} `, [this.colors.bold, this.colors.fg.green]),
-      this.applyColor(message, [this.colors.dim, this.colors.fg.green]),
-    ];
-    console.log(result.join(''));
+    console.log(this.buildLogLine(context, this.status.success, message, this.colors.fg.green));
   }
 
   public logWarning(context: string, message: string): void {
-    const result = [
-      this.applyColor(context, [this.colors.fg.white]),
-      this.applyColor(` ${this.status.warning} `, [this.colors.bold, this.colors.fg.yellow]),
-      this.applyColor(message, [this.colors.dim, this.colors.fg.yellow]),
-    ];
-    console.log(result.join(''));
+    console.log(this.buildLogLine(context, this.status.warning, message, this.colors.fg.yellow));
   }
 
   public logError(context: string, err: unknown): void {
     const message = this.formatError(err);
-    const result = [
-      this.applyColor(context, [this.colors.fg.white]),
-      this.applyColor(` ${this.status.error} `, [this.colors.bold, this.colors.fg.red]),
-      this.applyColor(message, [this.colors.dim, this.colors.fg.red]),
-    ];
-    console.log(result.join(''));
+    console.log(this.buildLogLine(context, this.status.error, message, this.colors.fg.red));
   }
 
   public async fetchJson<T>(host: string, init: RequestInit): Promise<T | null> {
     try {
       const response = await fetch(host, init);
       if (!response.ok) {
-        this.logError(this.fetchJson.name, new Error(response.statusText));
+        this.logError(this.fetchJson.name, `HTTP ${response.status} ${response.statusText} (${host})`);
         return null;
       }
       const json = (await response.json()) as T;
@@ -93,7 +78,7 @@ class CodegenSingleton {
     try {
       const response = await fetch(host, init);
       if (!response.ok) {
-        this.logError(this.fetchTxt.name, new Error(response.statusText));
+        this.logError(this.fetchTxt.name, `HTTP ${response.status} ${response.statusText} (${host})`);
         return null;
       }
       const text = await response.text();
@@ -141,10 +126,21 @@ class CodegenSingleton {
     }
   }
 
+  private buildLogLine(context: string, status: string, message: string, color: string): string {
+    return [
+      this.applyColor(context, [this.colors.fg.white]),
+      this.applyColor(` ${status} `, [this.colors.bold, color]),
+      this.applyColor(message, [this.colors.dim, color]),
+    ].join('');
+  }
+
   private formatError(error: unknown): string {
     if (error instanceof Error) {
       const details = [error.name, error.message].filter(Boolean).join(': ');
-      return error.stack ? `${details}\n${error.stack}` : details;
+      if (!error.stack) {
+        return details;
+      }
+      return error.stack.startsWith(details) ? error.stack : `${details}\n${error.stack}`;
     }
     if (typeof error === 'string') {
       return error;
