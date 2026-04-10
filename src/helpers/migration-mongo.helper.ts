@@ -46,6 +46,7 @@ interface CommandInterface {
 
 class MigrationMongoSingleton {
   private static self: MigrationMongoSingleton;
+  private static readonly migrationFileExtensionRegexp = /\.(ts|js)$/;
 
   private client!: MongoClient;
 
@@ -209,7 +210,7 @@ class MigrationMongoSingleton {
     const timestamp = new Date().getTime();
     const migrationName = ConverterHelper.tokenizeWords(migration.replace(/[^a-zA-Z0-9]/g, '-'), '-').toLowerCase();
     const fileName = `${timestamp}_${migrationName}`;
-    const filePath = `${this.configuration.path}/${fileName}.ts`;
+    const filePath = `${this.configuration.path}/${fileName}${this.getRuntimeMigrationExtension()}`;
     IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
     CodegenHelper.logSuccess(`${fileName}`, DataHelper.excludePath(filePath, this.configuration.path));
     process.exit(0);
@@ -221,16 +222,10 @@ class MigrationMongoSingleton {
     const db = client.db(this.configuration.database);
     const collection = db.collection<CollectionInterface>(this.configuration.collection);
     const migrationList = await collection.find({}, { sort: { _id: 1 } }).toArray();
-    const fileList = IoHelper.scanFilesSync(this.configuration.path, { filter: [/\.ts$/, /\.js$/] })
-      .map((filePath) => DataHelper.excludePath(filePath, this.configuration.path))
-      .filter(
-        (file) =>
-          !migrationList
-            .map((migration) => {
-              return migration.fileName;
-            })
-            .includes(file),
-      );
+    const migrationSet = new Set(migrationList.map((migration) => this.normalizeMigrationFileName(migration.fileName)));
+    const fileList = this.scanMigrationFiles().filter(
+      (file) => !migrationSet.has(this.normalizeMigrationFileName(file)),
+    );
     if (fileList.length) {
       for (const file of fileList) {
         await this.executeMigrationUp(file);
@@ -277,16 +272,14 @@ class MigrationMongoSingleton {
     const db = client.db(this.configuration.database);
     const collection = db.collection<CollectionInterface>(this.configuration.collection);
     const migrationList = await collection.find({}, { sort: { _id: 1 } }).toArray();
-    const migrationsSet = new Set(migrationList.map((log) => log.fileName));
-    const fileList = IoHelper.scanFilesSync(this.configuration.path, { filter: [/\.ts$/, /\.js$/] }).map((filePath) =>
-      DataHelper.excludePath(filePath, this.configuration.path),
-    );
+    const migrationsSet = new Set(migrationList.map((log) => this.normalizeMigrationFileName(log.fileName)));
+    const fileList = this.scanMigrationFiles();
     if (!fileList.length) {
       CodegenHelper.logSuccess(this.configuration.collection, 'No migration files found.');
       process.exit(0);
     }
     for (const file of fileList) {
-      const isApplied = migrationsSet.has(file);
+      const isApplied = migrationsSet.has(this.normalizeMigrationFileName(file));
       if (isApplied) {
         CodegenHelper.logSuccess(file, 'APPLIED');
       } else {
@@ -352,7 +345,9 @@ class MigrationMongoSingleton {
 
   private async getMigration(filePath: string): Promise<MigrationMongoInterface> {
     try {
-      const module = (await import(`${this.configuration.path}/${filePath}`)) as Record<string, unknown>;
+      const module = (await import(
+        `${this.configuration.path}/${this.getMigrationRuntimeFileName(filePath)}`
+      )) as Record<string, unknown>;
       const className = Object.keys(module).find((key) => typeof module[key] === 'function');
       if (!className) {
         CodegenHelper.logError(filePath, new Error(`No valid constructor in: ${filePath}`));
@@ -375,7 +370,7 @@ class MigrationMongoSingleton {
       await migration.up(db);
       await collection.insertOne({
         appliedAt: new Date(),
-        fileName: filePath,
+        fileName: this.normalizeMigrationFileName(filePath),
       });
       CodegenHelper.logSuccess(migration.constructor.name, filePath);
     } catch (e) {
@@ -397,6 +392,28 @@ class MigrationMongoSingleton {
       CodegenHelper.logError(migration.constructor.name, e as Error);
       process.exit(1);
     }
+  }
+
+  private getRuntimeMigrationExtension(): '.ts' | '.js' {
+    return __filename.endsWith('.ts') ? '.ts' : '.js';
+  }
+
+  private getRuntimeMigrationFilter(): RegExp[] {
+    return [this.getRuntimeMigrationExtension() === '.ts' ? /\.ts$/ : /\.js$/];
+  }
+
+  private normalizeMigrationFileName(fileName: string): string {
+    return fileName.replace(MigrationMongoSingleton.migrationFileExtensionRegexp, '');
+  }
+
+  private scanMigrationFiles(): string[] {
+    return IoHelper.scanFilesSync(this.configuration.path, { filter: this.getRuntimeMigrationFilter() }).map(
+      (filePath) => DataHelper.excludePath(filePath, this.configuration.path),
+    );
+  }
+
+  private getMigrationRuntimeFileName(fileName: string): string {
+    return `${this.normalizeMigrationFileName(fileName)}${this.getRuntimeMigrationExtension()}`;
   }
 }
 
