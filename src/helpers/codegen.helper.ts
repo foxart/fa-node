@@ -105,15 +105,17 @@ class CodegenSingleton {
       await promisify(exec)(command.join(' '));
       this.logSuccess(this.buildProto.name, path.basename(filePath));
     } catch (e) {
-      const error = e as Error & { stdout?: string; stderr?: string; cmd?: string };
-      const details = [
-        error.cmd ? `Command: ${error.cmd}` : '',
-        error.stdout ? `STDOUT:\n${error.stdout}` : '',
-        error.stderr ? `STDERR:\n${error.stderr}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      this.logError(this.buildProto.name, details ? new Error(`${error.message}\n\n${details}`) : error);
+      const error = e as Error & { stdout?: string; stderr?: string; cmd?: string; code?: number | string };
+
+      const enriched = Object.assign(new Error(error.message), {
+        name: 'ProtoError',
+        code: error.code,
+        cmd: error.cmd,
+        stdout: error.stdout,
+        stderr: error.stderr,
+      });
+
+      this.logError(this.buildProto.name, enriched);
     }
   }
 
@@ -154,6 +156,7 @@ class CodegenSingleton {
       const source = error as Error & {
         code?: string | number;
         status?: string | number;
+        method?: string;
         url?: string;
       };
 
@@ -162,6 +165,7 @@ class CodegenSingleton {
         ['message', source.message],
         ['code', source.code],
         ['status', source.status],
+        ['method', source.method],
         ['url', source.url],
       ];
 
