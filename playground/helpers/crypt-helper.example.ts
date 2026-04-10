@@ -55,9 +55,9 @@ export function run(): void {
     hidden: true,
     sort: true,
     color: true,
-    info: true,
+    level: true,
     performance: true,
-    stackError: true,
+    errorStack: true,
     stackDebug: true,
   });
   const system = new LoggerNodeClass({
@@ -68,9 +68,9 @@ export function run(): void {
     hidden: true,
     sort: true,
     color: true,
-    info: true,
+    level: true,
     performance: true,
-    stackError: true,
+    errorStack: true,
     stackDebug: true,
   });
   const data = { a: 1, b: [1, 2, 3], c: new Error().name, d: '/abc/def' };

@@ -1,9 +1,23 @@
 import * as util from 'node:util';
 
+function createOff<T extends { [K in keyof T]: AnsiCode }>(source: T): T {
+  const result = {} as T;
+  for (const key in source) {
+    result[key] = '' as T[typeof key];
+  }
+  return result;
+}
+
+function safePush(list: string[], value: string | undefined): void {
+  if (value) {
+    list.push(value);
+  }
+}
+
 export interface LoggerOptionsInterface {
   color?: boolean;
-  info?: boolean;
-  name?: string;
+  level?: boolean;
+  env?: string;
   pid?: boolean;
   date?: boolean;
   time?: boolean;
@@ -11,62 +25,96 @@ export interface LoggerOptionsInterface {
   performance?: boolean;
   link?: boolean;
   traceIndex?: number;
-  stackError?: boolean;
+  errorStack?: boolean;
   stackDebug?: boolean;
   sort?: boolean;
   hidden?: boolean;
+  maxDepth?: number;
+  maxArrayLength?: number;
+}
+
+export interface LoggerTraceFrameInterface {
+  file: string;
+  caller: string;
+  method?: string;
+  line?: number;
+  column?: number;
+}
+
+export interface LoggerOriginInterface {
+  frame?: LoggerTraceFrameInterface;
+  visible: boolean;
 }
 
 export interface LoggerMetadataInterface {
-  file: string;
   caller: string;
-  method: string | undefined;
+  method?: string;
+  linkFile?: string;
+}
+
+export interface LoggerMetadataOutputOptionsInterface {
+  callerOverride?: string;
+  hideMethodSet?: ReadonlySet<string>;
+}
+
+export interface LoggerRenderOutputOptionsInterface {
+  level: LoggerLevelType;
+  metadata: LoggerMetadataInterface | undefined;
+  messages: unknown[];
+  debugTrace: LoggerTraceFrameInterface[];
+  formatString?: (value: string) => string;
 }
 
 export type LoggerLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
 
-export type LoggerTokenType =
-  | 'text'
-  | 'systemText'
-  | 'quote'
-  | 'braceOpen'
-  | 'braceClose'
-  | 'bracket'
-  | 'parenthesis'
-  | 'comma'
-  | 'httpMethod'
-  | 'pathSeparator'
-  | 'pathSegment'
-  | 'number'
-  | 'interpolationOpen'
-  | 'interpolationClose'
-  | 'stringContent';
-
-interface ForegroundInterface {
-  red: string;
-  green: string;
-  blue: string;
-  yellow: string;
-  magenta: string;
-  cyan: string;
-  white: string;
-}
-
-interface BackgroundInterface {
-  red: string;
-  green: string;
-  blue: string;
-  yellow: string;
-  magenta: string;
-  cyan: string;
-  white: string;
-}
-
-interface EffectInterface {
-  bold: string;
-  dim: string;
-  reset: string;
-  underline: string;
+export enum LoggerTokenType {
+  DEFAULT,
+  CONTEXT,
+  CALLER,
+  METHOD,
+  LINE,
+  /**
+   * STRING, NUMBER, DATE, TIME, SECOND, INFO, URL, BRACKET, PUNCTUATION, SYMBOL
+   */
+  STRING,
+  NUMBER,
+  DATE,
+  TIME,
+  SECOND,
+  URL,
+  BRACKET,
+  PUNCTUATION,
+  SYMBOL,
+  /**
+   * BRACKETS
+   */
+  PARENTHESIS, // ()
+  SQUARE_BRACKET, // []
+  CURLY_BRACKET, // {}
+  ANGLE_BRACKET, // <>
+  /**
+   * PUNCTUATION
+   */
+  DOT, // .
+  COMMA, // ,
+  COLON, // :
+  SEMICOLON, // ;
+  /**
+   * SYMBOLS
+   */
+  PLUS, // +
+  SLASH = 'slash', // /\
+  Dash = 'dash', // -
+  Pipe = 'pipe', // |
+  Underscore = 'underscore', // _
+  Backtick = 'backtick', // `
+  Quote = 'quote', // "'
+  Equals = 'equals', // =
+  Asterisk = 'asterisk', // *
+  Ampersand = 'ampersand', // &
+  Percent = 'percent', // %
+  Hash = 'hash', // #
+  At = 'at', // @
 }
 
 interface ArrowInterface {
@@ -81,54 +129,24 @@ interface StatusInterface {
   error: string;
   warning: string;
 }
-const EFFECT_ON: EffectInterface = {
-  bold: '\u001b[1m',
-  dim: '\u001b[2m',
-  reset: '\u001b[0m',
-  underline: '\u001b[4m',
-};
-const FOREGROUND_ON: ForegroundInterface = {
-  red: '\u001b[31m',
-  green: '\u001b[32m',
-  blue: '\u001b[34m',
-  yellow: '\u001b[33m',
-  magenta: '\u001b[35m',
-  cyan: '\u001b[36m',
-  white: '\u001b[37m',
-};
-const BACKGROUND_ON: BackgroundInterface = {
-  red: '\u001b[41m',
-  green: '\u001b[42m',
-  blue: '\u001b[44m',
-  yellow: '\u001b[43m',
-  magenta: '\u001b[45m',
-  cyan: '\u001b[46m',
-  white: '\u001b[47m',
-};
-const EFFECT_OFF: EffectInterface = {
-  bold: '',
-  dim: '',
-  reset: '',
-  underline: '',
-};
-const FOREGROUND_OFF: ForegroundInterface = {
-  red: '',
-  green: '',
-  blue: '',
-  yellow: '',
-  magenta: '',
-  cyan: '',
-  white: '',
-};
-const BACKGROUND_OFF: BackgroundInterface = {
-  red: '',
-  green: '',
-  blue: '',
-  yellow: '',
-  magenta: '',
-  cyan: '',
-  white: '',
-};
+
+interface ColorInterface {
+  red: AnsiCode;
+  green: AnsiCode;
+  blue: AnsiCode;
+  yellow: AnsiCode;
+  magenta: AnsiCode;
+  cyan: AnsiCode;
+  white: AnsiCode;
+}
+
+interface EffectInterface {
+  bold: AnsiCode;
+  dim: AnsiCode;
+  reset: AnsiCode;
+  underline: AnsiCode;
+}
+
 const ARROW: ArrowInterface = {
   left: '\u2190', // ←
   up: '\u2191', // ↑
@@ -141,12 +159,175 @@ const STATUS: StatusInterface = {
   error: '\u2716', // ✖
   warning: '\u26A0', // ⚠
 };
+
+const SYMBOL: StatusInterface & { separator: string } = {
+  ...STATUS,
+  separator: '\u2503', // ┃
+};
+
+type AnsiCode = string;
+
+type PipeLike = {
+  pipe?: (...args: unknown[]) => unknown;
+};
+
+function isObjectLike(value: unknown): value is object {
+  return typeof value === 'object' && value !== null;
+}
+
+function isBufferLike(value: unknown): value is Buffer {
+  return typeof Buffer !== 'undefined' && Buffer.isBuffer(value);
+}
+
+function isTypedArrayLike(value: unknown): value is ArrayBufferView {
+  return ArrayBuffer.isView(value);
+}
+
+function isDateLike(value: unknown): value is Date {
+  return value instanceof Date;
+}
+
+function isRegExpLike(value: unknown): value is RegExp {
+  return value instanceof RegExp;
+}
+
+function isUrlLike(value: unknown): value is URL {
+  return typeof URL !== 'undefined' && value instanceof URL;
+}
+
+function isPipeLike(value: unknown): value is PipeLike {
+  return isObjectLike(value) && 'pipe' in value && typeof (value as PipeLike).pipe === 'function';
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!isObjectLike(value)) {
+    return false;
+  }
+  const proto = Object.getPrototypeOf(value) as object | null;
+  return proto === Object.prototype || proto === null;
+}
+
+// Trace-related helpers
+function normalizeTraceFilePath(file: string): string {
+  return file.replace(/\\/g, '/');
+}
+
+function isNodeModuleTraceFile(file: string): boolean {
+  return normalizeTraceFilePath(file).includes('node_modules/');
+}
+
+function isNodeInternalTraceFile(file: string): boolean {
+  const normalizedFile = normalizeTraceFilePath(file);
+  return normalizedFile.startsWith('internal/') || normalizedFile.startsWith('node:');
+}
+
+function isRuntimeTraceCaller(caller: string): boolean {
+  return caller === 'process' || caller === 'Module' || caller === 'Function';
+}
+
+function isAnonymousTraceFrame(caller: string, method: string): boolean {
+  return caller === '<anonymous>' || (caller.length === 0 && method.length === 0);
+}
+
+function isNativeTraceFile(file: string): boolean {
+  return file === 'native';
+}
+
+const EFFECT_ON: EffectInterface = {
+  bold: '\u001b[1m',
+  dim: '\u001b[2m',
+  reset: '\u001b[0m',
+  underline: '\u001b[4m',
+};
+
+const FOREGROUND_ON: ColorInterface = {
+  red: '\u001b[31m',
+  green: '\u001b[32m',
+  blue: '\u001b[34m',
+  yellow: '\u001b[33m',
+  magenta: '\u001b[35m',
+  cyan: '\u001b[36m',
+  white: '\u001b[37m',
+};
+const BACKGROUND_ON: ColorInterface = {
+  red: '\u001b[41m',
+  green: '\u001b[42m',
+  blue: '\u001b[44m',
+  yellow: '\u001b[43m',
+  magenta: '\u001b[45m',
+  cyan: '\u001b[46m',
+  white: '\u001b[47m',
+};
+const EFFECT_OFF: EffectInterface = createOff(EFFECT_ON);
+const FOREGROUND_OFF: ColorInterface = createOff(FOREGROUND_ON);
+const BACKGROUND_OFF: ColorInterface = createOff(BACKGROUND_ON);
+
+const LEVEL_COLOR_MAP: Record<LoggerLevelType, keyof ColorInterface> = {
+  LOG: 'green',
+  INF: 'blue',
+  WRN: 'yellow',
+  ERR: 'red',
+  DBG: 'magenta',
+  FTL: 'red',
+};
+
+const TOKEN_COLOR_MAP: Record<LoggerTokenType, AnsiCode[]> = {
+  [LoggerTokenType.DEFAULT]: [],
+  [LoggerTokenType.CONTEXT]: [EFFECT_ON.bold, FOREGROUND_ON.white],
+  [LoggerTokenType.CALLER]: [EFFECT_ON.bold, FOREGROUND_ON.blue],
+  [LoggerTokenType.METHOD]: [EFFECT_ON.bold, FOREGROUND_ON.cyan],
+  [LoggerTokenType.LINE]: [EFFECT_ON.dim, FOREGROUND_ON.blue],
+  /**
+   *
+   */
+  [LoggerTokenType.STRING]: [FOREGROUND_ON.green],
+  [LoggerTokenType.NUMBER]: [FOREGROUND_ON.yellow],
+  [LoggerTokenType.DATE]: [FOREGROUND_ON.magenta],
+  [LoggerTokenType.TIME]: [FOREGROUND_ON.cyan],
+  [LoggerTokenType.SECOND]: [EFFECT_ON.dim, FOREGROUND_ON.cyan],
+  [LoggerTokenType.URL]: [EFFECT_ON.bold, FOREGROUND_ON.blue],
+  [LoggerTokenType.BRACKET]: [FOREGROUND_ON.white],
+  [LoggerTokenType.PUNCTUATION]: [FOREGROUND_ON.white],
+  [LoggerTokenType.SYMBOL]: [FOREGROUND_ON.white],
+
+  // punctuation
+  [LoggerTokenType.DOT]: [FOREGROUND_ON.white],
+  [LoggerTokenType.COMMA]: [FOREGROUND_ON.white],
+  [LoggerTokenType.COLON]: [FOREGROUND_ON.white],
+  [LoggerTokenType.SEMICOLON]: [FOREGROUND_ON.white],
+
+  // brackets
+  [LoggerTokenType.PARENTHESIS]: [EFFECT_ON.bold, FOREGROUND_ON.magenta],
+  [LoggerTokenType.SQUARE_BRACKET]: [EFFECT_ON.bold, FOREGROUND_ON.magenta],
+  [LoggerTokenType.CURLY_BRACKET]: [EFFECT_ON.bold, FOREGROUND_ON.magenta],
+  [LoggerTokenType.ANGLE_BRACKET]: [EFFECT_ON.bold, FOREGROUND_ON.magenta],
+
+  // symbols
+  [LoggerTokenType.PLUS]: [EFFECT_ON.dim, FOREGROUND_ON.cyan],
+  [LoggerTokenType.SLASH]: [EFFECT_ON.dim, FOREGROUND_ON.cyan],
+  [LoggerTokenType.Dash]: [FOREGROUND_ON.white],
+  [LoggerTokenType.Pipe]: [FOREGROUND_ON.white],
+  [LoggerTokenType.Underscore]: [FOREGROUND_ON.white],
+  [LoggerTokenType.Backtick]: [FOREGROUND_ON.green],
+  [LoggerTokenType.Quote]: [FOREGROUND_ON.green],
+  [LoggerTokenType.Equals]: [FOREGROUND_ON.white],
+  [LoggerTokenType.Asterisk]: [FOREGROUND_ON.white],
+  [LoggerTokenType.Ampersand]: [FOREGROUND_ON.white],
+  [LoggerTokenType.Percent]: [FOREGROUND_ON.white],
+  [LoggerTokenType.Hash]: [FOREGROUND_ON.white],
+  [LoggerTokenType.At]: [FOREGROUND_ON.white],
+};
+
 const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
+const TOKEN_SEPARATOR_CHARS = `()[]{}<>,:;./`;
+const UPPERCASE_CHAR_REGEXP = /[A-Z]/;
+const NUMBER_CHAR_REGEXP = /[0-9]/;
+const NUMBER_PART_CHAR_REGEXP = /[0-9.]/;
 
 export class LoggerClass {
   public readonly effect: EffectInterface;
-  public readonly foreground: ForegroundInterface;
-  public readonly background: BackgroundInterface;
+  public readonly foreground: ColorInterface;
+  public readonly background: ColorInterface;
   public readonly arrow: ArrowInterface;
   public readonly status: StatusInterface;
   protected readonly pid = process.pid.toString();
@@ -175,54 +356,510 @@ export class LoggerClass {
     this.status = STATUS;
   }
 
-  public wrap(data: string, colorList: string[]): string {
-    if (!this.colorEnabled) {
-      return data;
+  public resolveCaller(frame: LoggerTraceFrameInterface | undefined): string {
+    if (frame?.caller && frame.caller !== '<anonymous>') {
+      return frame.caller;
     }
-    return `${colorList.join('')}${data}${this.effect.reset}`;
+    const file = frame?.file;
+    if (!file) {
+      return 'unknown';
+    }
+    const base = file.split(/[\\/]/).pop();
+    if (!base) {
+      return 'unknown';
+    }
+    const stem = base.replace(/\.[^/.]+$/, '');
+    if (!stem) {
+      return 'unknown';
+    }
+    return stem
+      .split(/[._-]+/)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join('');
+  }
+  // private isStackDebug(level: LoggerLevelType): boolean =()=> {
+  //   return level === 'DBG' && !!this.options.stackDebug;
+  // }
+
+  public buildRenderMetadata(
+    origin: LoggerOriginInterface | undefined,
+    options: LoggerMetadataOutputOptionsInterface = {},
+  ): LoggerMetadataInterface | undefined {
+    const frame = origin?.frame;
+    if (!frame) {
+      return undefined;
+    }
+    const caller = options.callerOverride ?? this.resolveCaller(frame);
+    const method = frame.method && options.hideMethodSet?.has(frame.method) ? undefined : frame.method;
+    return {
+      caller,
+      method,
+      linkFile: origin?.visible ? this.formatTraceFrameLocation(frame) : undefined,
+    };
   }
 
-  public formatText(value: string): string {
-    return this.colorizeString(value, 'text');
+  public resolveOrigin(stack = '', level = 0): LoggerOriginInterface {
+    return this.resolveOriginFromTrace(this.stackToTrace(stack), level);
   }
 
-  public resolveMethod(method: string | undefined): string | undefined {
-    const result = method?.split('.').pop();
-    return result === '<anonymous>' ? undefined : result;
+  /**
+   * timestamp
+   * level
+   * message
+   * service
+   * env
+   * pid: 123,
+   * traceId
+   * spanId
+   * context: {},
+   */
+
+  protected stdout(options: LoggerRenderOutputOptionsInterface): void {
+    const { level, metadata, messages, debugTrace, formatString } = options;
+    const parts: string[] = [];
+    // inline header rendering (previously getHeader)
+    const headerParts: string[] = [];
+    safePush(headerParts, this.renderTimestamp());
+    safePush(headerParts, this.renderLevel(level));
+    safePush(headerParts, this.renderMetadata(metadata));
+    safePush(headerParts, this.renderEnv(level));
+    safePush(headerParts, this.renderPid());
+    safePush(parts, headerParts.join(' '));
+    safePush(parts, ' :: ');
+    safePush(
+      parts,
+      this.formatMessageList(
+        messages,
+        (trace) => this.formatTraceBlock('ERR', trace),
+        (value) => this.utilInspect(value),
+        formatString,
+      ),
+    );
+    safePush(parts, this.renderDebug(level, debugTrace, !!this.options.stackDebug && level === 'DBG'));
+    safePush(parts, this.renderPerformance(level));
+    const link = this.renderLink(level, metadata?.linkFile);
+    if (link) {
+      safePush(parts, '\n');
+      safePush(parts, link);
+    }
+    safePush(parts, '\n');
+    const data = parts.join('');
+    try {
+      process.stdout.write(data);
+    } catch (e) {
+      this.stdoutCatch(data, e as Error);
+    }
   }
 
-  protected formatDate(): string {
-    const date = new Date();
+  protected stdoutCatch(data: unknown, error: Error): void {
+    const message = '---------------[LOGGER STDOUT ERROR]---------------';
+    process.stderr.write('\n');
+    // process.stderr.write(this.applyColor(message, [this.effect.bold, this.foreground.red]));
+    process.stderr.write('\n');
+    // process.stderr.write(this.applyColor('Source: ', [this.effect.dim]));
+    // process.stderr.write(this.applyColor(this.constructor.name, [this.foreground.yellow]));
+    process.stderr.write('\n');
+    // process.stderr.write(this.applyColor('Error: ', [this.effect.dim]));
+    // process.stderr.write(this.applyColor(error.name, [this.effect.bold, this.foreground.red]));
+    // process.stderr.write(this.applyColor(': ', [this.effect.dim]));
+    // process.stderr.write(this.applyColor(error.message, [this.effect.reset]));
+    process.stderr.write('\n');
+    if (error.stack) {
+      const trace = this.getVisibleTraceItems(this.stackToTrace(error.stack));
+      if (trace.length) {
+        // process.stderr.write(this.applyColor('Stack trace:', [this.effect.bold, this.foreground.magenta]));
+        process.stderr.write('\n');
+
+        // force render full trace ignoring logger options
+        const traceBlock = this.formatTraceBlock('ERR', trace);
+        process.stderr.write(traceBlock);
+        process.stderr.write('\n');
+      }
+    }
+    // process.stderr.write(this.applyColor('Original payload:', [this.effect.bold, this.foreground.magenta]));
+    process.stderr.write('\n');
+    process.stderr.write(this.utilInspect(data));
+    process.stderr.write('\n');
+    // process.stderr.write(this.applyColor('-'.repeat(message.length), [this.foreground.red]));
+    process.stderr.write('\n');
+    process.exit(1);
+  }
+
+  protected stackToTrace(stack = ''): LoggerTraceFrameInterface[] {
+    if (!stack) {
+      return [];
+    }
+    const root = process.cwd();
+    const result: LoggerTraceFrameInterface[] = [];
+    for (const match of stack.matchAll(STACK_REGEXP)) {
+      const context = match[1];
+      const dotIndex = context.indexOf('.');
+      const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
+      const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
+      const location = match[2];
+      const locationMatch = /^(.*):(\d+):(\d+)$/.exec(location);
+      let file = locationMatch?.[1] ?? location;
+      if (root && file.startsWith(root)) {
+        file = file.slice(root.length).replace(/^\/|\/$/g, '') || '.';
+      } else {
+        file = file.replace(/^\/|\/$/g, '');
+      }
+      result.push({
+        caller,
+        method,
+        file,
+        line: locationMatch ? Number(locationMatch[2]) : undefined,
+        column: locationMatch ? Number(locationMatch[3]) : undefined,
+      });
+    }
+    return result;
+  }
+
+  protected resolveOriginFromTrace(trace: LoggerTraceFrameInterface[], level: number): LoggerOriginInterface {
+    const visibleFrame = trace.slice(level).find((item) => this.isVisibleTraceItem(item));
+    if (visibleFrame) {
+      return {
+        frame: this.cloneTraceFrame(visibleFrame),
+        visible: true,
+      };
+    }
+    const fallbackFrame =
+      trace[level] ??
+      trace.slice(level).find((item) => {
+        return item.file || item.caller || item.method;
+      });
+    if (!fallbackFrame) {
+      return { visible: false };
+    }
+    return {
+      frame: this.cloneTraceFrame(fallbackFrame),
+      visible: false,
+    };
+  }
+
+  protected formatMessageList(
+    messages: unknown[],
+    renderTrace: (trace: LoggerTraceFrameInterface[]) => string,
+    prettify: (value: unknown) => string,
+    formatString?: (value: string) => string,
+  ): string {
+    return messages
+      .map((message) => {
+        return this.formatMessageValue(message, renderTrace, prettify, formatString);
+      })
+      .join(' ');
+  }
+
+  protected colorizeString(message: string, baseType: LoggerTokenType): string {
+    if (!this.options.color) {
+      return message;
+    }
+    const applySymbol = (value: string): string => {
+      switch (value) {
+        case '"':
+        case "'":
+        case '{':
+        case '}':
+        case '[':
+        case ']':
+        case '(':
+        case ')':
+          return this.render(LoggerTokenType.PUNCTUATION, value);
+        case '/':
+          return this.render(LoggerTokenType.SLASH, value);
+        case ',':
+          return this.render(LoggerTokenType.COMMA, value);
+        case ':':
+          return this.render(LoggerTokenType.COLON, value);
+        case ';':
+          return this.render(LoggerTokenType.SEMICOLON, value);
+        case '.':
+          return this.render(LoggerTokenType.DOT, value);
+        default:
+          return this.render(baseType, value);
+      }
+    };
+    let out = '';
+    let mode: 'normal' | 'single' | 'double' = 'normal';
+    for (let index = 0; index < message.length; index++) {
+      const char = message[index];
+      // preserve marker characters (used by colorizeWithBase)
+      if (char === '\u0000') {
+        out += char;
+        continue;
+      }
+      const isString = mode === 'single' || mode === 'double';
+      if (char === "'" && mode !== 'double') {
+        mode = mode === 'single' ? 'normal' : 'single';
+        out += this.render(LoggerTokenType.PUNCTUATION, char);
+        continue;
+      }
+      if (char === '"' && mode !== 'single') {
+        mode = mode === 'double' ? 'normal' : 'double';
+        out += this.render(LoggerTokenType.PUNCTUATION, char);
+        continue;
+      }
+      if (isString && char !== '"' && char !== "'") {
+        out += this.render(LoggerTokenType.STRING, char);
+        continue;
+      }
+      // removed HTTP method detection here
+      if (mode === 'normal' && UPPERCASE_CHAR_REGEXP.test(char)) {
+        let word = char;
+        while (index + 1 < message.length && UPPERCASE_CHAR_REGEXP.test(message[index + 1])) {
+          word += message[++index];
+        }
+        out += this.render(baseType, word);
+        continue;
+      }
+      if (mode === 'normal' && NUMBER_CHAR_REGEXP.test(char)) {
+        let number = char;
+        while (index + 1 < message.length && NUMBER_PART_CHAR_REGEXP.test(message[index + 1])) {
+          number += message[++index];
+        }
+        out += this.render(LoggerTokenType.NUMBER, number);
+        continue;
+      }
+      if (mode === 'normal' && TOKEN_SEPARATOR_CHARS.includes(char)) {
+        out += applySymbol(char);
+        continue;
+      }
+      out += applySymbol(char);
+    }
+    return out + this.effect.reset;
+  }
+
+  protected formatTraceBlock(level: LoggerLevelType, trace: LoggerTraceFrameInterface[]): string {
+    const linkList = this.getVisibleTraceItems(trace)
+      .map((item) => {
+        return [
+          '    ',
+          this.renderLink(level, this.formatTraceFrameLocation(item)),
+          //
+        ].join('');
+      })
+      .join('\n');
     return [
-      this.wrap(`${date.getFullYear()}`.padStart(2, '0'), [this.foreground.magenta]),
-      this.wrap('-', [this.foreground.cyan]),
-      this.wrap(`${date.getMonth() + 1}`.padStart(2, '0'), [this.foreground.magenta]),
-      this.wrap('-', [this.foreground.cyan]),
-      this.wrap(`${date.getDate()}`.padStart(2, '0'), [this.foreground.magenta]),
+      this.render(LoggerTokenType.PUNCTUATION, '{'),
+      '\n',
+      linkList,
+      '\n',
+      this.render(LoggerTokenType.PUNCTUATION, '}'),
     ].join('');
   }
 
-  protected formatTime(withMilliseconds = false): string {
-    const date = new Date();
-    const parts = [
-      this.wrap(`${date.getHours()}`.padStart(2, '0'), [this.foreground.cyan]),
-      this.wrap(':', [this.foreground.magenta]),
-      this.wrap(`${date.getMinutes()}`.padStart(2, '0'), [this.foreground.cyan]),
-      this.wrap(':', [this.foreground.magenta]),
-      this.wrap(`${date.getSeconds()}`.padStart(2, '0'), [this.foreground.cyan]),
-    ];
-    if (withMilliseconds) {
-      parts.push(this.wrap('.', [this.foreground.magenta]));
-      parts.push(this.wrap(`${date.getMilliseconds()}`.padStart(3, '0'), [this.effect.dim, this.foreground.cyan]));
+  protected render(token: LoggerTokenType, data: string): string {
+    return this.applyToken(token, data);
+  }
+
+  /**
+   * timestamp
+   * level
+   * message
+   * service
+   * env
+   * pid: 123,
+   * traceId
+   * spanId
+   * context: {},
+   */
+
+  private renderTimestamp(withMilliseconds = true): string | undefined {
+    const { date, time } = this.options;
+    if (!date && !time) {
+      return undefined;
+    }
+    const datetime = new Date();
+    const parts = [];
+    if (date) {
+      const year = this.pad(datetime.getFullYear());
+      const month = this.pad(datetime.getMonth() + 1);
+      const day = this.pad(datetime.getDate());
+      parts.push(this.applyToken(LoggerTokenType.DATE, year));
+      parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, '/'));
+      parts.push(this.applyToken(LoggerTokenType.DATE, month));
+      parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, '/'));
+      parts.push(this.applyToken(LoggerTokenType.DATE, day));
+    }
+    if (time) {
+      if (date) {
+        parts.push(' ');
+      }
+      const hours = this.pad(datetime.getHours());
+      const minutes = this.pad(datetime.getMinutes());
+      const seconds = this.pad(datetime.getSeconds());
+      parts.push(this.applyToken(LoggerTokenType.TIME, hours));
+      parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, ':'));
+      parts.push(this.applyToken(LoggerTokenType.TIME, minutes));
+      parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, ':'));
+      parts.push(this.applyToken(LoggerTokenType.TIME, seconds));
+      if (withMilliseconds) {
+        const milliseconds = this.pad(datetime.getMilliseconds(), 3);
+        parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, '.'));
+        parts.push(this.applyToken(LoggerTokenType.SECOND, milliseconds));
+      }
     }
     return parts.join('');
   }
 
-  protected formatInspectable(data: unknown, normalize: (value: unknown) => unknown): string {
-    if (typeof data === 'string') {
-      return this.wrap(data, [this.foreground.white]);
+  private renderLevel(level: LoggerLevelType): string | undefined {
+    if (!this.options.level) {
+      return undefined;
     }
-    return util.inspect(normalize(data), {
+    return this.applyForeground(level, SYMBOL.separator) + this.applyBackground(level, ` ${level} `);
+  }
+
+  private renderMetadata(metadata: LoggerMetadataInterface | undefined): string | undefined {
+    if (!this.options.metadata) {
+      return undefined;
+    }
+    const caller = metadata?.caller ? metadata.caller : undefined;
+    const method = metadata?.method ? metadata?.method : undefined;
+    return [
+      this.applyToken(LoggerTokenType.CALLER, caller ?? method ?? '<unknown>'),
+      this.applyToken(LoggerTokenType.PUNCTUATION, '.'),
+      this.applyToken(LoggerTokenType.METHOD, method ?? '<unknown>'),
+      //
+    ].join('');
+  }
+
+  private renderEnv(level: LoggerLevelType): string | undefined {
+    if (!this.options.env) {
+      return undefined;
+    }
+    return (
+      this.applyBackground(level, '[') +
+      this.applyForeground(level, this.options.env) +
+      this.applyBackground(level, ']')
+    );
+  }
+
+  private renderPid(): string | undefined {
+    if (!this.options.pid) {
+      return undefined;
+    }
+    return this.applyToken(LoggerTokenType.LINE, this.pid);
+  }
+
+  private renderDebug(level: LoggerLevelType, trace: LoggerTraceFrameInterface[], enabled = true): string | undefined {
+    if (!enabled) {
+      return undefined;
+    }
+    return ` ${this.formatTraceBlock(level, trace)}`;
+  }
+
+  private renderPerformance(level: LoggerLevelType): string | undefined {
+    if (!this.options.performance) {
+      return undefined;
+    }
+    const elapsed = Math.floor(performance.now() - this.startedAt);
+    return (
+      this.applyForeground(level, '+') +
+      this.applyToken(LoggerTokenType.TIME, elapsed.toString()) +
+      this.applyForeground(level, 'ms')
+    );
+  }
+
+  private renderLink(level: LoggerLevelType, file: string | undefined): string | undefined {
+    if (!this.options.link || !file) {
+      return undefined;
+    }
+    return this.applyForeground(level, 'at ') + this.render(LoggerTokenType.URL, file);
+  }
+
+  /**
+   *
+   */
+
+  private pad(value: number, length = 2): string {
+    return value.toString().padStart(length, '0');
+  }
+
+  private getVisibleTraceItems(trace: LoggerTraceFrameInterface[]): LoggerTraceFrameInterface[] {
+    return trace.filter((item) => this.isVisibleTraceItem(item));
+  }
+
+  private isVisibleTraceItem(item: LoggerTraceFrameInterface): boolean {
+    const { file = '', caller = '', method = '' } = item;
+    return !(
+      isNodeModuleTraceFile(file) ||
+      isNodeInternalTraceFile(file) ||
+      isRuntimeTraceCaller(caller) ||
+      isAnonymousTraceFrame(caller, method) ||
+      isNativeTraceFile(file)
+    );
+  }
+
+  private cloneTraceFrame(frame: LoggerTraceFrameInterface): LoggerTraceFrameInterface {
+    return {
+      file: frame.file,
+      caller: frame.caller,
+      method: frame.method,
+      line: frame.line,
+      column: frame.column,
+    };
+  }
+
+  private formatTraceFrameLocation(frame: LoggerTraceFrameInterface): string {
+    const parts = [frame.file];
+    if (frame.line !== undefined) {
+      parts.push(String(frame.line));
+      if (frame.column !== undefined) {
+        parts.push(String(frame.column));
+      }
+    }
+    return parts.join(':');
+  }
+
+  private normalizeForInspect(data: unknown, seen = new WeakSet<object>()): unknown {
+    return this.normalizeCircular(
+      data,
+      (error) => {
+        return this.serializeError(error, seen);
+      },
+      seen,
+      0,
+    );
+  }
+
+  private formatTopLevelError(
+    error: Error,
+    renderTrace: (trace: LoggerTraceFrameInterface[]) => string,
+    prettify: (value: unknown) => string,
+  ): string {
+    const payload = this.serializeError(error);
+    const header =
+      this.applyColor(payload.name, [this.effect.bold, this.foreground.red]) +
+      this.applyColor(': ', [this.effect.dim, this.foreground.red]) +
+      payload.message;
+    const trace = Array.isArray(payload.stack)
+      ? ` ${renderTrace(payload.stack)}`
+      : typeof payload.stack === 'string'
+        ? `\n${payload.stack}`
+        : '';
+    if (!('details' in payload)) {
+      return header + trace;
+    }
+    return header + ' ' + prettify(payload.details) + trace;
+  }
+
+  private formatMessageValue(
+    message: unknown,
+    renderTrace: (trace: LoggerTraceFrameInterface[]) => string,
+    prettify: (value: unknown) => string,
+    formatString?: (value: string) => string,
+  ): string {
+    if (message instanceof Error) {
+      return this.formatTopLevelError(message, renderTrace, prettify);
+    }
+    if (typeof message === 'string') {
+      return formatString ? formatString(message) : prettify(message);
+    }
+    return prettify(message);
+  }
+
+  private utilInspect(data: unknown): string {
+    return util.inspect(this.normalizeForInspect(data), {
       colors: this.options.color,
       showHidden: this.options.hidden,
       sorted: this.options.sort,
@@ -230,785 +867,179 @@ export class LoggerClass {
     });
   }
 
-  protected normalizeCircular(data: unknown, transformError: (error: Error) => unknown, seen = new WeakSet()): unknown {
+  private normalizeCircular(
+    data: unknown,
+    transformError: (error: Error) => unknown,
+    seen = new WeakSet<object>(),
+    depth = 0,
+  ): unknown {
+    const maxDepth = this.options.maxDepth ?? 5;
+    const maxArrayLength = this.options.maxArrayLength ?? 5;
+    // depth guard
+    if (depth > maxDepth) {
+      return '[Max depth reached]';
+    }
+    // Error
     if (data instanceof Error) {
       return transformError(data);
     }
-    if (this.isErrorLike(data)) {
-      return this.normalizeErrorLikeForInspect(data, seen);
-    }
-    if (!data || typeof data !== 'object') {
+    // primitives
+    if (!isObjectLike(data)) {
       return data;
     }
+    // Buffer
+    if (isBufferLike(data)) {
+      return `[Buffer ${data.length} bytes]`;
+    }
+    // TypedArray
+    if (isTypedArrayLike(data)) {
+      return `[TypedArray ${data.byteLength} bytes]`;
+    }
+    // Date / RegExp / URL
+    if (isDateLike(data)) {
+      return data.toISOString();
+    }
+    if (isRegExpLike(data)) {
+      return data.toString();
+    }
+    if (isUrlLike(data)) {
+      return data.toString();
+    }
+    // Stream (duck typing)
+    if (isPipeLike(data)) {
+      return '[Stream]';
+    }
+    // circular
     if (seen.has(data)) {
       return '[circular]';
     }
     seen.add(data);
+    // Array with truncation
     if (Array.isArray(data)) {
-      return data.map((item) => this.normalizeCircular(item, transformError, seen));
+      const sliced = data.slice(0, maxArrayLength);
+      const normalized = sliced.map((item) => this.normalizeCircular(item, transformError, seen, depth + 1));
+      if (data.length > maxArrayLength) {
+        normalized.push(`[+${data.length - maxArrayLength} more items]`);
+      }
+      return normalized;
     }
-    const proto = Object.getPrototypeOf(data) as object | null;
-    if (proto !== Object.prototype && proto !== null) {
+    // Map
+    if (data instanceof Map) {
+      const out: Record<string, unknown> = {};
+      let index = 0;
+      for (const [k, v] of data.entries()) {
+        if (index >= maxArrayLength) {
+          out['__truncated__'] = `[+${data.size - maxArrayLength} more entries]`;
+          break;
+        }
+        const key = typeof k === 'string' ? k : String(k);
+        out[key] = this.normalizeCircular(v, transformError, seen, depth + 1);
+        index++;
+      }
+      return out;
+    }
+    // Set
+    if (data instanceof Set) {
+      const values = Array.from(data.values()).slice(0, maxArrayLength);
+      const normalized = values.map((v) => this.normalizeCircular(v, transformError, seen, depth + 1));
+      if (data.size > maxArrayLength) {
+        normalized.push(`[+${data.size - maxArrayLength} more items]`);
+      }
+      return normalized;
+    }
+    // only plain objects
+    if (!isPlainObject(data)) {
       return data;
     }
     const normalized: Record<string, unknown> = {};
+    let index = 0;
     for (const [key, value] of Object.entries(data)) {
-      normalized[key] = this.normalizeCircular(value, transformError, seen);
+      if (index >= maxArrayLength) {
+        normalized['__truncated__'] = `[+more keys truncated]`;
+        break;
+      }
+      normalized[key] = this.normalizeCircular(value, transformError, seen, depth + 1);
+      index++;
     }
     return normalized;
   }
 
-  protected normalizeErrorLikeForInspect(
-    error: {
-      name?: unknown;
-      message?: unknown;
-      stack?: unknown;
-      cause?: unknown;
-      code?: unknown;
-      status?: unknown;
-      statusCode?: unknown;
-    },
-    seen = new WeakSet(),
-  ): Record<string, unknown> {
-    const normalized: Record<string, unknown> = {
-      name: typeof error.name === 'string' && error.name ? error.name : 'Error',
-      message: this.parseErrorMessage(typeof error.message === 'string' ? error.message : ''),
+  private serializeError(
+    error: Error,
+    seen = new WeakSet<object>(),
+  ): {
+    name: string;
+    message: string;
+    stack?: LoggerTraceFrameInterface[] | string;
+    details?: Record<string, unknown>;
+  } {
+    const result: {
+      name: string;
+      message: string;
+      stack?: LoggerTraceFrameInterface[] | string;
+      details?: Record<string, unknown>;
+    } = {
+      name: error.name,
+      message: error.message,
     };
-    if (error.code !== undefined) {
-      normalized.code = error.code;
+    if (this.options.errorStack && error.stack) {
+      const stack = this.getVisibleTraceItems(this.stackToTrace(error.stack));
+      result.stack = stack.length > 0 ? stack : error.stack;
     }
-    if (error.status !== undefined) {
-      normalized.status = error.status;
-    }
-    if (error.statusCode !== undefined) {
-      normalized.statusCode = error.statusCode;
-    }
-    if (error.cause !== undefined) {
-      normalized.cause = this.normalizeCircular(error.cause, (item) => this.normalizeErrorForInspect(item, seen), seen);
-    }
-    if (this.options.stackError && typeof error.stack === 'string' && error.stack) {
-      normalized.stack = this.filterTraceItems(this.stackToTrace(error.stack));
-    }
-    return normalized;
-  }
-
-  protected stdout(data: string): void {
-    try {
-      process.stdout.write(data);
-    } catch (e) {
-      const error = e instanceof Error ? e : new Error(String(e));
-      const message = '---------------[LOGGER STDOUT ERROR]---------------';
-      process.stderr.write('\n');
-      process.stderr.write(this.wrap(message, [this.effect.bold, this.foreground.red]) + '\n');
-      process.stderr.write(
-        this.wrap('Source: ', [this.effect.dim]) + this.wrap(this.constructor.name, [this.foreground.yellow]) + '\n',
-      );
-      process.stderr.write(
-        this.wrap('Error : ', [this.effect.dim]) +
-          this.wrap(`${error.name}: ${error.message}`, [this.foreground.red]) +
-          '\n',
-      );
-      if (error.stack) {
-        const trace = this.stackToTrace(error.stack);
-        if (trace.length) {
-          process.stderr.write(this.wrap('Stack trace:\n', [this.effect.bold, this.foreground.magenta]));
-          for (const item of trace) {
-            process.stderr.write(
-              '  ' +
-                this.wrap('at ', [this.effect.dim]) +
-                this.wrap(item.caller, [this.foreground.yellow]) +
-                (item.method ? this.wrap(`.${item.method}`, [this.foreground.blue]) : '') +
-                ' ' +
-                this.wrap(item.file, [this.foreground.cyan]) +
-                '\n',
-            );
-          }
-        }
-      }
-      process.stderr.write(this.wrap('Original log payload:\n', [this.effect.bold, this.foreground.magenta]));
-      process.stderr.write(data.endsWith('\n') ? data : data + '\n');
-      process.stderr.write(this.wrap('-'.repeat(message.length), [this.foreground.red]));
-    }
-  }
-
-  protected stackToTrace(stack = '', filterNode = false): LoggerMetadataInterface[] {
-    if (!stack) {
-      return [];
-    }
-    const root = process.cwd();
-    const result: LoggerMetadataInterface[] = [];
-    for (const match of stack.matchAll(STACK_REGEXP)) {
-      const context = match[1];
-      const dotIndex = context.indexOf('.');
-      const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
-      const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
-      let file = match[2];
-      if (
-        filterNode &&
-        (file.includes('node_modules') || file.startsWith('node:internal') || (caller === '' && method === ''))
-      ) {
-        continue;
-      }
-      if (root && file.startsWith(root)) {
-        file = file.slice(root.length).replace(/^\/|\/$/g, '') || '.';
-      } else {
-        file = file.replace(/^\/|\/$/g, '');
-      }
-      result.push({ caller, method, file });
+    const details = this.normalizeErrorDetails(error, seen);
+    if (details) {
+      result.details = details;
     }
     return result;
   }
 
-  protected jsonParse<T>(data: string): T | string {
-    try {
-      return JSON.parse(data) as T;
-    } catch {
-      return data;
-    }
-  }
-
-  protected parseErrorMessage(message: string): unknown {
-    return this.jsonParse<unknown>(message);
-  }
-
-  protected getTraceIndex(fallback = 1): number {
-    return this.options.traceIndex ?? fallback;
-  }
-
-  protected getElapsedMs(): number {
-    return Math.floor(performance.now() - this.startedAt);
-  }
-
-  protected resolveMetadataFromTrace(trace: LoggerMetadataInterface[], level: number): LoggerMetadataInterface {
-    const traceLevel = this.getTraceIndex(level);
-    const metadata = trace[traceLevel];
-    if (metadata) {
-      return {
-        file: metadata.file,
-        caller: metadata.caller,
-        method: metadata.method,
-      };
-    }
-    const nextMetadata = trace.slice(traceLevel).find((item) => {
-      return item.caller && item.method;
-    });
-    return {
-      file: nextMetadata?.file ?? '',
-      caller: nextMetadata?.caller ?? 'unknown',
-      method: nextMetadata?.method,
-    };
-  }
-
-  protected filterTraceItems(trace: LoggerMetadataInterface[]): LoggerMetadataInterface[] {
-    return trace.filter((item) => {
-      return !item.file.includes('node_modules/') && !item.file.includes('node:');
-    });
-  }
-
-  protected normalizeErrorForInspect(error: Error, seen = new WeakSet()): Record<string, unknown> {
-    const source = error as Error & {
-      code?: unknown;
-      cause?: unknown;
-      status?: unknown;
-      statusCode?: unknown;
-    };
-    const normalized: Record<string, unknown> = {
-      name: error.name,
-      message: this.parseErrorMessage(error.message),
-    };
-    if (source.code !== undefined) {
-      normalized.code = source.code;
-    }
-    if (source.status !== undefined) {
-      normalized.status = source.status;
-    }
-    if (source.statusCode !== undefined) {
-      normalized.statusCode = source.statusCode;
-    }
-    if (source.cause !== undefined) {
-      normalized.cause = this.normalizeCircular(
-        source.cause,
-        (item) => this.normalizeErrorForInspect(item, seen),
+  private normalizeErrorDetails(error: Error, seen = new WeakSet<object>()): Record<string, unknown> | undefined {
+    const details: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(error)) {
+      if (key === 'name' || key === 'message' || key === 'stack') {
+        continue;
+      }
+      details[key] = this.normalizeCircular(
+        value,
+        (item) => {
+          return this.serializeError(item, seen);
+        },
         seen,
+        0,
       );
     }
-    if (this.options.stackError && error.stack) {
-      normalized.stack = this.filterTraceItems(this.stackToTrace(error.stack));
-    }
-    return normalized;
+    return Object.keys(details).length ? details : undefined;
   }
 
-  protected normalizeForInspect(data: unknown, seen = new WeakSet()): unknown {
-    return this.normalizeCircular(data, (error) => this.normalizeErrorForInspect(error, seen), seen);
+  /**
+   * COLOR HELPERS
+   */
+
+  private applyColor(data: string, colorList: AnsiCode[]): string {
+    if (!this.colorEnabled || !colorList.length) {
+      return data;
+    }
+    return colorList.join('') + data + this.effect.reset;
   }
 
-  protected prettifyValue(data: unknown): string {
-    return this.formatInspectable(data, (value) => this.normalizeForInspect(value));
+  private applyForeground(level: LoggerLevelType, data: string): string {
+    if (!this.colorEnabled) {
+      return data;
+    }
+    return this.applyColor(data, [this.foreground[LEVEL_COLOR_MAP[level]] ?? this.effect.underline]);
   }
 
-  protected colorizeString(
-    message: string,
-    baseType: LoggerTokenType,
-    isHttpMethod: (value: string) => boolean = () => false,
-  ): string {
-    if (!this.options.color) {
-      return message;
+  private applyBackground(level: LoggerLevelType, data: string): string {
+    if (!this.colorEnabled) {
+      return data;
     }
-    const applyToken = (type: LoggerTokenType, value: string): string => {
-      return `${this.effect.reset}${this.wrap(value, this.getTokenColorList(type))}`;
-    };
-    const applySymbol = (value: string, fallbackType: LoggerTokenType = baseType): string => {
-      switch (value) {
-        case "'":
-        case '"':
-          return applyToken('quote', value);
-        case '{':
-          return applyToken('braceOpen', value);
-        case '}':
-          return applyToken('braceClose', value);
-        case '[':
-        case ']':
-          return applyToken('bracket', value);
-        case '(':
-        case ')':
-          return applyToken('parenthesis', value);
-        case ',':
-          return applyToken('comma', value);
-        default:
-          return applyToken(fallbackType, value);
-      }
-    };
-    let out = '';
-    let mode: 'normal' | 'single' | 'double' = 'normal';
-    let path = '';
-    let word = '';
-    let interpolationDepth = 0;
-    const flushPath = (): void => {
-      if (!path) {
-        return;
-      }
-      out += `${this.effect.reset}${this.colorizePath(path)}`;
-      path = '';
-    };
-    const flushWord = (): void => {
-      if (!word) {
-        return;
-      }
-      if (isHttpMethod(word)) {
-        out += applyToken('httpMethod', word);
-      } else {
-        out += applyToken(baseType, word);
-      }
-      word = '';
-    };
-    for (let index = 0; index < message.length; index++) {
-      const char = message[index];
-      const isString = mode === 'single' || mode === 'double';
-      const isUrlSchemeSeparator =
-        char === '/' && (message[index - 1] === ':' || (message[index - 1] === '/' && message[index - 2] === ':'));
-
-      if (isString && char === '$' && message[index + 1] === '{') {
-        out += applyToken('interpolationOpen', '${');
-        index++;
-        interpolationDepth++;
-        continue;
-      }
-
-      if (interpolationDepth > 0) {
-        if (char === '{') {
-          interpolationDepth++;
-          out += applyToken('braceOpen', char);
-          continue;
-        }
-        if (char === '}') {
-          interpolationDepth--;
-          out += applyToken(interpolationDepth === 0 ? 'interpolationClose' : 'braceClose', char);
-          continue;
-        }
-        out += applySymbol(char);
-        continue;
-      }
-
-      if (char === "'" && mode !== 'double') {
-        flushPath();
-        flushWord();
-        mode = mode === 'single' ? 'normal' : 'single';
-        out += applyToken('quote', char);
-        continue;
-      }
-      if (char === '"' && mode !== 'single') {
-        flushPath();
-        flushWord();
-        mode = mode === 'double' ? 'normal' : 'double';
-        out += applyToken('quote', char);
-        continue;
-      }
-      if (isString && char !== '"' && char !== "'") {
-        out += applySymbol(char, 'stringContent');
-        continue;
-      }
-      if (mode === 'normal' && /[0-9]/.test(char)) {
-        let number = char;
-        while (index + 1 < message.length && /[0-9.]/.test(message[index + 1])) {
-          number += message[++index];
-        }
-        out += applyToken('number', number);
-        continue;
-      }
-      if (mode === 'normal') {
-        if (char === '{' || char === '}') {
-          flushPath();
-          flushWord();
-          out += applyToken(char === '{' ? 'braceOpen' : 'braceClose', char);
-          continue;
-        }
-        if (char === '[' || char === ']') {
-          flushPath();
-          flushWord();
-          out += applyToken('bracket', char);
-          continue;
-        }
-        if (char === '(' || char === ')') {
-          flushPath();
-          flushWord();
-          out += applyToken('parenthesis', char);
-          continue;
-        }
-        if (char === ',') {
-          flushPath();
-          flushWord();
-          out += applyToken('comma', char);
-          continue;
-        }
-      }
-      if (mode === 'normal' && char === '/' && !isUrlSchemeSeparator) {
-        flushWord();
-        flushPath();
-        path = '/';
-        continue;
-      }
-      if (path) {
-        if (
-          char === ' ' ||
-          char === '"' ||
-          char === "'" ||
-          char === '{' ||
-          char === '}' ||
-          char === '[' ||
-          char === ']' ||
-          char === '(' ||
-          char === ')'
-        ) {
-          flushPath();
-          flushWord();
-          out += applySymbol(char);
-        } else {
-          path += char;
-        }
-        continue;
-      }
-      if (mode === 'normal' && /[A-Z]/.test(char)) {
-        word += char;
-        continue;
-      }
-      flushWord();
-      out += applySymbol(char);
-    }
-    flushPath();
-    flushWord();
-    return out + this.effect.reset;
+    return this.applyColor(data, [this.background[LEVEL_COLOR_MAP[level]] ?? this.effect.underline]);
   }
 
-  protected getTokenColorList(type: LoggerTokenType): string[] {
-    switch (type) {
-      case 'text':
-        return [this.foreground.green];
-      case 'stringContent':
-        return [this.foreground.green];
-      case 'systemText':
-        return [this.effect.dim, this.foreground.yellow];
-      case 'quote':
-        return [this.effect.bold, this.foreground.yellow];
-      case 'braceOpen':
-        return [this.effect.bold, this.foreground.magenta];
-      case 'braceClose':
-        return [this.effect.bold, this.foreground.magenta];
-      case 'bracket':
-        return [this.effect.bold, this.foreground.cyan];
-      case 'parenthesis':
-        return [this.effect.bold, this.foreground.blue];
-      case 'comma':
-        return [this.foreground.magenta];
-      case 'httpMethod':
-        return [this.foreground.cyan];
-      case 'pathSeparator':
-        return [this.effect.dim, this.foreground.cyan];
-      case 'pathSegment':
-        return [this.foreground.blue];
-      case 'number':
-        return [this.foreground.magenta];
-      case 'interpolationOpen':
-      case 'interpolationClose':
-        return [this.effect.bold, this.foreground.magenta];
-      default:
-        return [this.foreground.white];
+  private applyToken(token: LoggerTokenType, data: string): string {
+    if (!this.colorEnabled) {
+      return data;
     }
-  }
-
-  protected colorizePath(path: string): string {
-    const isAbsolute = path.startsWith('/');
-    const parts = path.split('/').filter(Boolean);
-    let out = '';
-    if (isAbsolute) {
-      out += this.wrap('/', this.getTokenColorList('pathSeparator'));
-    }
-    for (let index = 0; index < parts.length; index++) {
-      if (index > 0) {
-        out += this.wrap('/', this.getTokenColorList('pathSeparator'));
-      }
-      out += this.wrap(parts[index], this.getTokenColorList('pathSegment'));
-    }
-    return out;
-  }
-
-  protected formatTopLevelError(
-    error: Error,
-    renderTrace: (trace: LoggerMetadataInterface[]) => string,
-    prettify: (value: unknown) => string,
-  ): string {
-    const source = error as Error & {
-      code?: unknown;
-      cause?: unknown;
-      status?: unknown;
-      statusCode?: unknown;
-    };
-    const parsedMessage = this.parseErrorMessage(error.message);
-    const details: Record<string, unknown> = {};
-    const hasExtraFields =
-      source.code !== undefined ||
-      source.status !== undefined ||
-      source.statusCode !== undefined ||
-      source.cause !== undefined;
-
-    if (parsedMessage !== error.message || hasExtraFields) {
-      details.message = parsedMessage;
-    }
-    if (source.code !== undefined) {
-      details.code = source.code;
-    }
-    if (source.status !== undefined) {
-      details.status = source.status;
-    }
-    if (source.statusCode !== undefined) {
-      details.statusCode = source.statusCode;
-    }
-    if (source.cause !== undefined) {
-      details.cause = this.normalizeForInspect(source.cause);
-    }
-
-    const header = this.formatErrorHeader(error.name, Object.keys(details).length ? '' : error.message);
-    const trace = this.options.stackError && error.stack ? ` ${renderTrace(this.stackToTrace(error.stack))}` : '';
-
-    if (!Object.keys(details).length) {
-      return `${header}${trace}`;
-    }
-
-    const payload = Object.keys(details).length === 1 && 'message' in details ? details.message : details;
-
-    return `${header}${prettify(payload)}${trace}`;
-  }
-
-  protected formatMessageValue(
-    message: unknown,
-    renderTrace: (trace: LoggerMetadataInterface[]) => string,
-    prettify: (value: unknown) => string,
-    formatString?: (value: string) => string,
-  ): string {
-    if (message instanceof Error) {
-      return this.formatTopLevelError(message, renderTrace, prettify);
-    }
-    if (this.isErrorLike(message)) {
-      return this.formatErrorLikeValue(message, renderTrace, prettify);
-    }
-    if (typeof message === 'string') {
-      if (this.isStackTraceString(message)) {
-        return this.formatStackTraceString(message, renderTrace, (value) => {
-          return formatString ? formatString(value) : prettify(value);
-        });
-      }
-      return formatString ? formatString(message) : prettify(message);
-    }
-    return prettify(message);
-  }
-
-  protected formatMessageList(
-    messages: unknown[],
-    renderTrace: (trace: LoggerMetadataInterface[]) => string,
-    prettify: (value: unknown) => string,
-    formatString?: (value: string) => string,
-  ): string {
-    return messages.map((message) => this.formatMessageValue(message, renderTrace, prettify, formatString)).join(' ');
-  }
-
-  protected getLevelForeground(level: LoggerLevelType): string {
-    switch (level) {
-      case 'LOG':
-        return this.foreground.green;
-      case 'INF':
-        return this.foreground.blue;
-      case 'WRN':
-        return this.foreground.yellow;
-      case 'ERR':
-        return this.foreground.red;
-      case 'DBG':
-        return this.foreground.magenta;
-      case 'FTL':
-        return this.foreground.red;
-      default:
-        return this.foreground.white;
-    }
-  }
-
-  protected getLevelBackground(level: LoggerLevelType): string {
-    switch (level) {
-      case 'LOG':
-        return this.background.green;
-      case 'INF':
-        return this.background.blue;
-      case 'WRN':
-        return this.background.yellow;
-      case 'ERR':
-        return this.background.red;
-      case 'DBG':
-        return this.background.magenta;
-      case 'FTL':
-        return this.background.red;
-      default:
-        return this.background.white;
-    }
-  }
-
-  protected getTraceForeground(level: LoggerLevelType): string {
-    return this.getLevelForeground(level);
-  }
-
-  protected formatErrorHeader(name: string, message: string): string {
-    return `${this.wrap(name, [this.effect.bold, this.foreground.red])}${this.wrap(': ', [this.effect.dim, this.foreground.red])}${message}`;
-  }
-
-  protected formatPerformanceValue(elapsed: number): string {
-    return `${this.wrap('+', [this.effect.dim, this.foreground.cyan])}${this.wrap(elapsed.toString(), [
-      this.foreground.cyan,
-    ])}${this.wrap('ms', [this.effect.dim, this.foreground.cyan])}`;
-  }
-
-  protected formatTraceBlock(level: LoggerLevelType, trace: LoggerMetadataInterface[]): string {
-    const lines = this.filterTraceItems(trace).map((item) => {
-      if (this.options.info) {
-        return `${this.wrap(' at ', [this.effect.dim, this.getTraceForeground(level)])}${item.file}`;
-      }
-      return `    ${item.file}`;
-    });
-    return `${this.wrap('{', [this.effect.bold, this.foreground.cyan])}\n${lines.join('\n')}\n${this.wrap('}', [this.effect.bold, this.foreground.cyan])}`;
-  }
-
-  protected formatHeaderInfo(level: LoggerLevelType, parts: Array<string | undefined>): string | undefined {
-    const info = parts.filter((item): item is string => {
-      return Boolean(item);
-    });
-    if (!info.length) {
-      return undefined;
-    }
-    return `${info.join(this.wrap(' \u2503 ', [this.getLevelForeground(level)]))} `;
-  }
-
-  protected formatMessageSeparator(level: LoggerLevelType): string {
-    return `${this.wrap('\u2503', [this.getLevelForeground(level)])} `;
-  }
-
-  protected formatTraceSuffix(
-    level: LoggerLevelType,
-    trace: LoggerMetadataInterface[],
-    enabled = true,
-  ): string | undefined {
-    if (!enabled) {
-      return undefined;
-    }
-    return ` ${this.formatTraceBlock(level, trace)}`;
-  }
-
-  protected shouldRenderDebugTrace(level: LoggerLevelType): boolean {
-    return level === 'DBG' && !!this.options.stackDebug;
-  }
-
-  protected formatPerformanceSuffix(): string | undefined {
-    if (!this.options.performance) {
-      return undefined;
-    }
-    return ` ${this.formatPerformanceValue(this.getElapsedMs())}`;
-  }
-
-  protected formatLinkLine(level: LoggerLevelType, file: string): string {
-    return `${this.wrap('at ', [this.getLevelForeground(level)])}${file}`;
-  }
-
-  protected formatLinkSuffix(level: LoggerLevelType, file: string): string | undefined {
-    if (!this.options.link) {
-      return undefined;
-    }
-    return `\n${this.formatLinkLine(level, file)}`;
-  }
-
-  protected pushPart(parts: string[], value: string | undefined): void {
-    if (value) {
-      parts.push(value);
-    }
-  }
-
-  protected formatName(level: LoggerLevelType): string | undefined {
-    if (!this.options.name) {
-      return undefined;
-    }
-    return [
-      this.wrap('[', [this.effect.bold, this.getLevelForeground(level)]),
-      this.wrap(this.options.name, [this.effect.dim]),
-      this.wrap(']', [this.effect.bold, this.getLevelForeground(level)]),
-      //
-    ].join('');
-  }
-
-  protected formatLevelBadge(level: LoggerLevelType): string | undefined {
-    if (!this.options.info) {
-      return undefined;
-    }
-    return this.wrap(` ${level} `, [this.getLevelBackground(level)]);
-  }
-
-  protected formatPid(): string | undefined {
-    if (!this.options.pid) {
-      return undefined;
-    }
-    return this.wrap(this.pid, [this.foreground.cyan]);
-  }
-
-  protected formatHeaderDate(): string | undefined {
-    if (!this.options.date) {
-      return undefined;
-    }
-    return this.formatDate();
-  }
-
-  protected formatHeaderTime(): string | undefined {
-    if (!this.options.time) {
-      return undefined;
-    }
-    return this.formatTime(true);
-  }
-
-  protected formatStandardHeader(level: LoggerLevelType, caller?: string, method?: string): string {
-    return [
-      this.formatLevelBadge(level),
-      this.formatName(level),
-      this.formatHeaderInfo(level, [
-        this.formatPid(),
-        this.formatHeaderDate(),
-        this.formatHeaderTime(),
-        this.formatMetadata(caller, method),
-      ]),
-    ]
-      .filter((part) => part)
-      .join(' ');
-  }
-
-  protected formatMetadata(caller?: string, method?: string): string | undefined {
-    if (!this.options.metadata) {
-      return undefined;
-    }
-    const callerLabel = caller ? this.wrap(caller, [this.effect.bold]) : undefined;
-    const methodName = this.resolveMethod(method);
-    const methodLabel = methodName ? this.wrap(methodName, [this.effect.bold, this.foreground.white]) : undefined;
-    if (!callerLabel) {
-      return methodLabel;
-    }
-    if (!methodLabel) {
-      return callerLabel;
-    }
-    return `${callerLabel} ${methodLabel}`;
-  }
-
-  protected resolveCallerValue(metadata: LoggerMetadataInterface): string {
-    if (metadata.caller && metadata.caller !== '<anonymous>') {
-      return metadata.caller;
-    }
-    const file = metadata.file || '';
-    const base = file.split('/').pop() || file.split('\\').pop() || 'App';
-    const stem = base.replace(/\.[^/.]+$/, '');
-    if (!stem) {
-      return 'App';
-    }
-    return stem
-      .split(/[._-]/g)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join('');
-  }
-
-  protected isErrorLike(message: unknown): message is { name?: unknown; message?: unknown; stack?: unknown } {
-    if (!message || typeof message !== 'object') {
-      return false;
-    }
-    if (!('message' in message) || typeof message.message !== 'string') {
-      return false;
-    }
-    return (
-      ('name' in message && typeof message.name === 'string') ||
-      ('stack' in message && typeof message.stack === 'string')
-    );
-  }
-
-  protected isStackTraceString(message: string): boolean {
-    return /\n\s*at\s+/.test(message);
-  }
-
-  protected formatErrorLikeValue(
-    message: { name?: unknown; message?: unknown; stack?: unknown },
-    renderTrace: (trace: LoggerMetadataInterface[]) => string,
-    prettify: (value: unknown) => string,
-  ): string {
-    const name = typeof message.name === 'string' && message.name ? message.name : 'Error';
-    const text = typeof message.message === 'string' ? message.message : '';
-    const parsedMessage = this.parseErrorMessage(text);
-    if (parsedMessage !== text) {
-      const header = this.formatErrorHeader(name, '');
-      const trace =
-        this.options.stackError && typeof message.stack === 'string' && message.stack
-          ? ` ${renderTrace(this.stackToTrace(message.stack))}`
-          : '';
-      return `${header}${prettify(parsedMessage)}${trace}`;
-    }
-    const header = this.formatErrorHeader(name, text);
-    if (this.options.stackError && typeof message.stack === 'string' && message.stack) {
-      return `${header} ${renderTrace(this.stackToTrace(message.stack))}`;
-    }
-    return header;
-  }
-
-  protected formatStackTraceString(
-    message: string,
-    renderTrace: (trace: LoggerMetadataInterface[]) => string,
-    fallback: (value: string) => string,
-  ): string {
-    const trace = this.stackToTrace(message);
-    if (!trace.length) {
-      return fallback(message);
-    }
-    const [firstLine] = message.split('\n');
-    const headerMatch = firstLine.match(/^([^:]+):\s*(.*)$/);
-    if (!headerMatch) {
-      return renderTrace(trace);
-    }
-    const [, name, text] = headerMatch;
-    const header = this.formatErrorHeader(name, text);
-    return `${header} ${renderTrace(trace)}`;
+    return this.applyColor(data, TOKEN_COLOR_MAP[token] ?? [this.effect.underline]);
   }
 }

@@ -1,4 +1,11 @@
-import { LoggerClass, LoggerLevelType, LoggerMetadataInterface, LoggerOptionsInterface } from './logger.class';
+import {
+  LoggerClass,
+  LoggerLevelType,
+  LoggerOptionsInterface,
+  LoggerOriginInterface,
+  LoggerTokenType,
+  LoggerTraceFrameInterface,
+} from './logger.class';
 
 export interface LoggerNodeInterface {
   log(message: unknown, ...optionalParams: unknown[]): unknown;
@@ -8,17 +15,17 @@ export interface LoggerNodeInterface {
   info(message: unknown, ...optionalParams: unknown[]): unknown;
 }
 
-interface TraceInterface {
-  file: string;
-  caller: string;
-  method: string | undefined;
-}
+// interface TraceInterface {
+//   file: string;
+//   caller: string;
+//   method: string | undefined;
+// }
 
-interface OutputMetadataInterface {
-  file: string;
-  caller?: string;
-  method?: string;
-}
+// interface OutputMetadataInterface {
+//   file: string;
+//   caller?: string;
+//   method?: string;
+// }
 
 export class LoggerNodeClass extends LoggerClass implements LoggerNodeInterface {
   public constructor(options: LoggerOptionsInterface) {
@@ -45,79 +52,34 @@ export class LoggerNodeClass extends LoggerClass implements LoggerNodeInterface 
     this.print('INF', this.getStack(new Error().stack), data);
   }
 
-  public resolveMetadata(stack = '', level: number): LoggerMetadataInterface {
-    return this.resolveMetadataFromTrace(this.getStack(stack), level);
-  }
-
-  public resolveCaller(metadata: LoggerMetadataInterface): string {
-    return this.resolveCallerValue(metadata);
-  }
-
-  public print(level: LoggerLevelType, trace: TraceInterface[] | LoggerMetadataInterface, args: unknown[]): void {
+  public print(
+    level: LoggerLevelType,
+    trace: LoggerTraceFrameInterface[] | LoggerOriginInterface,
+    args: unknown[],
+  ): void {
     if (!Array.isArray(trace)) {
-      this.stdout(this.formatOutput(level, trace, args));
+      this.stdout({
+        level,
+        metadata: this.buildRenderMetadata(trace),
+        messages: args,
+        debugTrace: this.getStack(new Error().stack),
+        formatString: (value) => this.colorizeString(value, LoggerTokenType.STRING),
+      });
       return;
     }
 
-    const metadata = this.resolveOutputMetadata(trace);
-    this.stdout(this.formatOutput(level, metadata, args));
-  }
-
-  public getStack(stack?: string): TraceInterface[] {
-    return this.stackToTrace(stack, false).map((item) => {
-      return {
-        caller: item.caller,
-        method: item.method,
-        file: item.file,
-      };
+    const traceIndex = this.options.traceIndex ?? 1;
+    const origin = this.resolveOriginFromTrace(trace, traceIndex);
+    this.stdout({
+      level,
+      metadata: this.buildRenderMetadata(origin),
+      messages: args,
+      debugTrace: this.getStack(new Error().stack),
+      formatString: (value) => this.colorizeString(value, LoggerTokenType.STRING),
     });
   }
 
-  private formatOutput(
-    level: LoggerLevelType,
-    metadata: OutputMetadataInterface | LoggerMetadataInterface | undefined,
-    args: unknown[],
-  ): string {
-    const parts: string[] = [];
-    this.pushPart(parts, this.formatStandardHeader(level, metadata?.caller, metadata?.method));
-    this.pushPart(parts, this.formatMessageSeparator(level));
-    this.pushPart(
-      parts,
-      this.formatMessageList(
-        args,
-        (stackTrace) => this.formatTraceBlock('ERR', stackTrace),
-        (value) => this.prettifyValue(value),
-        (value) => this.formatText(value),
-      ),
-    );
-    this.pushPart(
-      parts,
-      this.formatTraceSuffix(level, this.getStack(new Error().stack), this.shouldRenderDebugTrace(level)),
-    );
-    this.pushPart(parts, this.formatPerformanceSuffix());
-    this.pushPart(parts, this.formatLinkSuffix(level, metadata?.file ?? ''));
-    return `${parts.join('')}\n`;
-  }
-
-  private resolveOutputMetadata(trace: TraceInterface[]): OutputMetadataInterface | undefined {
-    const metadata = trace[this.getTraceIndex()];
-    if (metadata) {
-      return {
-        file: metadata.file,
-        caller: metadata.caller,
-        method: this.resolveMethod(metadata.method),
-      };
-    }
-    const nextMetadata = trace.slice(this.getTraceIndex()).find((item) => {
-      return item.caller && item.method;
-    });
-    if (!nextMetadata) {
-      return undefined;
-    }
-    return {
-      file: nextMetadata.file,
-      caller: nextMetadata.caller,
-      method: this.resolveMethod(nextMetadata.method),
-    };
+  public getStack(stack?: string): LoggerTraceFrameInterface[] {
+    return this.stackToTrace(stack);
   }
 }

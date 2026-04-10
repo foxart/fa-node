@@ -16,15 +16,15 @@ export function initConsole(): void {
   const myConsole = new LoggerNodeClass({
     // traceIndex: 2,
     color: true,
-    info: true,
-    name: 'NAME',
+    level: true,
+    env: 'LOC',
     pid: true,
     date: true,
     time: true,
     performance: true,
     link: true,
     /** */
-    stackError: true,
+    errorStack: true,
     stackDebug: true,
     /** */
     sort: true,

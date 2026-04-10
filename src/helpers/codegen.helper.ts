@@ -27,35 +27,35 @@ class CodegenSingleton {
 
   public displayMessage(name: string, message: string): void {
     const result = [
-      this.logger.wrap(` ${name.toUpperCase()} `, [this.logger.background.cyan]),
-      this.logger.wrap(` ${message}`, [this.logger.foreground.cyan]),
+      this.applyColor(` ${name.toUpperCase()} `, [this.logger.background.cyan]),
+      this.applyColor(` ${message}`, [this.logger.foreground.cyan]),
     ];
     console.log(result.join(''));
   }
 
   public logSuccess(context: string, message: string): void {
     const result = [
-      this.logger.wrap(context, [this.logger.foreground.white]),
-      this.logger.wrap(` ${this.logger.status.success} `, [this.logger.effect.bold, this.logger.foreground.green]),
-      this.logger.wrap(message, [this.logger.effect.dim, this.logger.foreground.green]),
+      this.applyColor(context, [this.logger.foreground.white]),
+      this.applyColor(` ${this.logger.status.success} `, [this.logger.effect.bold, this.logger.foreground.green]),
+      this.applyColor(message, [this.logger.effect.dim, this.logger.foreground.green]),
     ];
     console.log(result.join(''));
   }
 
   public logWarning(context: string, message: string): void {
     const result = [
-      this.logger.wrap(context, [this.logger.foreground.white]),
-      this.logger.wrap(` ${this.logger.status.warning} `, [this.logger.effect.bold, this.logger.foreground.yellow]),
-      this.logger.wrap(message, [this.logger.effect.dim, this.logger.foreground.yellow]),
+      this.applyColor(context, [this.logger.foreground.white]),
+      this.applyColor(` ${this.logger.status.warning} `, [this.logger.effect.bold, this.logger.foreground.yellow]),
+      this.applyColor(message, [this.logger.effect.dim, this.logger.foreground.yellow]),
     ];
     console.log(result.join(''));
   }
 
   public logError(context: string, err: Error): void {
     const result = [
-      this.logger.wrap(context, [this.logger.foreground.white]),
-      this.logger.wrap(` ${this.logger.status.error} `, [this.logger.effect.bold, this.logger.foreground.red]),
-      this.logger.wrap(err.message, [this.logger.effect.dim, this.logger.foreground.red]),
+      this.applyColor(context, [this.logger.foreground.white]),
+      this.applyColor(` ${this.logger.status.error} `, [this.logger.effect.bold, this.logger.foreground.red]),
+      this.applyColor(err.message, [this.logger.effect.dim, this.logger.foreground.red]),
     ];
     console.log(result.join(''));
   }
@@ -119,6 +119,13 @@ class CodegenSingleton {
     } catch (e) {
       this.logError(this.buildProto.name, e as Error);
     }
+  }
+
+  private applyColor(data: string, colorList: string[]): string {
+    if (!colorList.length) {
+      return data;
+    }
+    return colorList.join('') + data + this.logger.effect.reset;
   }
 }
 
