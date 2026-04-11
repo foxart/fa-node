@@ -154,15 +154,6 @@ export class LoggerBrowserClass {
   }
 
   public override(): void {
-    // console.log = (...args: unknown[]): void => {
-    //   consoleLog(...this.consoleClass.log(...args));
-    // };
-    // console.warn = (...args: unknown[]): void => {
-    //   consoleWarn.bind(console, ...this.consoleClass.warn(...args))(...args);
-    // };
-    // console.info = (...args: unknown[]): void => {
-    //   consoleInfo.bind(console, ...this.consoleClass.info(...args))(...args);
-    // };
     console.log = console.log.bind(this, ...this.logger.log());
     console.warn = console.warn.bind(this, ...this.logger.warn());
     console.info = console.info.bind(this, ...this.logger.info());
