@@ -8,6 +8,13 @@ import {
   AnsiForegroundType,
   AnsiHelper,
 } from '../helpers/ansi.helper';
+import {
+  SYMBOL_ARROW,
+  SYMBOL_COMMON,
+  SYMBOL_STATUS,
+  SymbolArrowType,
+  SymbolStatusType,
+} from '../helpers/symbol.helper';
 
 function safePush(list: string[], value: string | undefined): void {
   if (value) {
@@ -117,37 +124,6 @@ export enum LoggerTokenType {
   Hash = 'hash', // #
   At = 'at', // @
 }
-
-interface ArrowInterface {
-  left: string;
-  up: string;
-  right: string;
-  down: string;
-}
-
-interface StatusInterface {
-  success: string;
-  error: string;
-  warning: string;
-}
-
-const ARROW: ArrowInterface = {
-  left: '\u2190', // ←
-  up: '\u2191', // ↑
-  right: '\u2192', // →
-  down: '\u2193', // ↓
-};
-
-const STATUS: StatusInterface = {
-  success: '\u2714', // ✔
-  error: '\u2716', // ✖
-  warning: '\u26A0', // ⚠
-};
-
-const SYMBOL: StatusInterface & { separator: string } = {
-  ...STATUS,
-  separator: '\u2503', // ┃
-};
 
 type PipeLike = {
   pipe?: (...args: unknown[]) => unknown;
@@ -288,8 +264,8 @@ export class LoggerClass {
   public readonly ef: AnsiEffectType;
   public readonly fg: AnsiForegroundType;
   public readonly bg: AnsiBackgroundType;
-  public readonly arrow: ArrowInterface;
-  public readonly status: StatusInterface;
+  public readonly arrow: SymbolArrowType;
+  public readonly status: SymbolStatusType;
   protected readonly pid = process.pid.toString();
   protected readonly startedAt = performance.now();
   protected readonly options: LoggerOptionsInterface;
@@ -306,8 +282,8 @@ export class LoggerClass {
     this.ef = EFFECT_ON;
     this.fg = FOREGROUND_ON;
     this.bg = BACKGROUND_ON;
-    this.arrow = ARROW;
-    this.status = STATUS;
+    this.arrow = SYMBOL_ARROW;
+    this.status = SYMBOL_STATUS;
   }
 
   public resolveCaller(frame: LoggerTraceFrameInterface | undefined): string {
@@ -660,7 +636,7 @@ export class LoggerClass {
     if (!this.options.level) {
       return undefined;
     }
-    return this.applyForeground(level, SYMBOL.separator) + this.applyBackground(level, ` ${level} `);
+    return this.applyForeground(level, SYMBOL_COMMON.SEPARATOR) + this.applyBackground(level, ` ${level} `);
   }
 
   private renderMetadata(metadata: LoggerMetadataInterface | undefined): string | undefined {
