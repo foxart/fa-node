@@ -220,9 +220,12 @@ function isNativeTraceFile(file: string): boolean {
 const EFFECT_ON: AnsiEffectInterface = AnsiHelper.ef;
 const FOREGROUND_ON: AnsiColorInterface = AnsiHelper.fg;
 const BACKGROUND_ON: AnsiColorInterface = AnsiHelper.bg;
-const EFFECT_OFF: AnsiEffectInterface = createOff(EFFECT_ON);
-const FOREGROUND_OFF: AnsiColorInterface = createOff(FOREGROUND_ON);
-const BACKGROUND_OFF: AnsiColorInterface = createOff(BACKGROUND_ON);
+// const EFFECT_OFF: AnsiEffectInterface = createOff(EFFECT_ON);
+// const FOREGROUND_OFF: AnsiColorInterface = createOff(FOREGROUND_ON);
+// const BACKGROUND_OFF: AnsiColorInterface = createOff(BACKGROUND_ON);
+const EFFECT_OFF: AnsiEffectInterface = EFFECT_ON;
+const FOREGROUND_OFF: AnsiColorInterface = FOREGROUND_ON;
+const BACKGROUND_OFF: AnsiColorInterface = BACKGROUND_ON;
 
 const LEVEL_COLOR_MAP: Record<LoggerLevelType, keyof AnsiColorInterface> = {
   LOG: 'green',
@@ -305,15 +308,9 @@ export class LoggerClass {
     const colorEnabled = Boolean(normalizedOptions.color);
     this.options = normalizedOptions;
     this.colorEnabled = colorEnabled;
-    if (colorEnabled) {
-      this.ef = EFFECT_ON;
-      this.fg = FOREGROUND_ON;
-      this.bg = BACKGROUND_ON;
-    } else {
-      this.ef = EFFECT_OFF;
-      this.fg = FOREGROUND_OFF;
-      this.bg = BACKGROUND_OFF;
-    }
+    this.ef = EFFECT_ON;
+    this.fg = FOREGROUND_ON;
+    this.bg = BACKGROUND_ON;
     this.arrow = ARROW;
     this.status = STATUS;
   }
@@ -988,20 +985,20 @@ export class LoggerClass {
     if (!this.colorEnabled) {
       return data;
     }
-    return this.applyColor(data, [this.fg[LEVEL_COLOR_MAP[level]] ?? this.ef.underline]);
+    return AnsiHelper.apply(data, [this.fg[LEVEL_COLOR_MAP[level]] ?? this.ef.underline]);
   }
 
   private applyBackground(level: LoggerLevelType, data: string): string {
     if (!this.colorEnabled) {
       return data;
     }
-    return this.applyColor(data, [this.bg[LEVEL_COLOR_MAP[level]] ?? this.ef.underline]);
+    return AnsiHelper.apply(data, [this.bg[LEVEL_COLOR_MAP[level]] ?? this.ef.underline]);
   }
 
   private applyToken(token: LoggerTokenType, data: string): string {
     if (!this.colorEnabled) {
       return data;
     }
-    return this.applyColor(data, TOKEN_COLOR_MAP[token] ?? [this.ef.underline]);
+    return AnsiHelper.apply(data, TOKEN_COLOR_MAP[token] ?? [this.ef.underline]);
   }
 }

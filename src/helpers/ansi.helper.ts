@@ -67,7 +67,10 @@ class ColorSingleton {
     return ColorSingleton.self;
   }
 
-  private apply(data: string, ansiList: string[]): string {
+  public apply(
+    data: string,
+    ansiList: (AnsiColorInterface[keyof AnsiColorInterface] | AnsiEffectInterface[keyof AnsiEffectInterface])[],
+  ): string {
     if (!ansiList.length) {
       return data;
     }
@@ -76,3 +79,5 @@ class ColorSingleton {
 }
 
 export const AnsiHelper = ColorSingleton.getInstance();
+AnsiHelper.apply('test', [FOREGROUND.black]);
+AnsiHelper.apply('test', ['wrong']);
