@@ -32,8 +32,14 @@ const EFFECT = {
   hidden: '\x1b[8m',
 } as const;
 
-export type AnsiColorType = (typeof FOREGROUND)[keyof typeof FOREGROUND] | (typeof BACKGROUND)[keyof typeof BACKGROUND];
-export type AnsiEffectType = (typeof EFFECT)[keyof typeof EFFECT];
+export type AnsiColorKeyType =
+  | (typeof FOREGROUND)[keyof typeof FOREGROUND]
+  | (typeof BACKGROUND)[keyof typeof BACKGROUND];
+export type AnsiEffectKeyType = (typeof EFFECT)[keyof typeof EFFECT];
+
+export type AnsiEffectValueType = typeof EFFECT;
+export type AnsiForegroundValueType = typeof FOREGROUND;
+export type AnsiBackgroundValueType = typeof BACKGROUND;
 
 class ColorSingleton {
   private static self: ColorSingleton;
@@ -48,7 +54,7 @@ class ColorSingleton {
     return ColorSingleton.self;
   }
 
-  public apply(data: string, ansiList: (AnsiColorType | AnsiEffectType)[]): string {
+  public apply(data: string, ansiList: (AnsiColorKeyType | AnsiEffectKeyType)[]): string {
     if (!ansiList.length) {
       return data;
     }

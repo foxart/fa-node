@@ -1,5 +1,12 @@
 import * as util from 'node:util';
-import { AnsiColorType, AnsiEffectType, AnsiHelper } from '../helpers/ansi.helper';
+import {
+  AnsiBackgroundValueType,
+  AnsiColorKeyType,
+  AnsiEffectKeyType,
+  AnsiEffectValueType,
+  AnsiForegroundValueType,
+  AnsiHelper,
+} from '../helpers/ansi.helper';
 
 function createOff<T extends { [K in keyof T]: AnsiCode }>(source: T): T {
   const result = {} as T;
@@ -149,7 +156,9 @@ const SYMBOL: StatusInterface & { separator: string } = {
   separator: '\u2503', // ┃
 };
 
-type AnsiCode = string;
+type AnsiCode = AnsiColorKeyType | AnsiEffectKeyType;
+// type AnsiEffectInterface = typeof AnsiHelper.ef;
+type AnsiColorName = keyof AnsiForegroundValueType | keyof AnsiBackgroundValueType;
 
 type PipeLike = {
   pipe?: (...args: unknown[]) => unknown;
@@ -217,14 +226,14 @@ function isNativeTraceFile(file: string): boolean {
   return file === 'native';
 }
 
-const EFFECT_ON: AnsiEffectType = AnsiHelper.ef;
-const FOREGROUND_ON: AnsiColorType = AnsiHelper.fg;
-const BACKGROUND_ON: AnsiColorType = AnsiHelper.bg;
+const EFFECT_ON: AnsiEffectValueType = AnsiHelper.ef;
+const FOREGROUND_ON: AnsiForegroundValueType = AnsiHelper.fg;
+const BACKGROUND_ON: AnsiBackgroundValueType = AnsiHelper.bg;
 // const EFFECT_OFF: AnsiEffectInterface = createOff(EFFECT_ON);
 // const FOREGROUND_OFF: AnsiColorInterface = createOff(FOREGROUND_ON);
 // const BACKGROUND_OFF: AnsiColorInterface = createOff(BACKGROUND_ON);
 
-const LEVEL_COLOR_MAP: Record<LoggerLevelType, keyof AnsiColorType> = {
+const LEVEL_COLOR_MAP: Record<LoggerLevelType, AnsiColorName> = {
   LOG: 'green',
   INF: 'blue',
   WRN: 'yellow',
@@ -287,9 +296,9 @@ const NUMBER_CHAR_REGEXP = /[0-9]/;
 const NUMBER_PART_CHAR_REGEXP = /[0-9.]/;
 
 export class LoggerClass {
-  public readonly ef: AnsiEffectInterface;
-  public readonly fg: AnsiColorInterface;
-  public readonly bg: AnsiColorInterface;
+  public readonly ef: AnsiEffectValueType;
+  public readonly fg: AnsiForegroundValueType;
+  public readonly bg: AnsiBackgroundValueType;
   public readonly arrow: ArrowInterface;
   public readonly status: StatusInterface;
   protected readonly pid = process.pid.toString();
