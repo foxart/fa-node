@@ -1,7 +1,24 @@
+export interface AnsiColorInterface {
+  red: string;
+  green: string;
+  blue: string;
+  yellow: string;
+  magenta: string;
+  cyan: string;
+  white: string;
+}
+
+export interface AnsiEffectInterface {
+  bold: string;
+  dim: string;
+  reset: string;
+  underline: string;
+}
+
 class ColorSingleton {
   private static self: ColorSingleton;
 
-  public readonly effect = {
+  public readonly effect: AnsiEffectInterface = {
     RESET: '\x1b[0m',
     BOLD: '\x1b[1m',
     DIM: '\x1b[2m',
@@ -11,7 +28,7 @@ class ColorSingleton {
     HIDDEN: '\x1b[8m',
   };
 
-  public readonly foreground = {
+  public readonly foreground: AnsiColorInterface = {
     BLACK: '\x1b[30m',
     RED: '\x1b[31m',
     GREEN: '\x1b[32m',
@@ -23,7 +40,7 @@ class ColorSingleton {
     GRAY: '\x1b[90m',
   };
 
-  public readonly background = {
+  public readonly background: AnsiColorInterface = {
     BLACK: '\x1b[40m',
     RED: '\x1b[41m',
     GREEN: '\x1b[42m',
@@ -44,9 +61,9 @@ class ColorSingleton {
 
   public wrapData(data: string, colors: string[]): string {
     return colors.reduce((acc, color) => {
-      return `${color}${acc}${this.effect.RESET}`;
+      return `${color}${acc}${this.effect.reset}`;
     }, data);
   }
 }
 
-export const ColorHelper = ColorSingleton.getInstance();
+export const AnsiHelper = ColorSingleton.getInstance();
