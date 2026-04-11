@@ -8,14 +8,6 @@ import {
   AnsiHelper,
 } from '../helpers/ansi.helper';
 
-function createOff<T extends { [K in keyof T]: AnsiCode }>(source: T): T {
-  const result = {} as T;
-  for (const key in source) {
-    result[key] = '' as T[typeof key];
-  }
-  return result;
-}
-
 function safePush(list: string[], value: string | undefined): void {
   if (value) {
     list.push(value);
@@ -157,7 +149,6 @@ const SYMBOL: StatusInterface & { separator: string } = {
 };
 
 type AnsiCode = AnsiColorKeyType | AnsiEffectKeyType;
-// type AnsiEffectInterface = typeof AnsiHelper.ef;
 type AnsiColorName = keyof AnsiForegroundValueType | keyof AnsiBackgroundValueType;
 
 type PipeLike = {
