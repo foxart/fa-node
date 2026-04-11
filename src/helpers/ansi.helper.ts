@@ -1,26 +1,4 @@
-export interface AnsiColorInterface {
-  black: string;
-  red: string;
-  green: string;
-  yellow: string;
-  blue: string;
-  magenta: string;
-  cyan: string;
-  white: string;
-  gray: string;
-}
-
-export interface AnsiEffectInterface {
-  reset: string;
-  bold: string;
-  dim: string;
-  underline: string;
-  blink: string;
-  reverse: string;
-  hidden: string;
-}
-
-const FOREGROUND: AnsiColorInterface = {
+const FOREGROUND = {
   black: '\x1b[30m',
   red: '\x1b[31m',
   green: '\x1b[32m',
@@ -30,9 +8,9 @@ const FOREGROUND: AnsiColorInterface = {
   cyan: '\x1b[36m',
   white: '\x1b[37m',
   gray: '\x1b[90m',
-};
+} as const;
 
-const BACKGROUND: AnsiColorInterface = {
+const BACKGROUND = {
   black: '\x1b[40m',
   red: '\x1b[41m',
   green: '\x1b[42m',
@@ -42,9 +20,9 @@ const BACKGROUND: AnsiColorInterface = {
   cyan: '\x1b[46m',
   white: '\x1b[47m',
   gray: '\x1b[100m',
-};
+} as const;
 
-const EFFECT: AnsiEffectInterface = {
+const EFFECT = {
   reset: '\x1b[0m',
   bold: '\x1b[1m',
   dim: '\x1b[2m',
@@ -52,13 +30,16 @@ const EFFECT: AnsiEffectInterface = {
   blink: '\x1b[5m',
   reverse: '\x1b[7m',
   hidden: '\x1b[8m',
-};
+} as const;
+
+export type AnsiColorType = (typeof FOREGROUND)[keyof typeof FOREGROUND] | (typeof BACKGROUND)[keyof typeof BACKGROUND];
+export type AnsiEffectType = (typeof EFFECT)[keyof typeof EFFECT];
 
 class ColorSingleton {
   private static self: ColorSingleton;
-  public readonly ef: AnsiEffectInterface = EFFECT;
-  public readonly fg: AnsiColorInterface = FOREGROUND;
-  public readonly bg: AnsiColorInterface = BACKGROUND;
+  public readonly ef = EFFECT;
+  public readonly fg = FOREGROUND;
+  public readonly bg = BACKGROUND;
 
   public static getInstance(): ColorSingleton {
     if (!ColorSingleton.self) {
@@ -67,10 +48,7 @@ class ColorSingleton {
     return ColorSingleton.self;
   }
 
-  public apply(
-    data: string,
-    ansiList: (AnsiColorInterface[keyof AnsiColorInterface] | AnsiEffectInterface[keyof AnsiEffectInterface])[],
-  ): string {
+  public apply(data: string, ansiList: (AnsiColorType | AnsiEffectType)[]): string {
     if (!ansiList.length) {
       return data;
     }
@@ -79,5 +57,3 @@ class ColorSingleton {
 }
 
 export const AnsiHelper = ColorSingleton.getInstance();
-AnsiHelper.apply('test', [FOREGROUND.black]);
-AnsiHelper.apply('test', ['wrong']);

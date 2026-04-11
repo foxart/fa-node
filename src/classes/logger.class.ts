@@ -1,5 +1,5 @@
 import * as util from 'node:util';
-import { AnsiColorInterface, AnsiEffectInterface, AnsiHelper } from '../helpers/ansi.helper';
+import { AnsiColorType, AnsiEffectType, AnsiHelper } from '../helpers/ansi.helper';
 
 function createOff<T extends { [K in keyof T]: AnsiCode }>(source: T): T {
   const result = {} as T;
@@ -217,17 +217,14 @@ function isNativeTraceFile(file: string): boolean {
   return file === 'native';
 }
 
-const EFFECT_ON: AnsiEffectInterface = AnsiHelper.ef;
-const FOREGROUND_ON: AnsiColorInterface = AnsiHelper.fg;
-const BACKGROUND_ON: AnsiColorInterface = AnsiHelper.bg;
+const EFFECT_ON: AnsiEffectType = AnsiHelper.ef;
+const FOREGROUND_ON: AnsiColorType = AnsiHelper.fg;
+const BACKGROUND_ON: AnsiColorType = AnsiHelper.bg;
 // const EFFECT_OFF: AnsiEffectInterface = createOff(EFFECT_ON);
 // const FOREGROUND_OFF: AnsiColorInterface = createOff(FOREGROUND_ON);
 // const BACKGROUND_OFF: AnsiColorInterface = createOff(BACKGROUND_ON);
-const EFFECT_OFF: AnsiEffectInterface = EFFECT_ON;
-const FOREGROUND_OFF: AnsiColorInterface = FOREGROUND_ON;
-const BACKGROUND_OFF: AnsiColorInterface = BACKGROUND_ON;
 
-const LEVEL_COLOR_MAP: Record<LoggerLevelType, keyof AnsiColorInterface> = {
+const LEVEL_COLOR_MAP: Record<LoggerLevelType, keyof AnsiColorType> = {
   LOG: 'green',
   INF: 'blue',
   WRN: 'yellow',
