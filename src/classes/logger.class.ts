@@ -1,4 +1,5 @@
 import * as util from 'node:util';
+import { AnsiColorInterface, AnsiEffectInterface, AnsiHelper } from '../helpers/ansi.helper';
 
 function createOff<T extends { [K in keyof T]: AnsiCode }>(source: T): T {
   const result = {} as T;
@@ -130,23 +131,6 @@ interface StatusInterface {
   warning: string;
 }
 
-interface ColorInterface {
-  red: AnsiCode;
-  green: AnsiCode;
-  blue: AnsiCode;
-  yellow: AnsiCode;
-  magenta: AnsiCode;
-  cyan: AnsiCode;
-  white: AnsiCode;
-}
-
-interface EffectInterface {
-  bold: AnsiCode;
-  dim: AnsiCode;
-  reset: AnsiCode;
-  underline: AnsiCode;
-}
-
 const ARROW: ArrowInterface = {
   left: '\u2190', // ←
   up: '\u2191', // ↑
@@ -233,36 +217,14 @@ function isNativeTraceFile(file: string): boolean {
   return file === 'native';
 }
 
-const EFFECT_ON: EffectInterface = {
-  bold: '\u001b[1m',
-  dim: '\u001b[2m',
-  reset: '\u001b[0m',
-  underline: '\u001b[4m',
-};
+const EFFECT_ON: AnsiEffectInterface = AnsiHelper.ef;
+const FOREGROUND_ON: AnsiColorInterface = AnsiHelper.fg;
+const BACKGROUND_ON: AnsiColorInterface = AnsiHelper.bg;
+const EFFECT_OFF: AnsiEffectInterface = createOff(EFFECT_ON);
+const FOREGROUND_OFF: AnsiColorInterface = createOff(FOREGROUND_ON);
+const BACKGROUND_OFF: AnsiColorInterface = createOff(BACKGROUND_ON);
 
-const FOREGROUND_ON: ColorInterface = {
-  red: '\u001b[31m',
-  green: '\u001b[32m',
-  blue: '\u001b[34m',
-  yellow: '\u001b[33m',
-  magenta: '\u001b[35m',
-  cyan: '\u001b[36m',
-  white: '\u001b[37m',
-};
-const BACKGROUND_ON: ColorInterface = {
-  red: '\u001b[41m',
-  green: '\u001b[42m',
-  blue: '\u001b[44m',
-  yellow: '\u001b[43m',
-  magenta: '\u001b[45m',
-  cyan: '\u001b[46m',
-  white: '\u001b[47m',
-};
-const EFFECT_OFF: EffectInterface = createOff(EFFECT_ON);
-const FOREGROUND_OFF: ColorInterface = createOff(FOREGROUND_ON);
-const BACKGROUND_OFF: ColorInterface = createOff(BACKGROUND_ON);
-
-const LEVEL_COLOR_MAP: Record<LoggerLevelType, keyof ColorInterface> = {
+const LEVEL_COLOR_MAP: Record<LoggerLevelType, keyof AnsiColorInterface> = {
   LOG: 'green',
   INF: 'blue',
   WRN: 'yellow',
@@ -325,9 +287,9 @@ const NUMBER_CHAR_REGEXP = /[0-9]/;
 const NUMBER_PART_CHAR_REGEXP = /[0-9.]/;
 
 export class LoggerClass {
-  public readonly effect: EffectInterface;
-  public readonly foreground: ColorInterface;
-  public readonly background: ColorInterface;
+  public readonly ef: AnsiEffectInterface;
+  public readonly fg: AnsiColorInterface;
+  public readonly bg: AnsiColorInterface;
   public readonly arrow: ArrowInterface;
   public readonly status: StatusInterface;
   protected readonly pid = process.pid.toString();
@@ -344,13 +306,13 @@ export class LoggerClass {
     this.options = normalizedOptions;
     this.colorEnabled = colorEnabled;
     if (colorEnabled) {
-      this.effect = EFFECT_ON;
-      this.foreground = FOREGROUND_ON;
-      this.background = BACKGROUND_ON;
+      this.ef = EFFECT_ON;
+      this.fg = FOREGROUND_ON;
+      this.bg = BACKGROUND_ON;
     } else {
-      this.effect = EFFECT_OFF;
-      this.foreground = FOREGROUND_OFF;
-      this.background = BACKGROUND_OFF;
+      this.ef = EFFECT_OFF;
+      this.fg = FOREGROUND_OFF;
+      this.bg = BACKGROUND_OFF;
     }
     this.arrow = ARROW;
     this.status = STATUS;
@@ -626,7 +588,7 @@ export class LoggerClass {
       }
       out += applySymbol(char);
     }
-    return out + this.effect.reset;
+    return out + this.ef.reset;
   }
 
   protected formatTraceBlock(level: LoggerLevelType, trace: LoggerTraceFrameInterface[]): string {
@@ -811,7 +773,7 @@ export class LoggerClass {
     return parts.join(':');
   }
 
-  private normalizeForInspect(data: unknown, seen = new WeakSet<object>()): unknown {
+  private normalizeForInspect(data: unknown, seen = new WeakSet()): unknown {
     return this.normalizeCircular(
       data,
       (error) => {
@@ -829,8 +791,8 @@ export class LoggerClass {
   ): string {
     const payload = this.serializeError(error);
     const header =
-      this.applyColor(payload.name, [this.effect.bold, this.foreground.red]) +
-      this.applyColor(': ', [this.effect.dim, this.foreground.red]) +
+      this.applyColor(payload.name, [this.ef.bold, this.fg.red]) +
+      this.applyColor(': ', [this.ef.dim, this.fg.red]) +
       payload.message;
     const trace = Array.isArray(payload.stack)
       ? ` ${renderTrace(payload.stack)}`
@@ -870,7 +832,7 @@ export class LoggerClass {
   private normalizeCircular(
     data: unknown,
     transformError: (error: Error) => unknown,
-    seen = new WeakSet<object>(),
+    seen = new WeakSet(),
     depth = 0,
   ): unknown {
     const maxDepth = this.options.maxDepth ?? 5;
@@ -966,7 +928,7 @@ export class LoggerClass {
 
   private serializeError(
     error: Error,
-    seen = new WeakSet<object>(),
+    seen = new WeakSet(),
   ): {
     name: string;
     message: string;
@@ -993,7 +955,7 @@ export class LoggerClass {
     return result;
   }
 
-  private normalizeErrorDetails(error: Error, seen = new WeakSet<object>()): Record<string, unknown> | undefined {
+  private normalizeErrorDetails(error: Error, seen = new WeakSet()): Record<string, unknown> | undefined {
     const details: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(error)) {
       if (key === 'name' || key === 'message' || key === 'stack') {
@@ -1019,27 +981,27 @@ export class LoggerClass {
     if (!this.colorEnabled || !colorList.length) {
       return data;
     }
-    return colorList.join('') + data + this.effect.reset;
+    return colorList.join('') + data + this.ef.reset;
   }
 
   private applyForeground(level: LoggerLevelType, data: string): string {
     if (!this.colorEnabled) {
       return data;
     }
-    return this.applyColor(data, [this.foreground[LEVEL_COLOR_MAP[level]] ?? this.effect.underline]);
+    return this.applyColor(data, [this.fg[LEVEL_COLOR_MAP[level]] ?? this.ef.underline]);
   }
 
   private applyBackground(level: LoggerLevelType, data: string): string {
     if (!this.colorEnabled) {
       return data;
     }
-    return this.applyColor(data, [this.background[LEVEL_COLOR_MAP[level]] ?? this.effect.underline]);
+    return this.applyColor(data, [this.bg[LEVEL_COLOR_MAP[level]] ?? this.ef.underline]);
   }
 
   private applyToken(token: LoggerTokenType, data: string): string {
     if (!this.colorEnabled) {
       return data;
     }
-    return this.applyColor(data, TOKEN_COLOR_MAP[token] ?? [this.effect.underline]);
+    return this.applyColor(data, TOKEN_COLOR_MAP[token] ?? [this.ef.underline]);
   }
 }

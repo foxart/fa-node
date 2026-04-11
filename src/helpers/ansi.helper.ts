@@ -1,56 +1,64 @@
 export interface AnsiColorInterface {
+  black: string;
   red: string;
   green: string;
-  blue: string;
   yellow: string;
+  blue: string;
   magenta: string;
   cyan: string;
   white: string;
+  gray: string;
 }
 
 export interface AnsiEffectInterface {
+  reset: string;
   bold: string;
   dim: string;
-  reset: string;
   underline: string;
+  blink: string;
+  reverse: string;
+  hidden: string;
 }
+
+const EFFECT: AnsiEffectInterface = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  underline: '\x1b[4m',
+  blink: '\x1b[5m',
+  reverse: '\x1b[7m',
+  hidden: '\x1b[8m',
+};
+
+const FOREGROUND: AnsiColorInterface = {
+  black: '\x1b[30m',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m',
+  magenta: '\x1b[35m',
+  cyan: '\x1b[36m',
+  white: '\x1b[37m',
+  gray: '\x1b[90m',
+};
+
+const BACKGROUND: AnsiColorInterface = {
+  black: '\x1b[40m',
+  red: '\x1b[41m',
+  green: '\x1b[42m',
+  yellow: '\x1b[43m',
+  blue: '\x1b[44m',
+  magenta: '\x1b[45m',
+  cyan: '\x1b[46m',
+  white: '\x1b[47m',
+  gray: '\x1b[100m',
+};
 
 class ColorSingleton {
   private static self: ColorSingleton;
-
-  public readonly effect: AnsiEffectInterface = {
-    RESET: '\x1b[0m',
-    BOLD: '\x1b[1m',
-    DIM: '\x1b[2m',
-    UNDERLINE: '\x1b[4m',
-    BLINK: '\x1b[5m',
-    REVERSE: '\x1b[7m',
-    HIDDEN: '\x1b[8m',
-  };
-
-  public readonly foreground: AnsiColorInterface = {
-    BLACK: '\x1b[30m',
-    RED: '\x1b[31m',
-    GREEN: '\x1b[32m',
-    YELLOW: '\x1b[33m',
-    BLUE: '\x1b[34m',
-    MAGENTA: '\x1b[35m',
-    CYAN: '\x1b[36m',
-    WHITE: '\x1b[37m',
-    GRAY: '\x1b[90m',
-  };
-
-  public readonly background: AnsiColorInterface = {
-    BLACK: '\x1b[40m',
-    RED: '\x1b[41m',
-    GREEN: '\x1b[42m',
-    YELLOW: '\x1b[43m',
-    BLUE: '\x1b[44m',
-    MAGENTA: '\x1b[45m',
-    CYAN: '\x1b[46m',
-    WHITE: '\x1b[47m',
-    GRAY: '\x1b[100m',
-  };
+  public readonly ef: AnsiEffectInterface = EFFECT;
+  public readonly fg: AnsiColorInterface = FOREGROUND;
+  public readonly bg: AnsiColorInterface = BACKGROUND;
 
   public static getInstance(): ColorSingleton {
     if (!ColorSingleton.self) {
@@ -61,8 +69,15 @@ class ColorSingleton {
 
   public wrapData(data: string, colors: string[]): string {
     return colors.reduce((acc, color) => {
-      return `${color}${acc}${this.effect.reset}`;
+      return `${color}${acc}${this.ef.reset}`;
     }, data);
+  }
+
+  private applyColor(data: string, colorList: string[]): string {
+    if (!colorList.length) {
+      return data;
+    }
+    return colorList.join('') + data + this.ef.reset;
   }
 }
 
