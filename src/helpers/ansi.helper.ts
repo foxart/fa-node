@@ -20,16 +20,6 @@ export interface AnsiEffectInterface {
   hidden: string;
 }
 
-const EFFECT: AnsiEffectInterface = {
-  reset: '\x1b[0m',
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  underline: '\x1b[4m',
-  blink: '\x1b[5m',
-  reverse: '\x1b[7m',
-  hidden: '\x1b[8m',
-};
-
 const FOREGROUND: AnsiColorInterface = {
   black: '\x1b[30m',
   red: '\x1b[31m',
@@ -54,6 +44,16 @@ const BACKGROUND: AnsiColorInterface = {
   gray: '\x1b[100m',
 };
 
+const EFFECT: AnsiEffectInterface = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  underline: '\x1b[4m',
+  blink: '\x1b[5m',
+  reverse: '\x1b[7m',
+  hidden: '\x1b[8m',
+};
+
 class ColorSingleton {
   private static self: ColorSingleton;
   public readonly ef: AnsiEffectInterface = EFFECT;
@@ -67,17 +67,11 @@ class ColorSingleton {
     return ColorSingleton.self;
   }
 
-  public wrapData(data: string, colors: string[]): string {
-    return colors.reduce((acc, color) => {
-      return `${color}${acc}${this.ef.reset}`;
-    }, data);
-  }
-
-  private applyColor(data: string, colorList: string[]): string {
-    if (!colorList.length) {
+  private apply(data: string, ansiList: string[]): string {
+    if (!ansiList.length) {
       return data;
     }
-    return colorList.join('') + data + this.ef.reset;
+    return ansiList.join('') + data + this.ef.reset;
   }
 }
 
