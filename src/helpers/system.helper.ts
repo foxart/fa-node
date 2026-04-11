@@ -1,5 +1,8 @@
 import ms from 'ms';
 
+/**
+ * todo rename to TimerHelper, sleep move to ProcessHelper
+ */
 class SystemSingleton {
   private static self: SystemSingleton;
 
