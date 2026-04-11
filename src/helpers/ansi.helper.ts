@@ -1,3 +1,16 @@
+export type AnsiColorKeyType = 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | 'gray';
+
+export type AnsiColorValueType =
+  | (typeof FOREGROUND)[keyof typeof FOREGROUND]
+  | (typeof BACKGROUND)[keyof typeof BACKGROUND];
+export type AnsiEffectValueType = (typeof EFFECT)[keyof typeof EFFECT];
+
+export type AnsiEffectType = typeof EFFECT;
+export type AnsiForegroundType = typeof FOREGROUND;
+export type AnsiBackgroundType = typeof BACKGROUND;
+
+type AnsiColorMapType = Readonly<Record<AnsiColorKeyType, string>>;
+
 const FOREGROUND = {
   black: '\x1b[30m',
   red: '\x1b[31m',
@@ -8,7 +21,7 @@ const FOREGROUND = {
   cyan: '\x1b[36m',
   white: '\x1b[37m',
   gray: '\x1b[90m',
-} as const;
+} as const satisfies AnsiColorMapType;
 
 const BACKGROUND = {
   black: '\x1b[40m',
@@ -20,7 +33,7 @@ const BACKGROUND = {
   cyan: '\x1b[46m',
   white: '\x1b[47m',
   gray: '\x1b[100m',
-} as const;
+} as const satisfies AnsiColorMapType;
 
 const EFFECT = {
   reset: '\x1b[0m',
@@ -31,15 +44,6 @@ const EFFECT = {
   reverse: '\x1b[7m',
   hidden: '\x1b[8m',
 } as const;
-
-export type AnsiColorKeyType =
-  | (typeof FOREGROUND)[keyof typeof FOREGROUND]
-  | (typeof BACKGROUND)[keyof typeof BACKGROUND];
-export type AnsiEffectKeyType = (typeof EFFECT)[keyof typeof EFFECT];
-
-export type AnsiEffectValueType = typeof EFFECT;
-export type AnsiForegroundValueType = typeof FOREGROUND;
-export type AnsiBackgroundValueType = typeof BACKGROUND;
 
 class ColorSingleton {
   private static self: ColorSingleton;
@@ -54,7 +58,7 @@ class ColorSingleton {
     return ColorSingleton.self;
   }
 
-  public apply(data: string, ansiList: (AnsiColorKeyType | AnsiEffectKeyType)[]): string {
+  public apply(data: string, ansiList: (AnsiColorValueType | AnsiEffectValueType)[]): string {
     if (!ansiList.length) {
       return data;
     }

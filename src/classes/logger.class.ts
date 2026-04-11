@@ -1,10 +1,11 @@
 import * as util from 'node:util';
 import {
-  AnsiBackgroundValueType,
+  AnsiBackgroundType,
   AnsiColorKeyType,
-  AnsiEffectKeyType,
+  AnsiColorValueType,
+  AnsiEffectType,
   AnsiEffectValueType,
-  AnsiForegroundValueType,
+  AnsiForegroundType,
   AnsiHelper,
 } from '../helpers/ansi.helper';
 
@@ -148,9 +149,6 @@ const SYMBOL: StatusInterface & { separator: string } = {
   separator: '\u2503', // ┃
 };
 
-type AnsiCode = AnsiColorKeyType | AnsiEffectKeyType;
-type AnsiColorName = keyof AnsiForegroundValueType | keyof AnsiBackgroundValueType;
-
 type PipeLike = {
   pipe?: (...args: unknown[]) => unknown;
 };
@@ -217,14 +215,14 @@ function isNativeTraceFile(file: string): boolean {
   return file === 'native';
 }
 
-const EFFECT_ON: AnsiEffectValueType = AnsiHelper.ef;
-const FOREGROUND_ON: AnsiForegroundValueType = AnsiHelper.fg;
-const BACKGROUND_ON: AnsiBackgroundValueType = AnsiHelper.bg;
+const EFFECT_ON: AnsiEffectType = AnsiHelper.ef;
+const FOREGROUND_ON: AnsiForegroundType = AnsiHelper.fg;
+const BACKGROUND_ON: AnsiBackgroundType = AnsiHelper.bg;
 // const EFFECT_OFF: AnsiEffectInterface = createOff(EFFECT_ON);
 // const FOREGROUND_OFF: AnsiColorInterface = createOff(FOREGROUND_ON);
 // const BACKGROUND_OFF: AnsiColorInterface = createOff(BACKGROUND_ON);
 
-const LEVEL_COLOR_MAP: Record<LoggerLevelType, AnsiColorName> = {
+const LEVEL_COLOR_MAP: Record<LoggerLevelType, AnsiColorKeyType> = {
   LOG: 'green',
   INF: 'blue',
   WRN: 'yellow',
@@ -233,7 +231,7 @@ const LEVEL_COLOR_MAP: Record<LoggerLevelType, AnsiColorName> = {
   FTL: 'red',
 };
 
-const TOKEN_COLOR_MAP: Record<LoggerTokenType, AnsiCode[]> = {
+const TOKEN_COLOR_MAP: Record<LoggerTokenType, (AnsiColorValueType | AnsiEffectValueType)[]> = {
   [LoggerTokenType.DEFAULT]: [],
   [LoggerTokenType.CONTEXT]: [EFFECT_ON.bold, FOREGROUND_ON.white],
   [LoggerTokenType.CALLER]: [EFFECT_ON.bold, FOREGROUND_ON.blue],
@@ -287,9 +285,9 @@ const NUMBER_CHAR_REGEXP = /[0-9]/;
 const NUMBER_PART_CHAR_REGEXP = /[0-9.]/;
 
 export class LoggerClass {
-  public readonly ef: AnsiEffectValueType;
-  public readonly fg: AnsiForegroundValueType;
-  public readonly bg: AnsiBackgroundValueType;
+  public readonly ef: AnsiEffectType;
+  public readonly fg: AnsiForegroundType;
+  public readonly bg: AnsiBackgroundType;
   public readonly arrow: ArrowInterface;
   public readonly status: StatusInterface;
   protected readonly pid = process.pid.toString();
@@ -971,7 +969,7 @@ export class LoggerClass {
    * COLOR HELPERS
    */
 
-  private applyColor(data: string, colorList: AnsiCode[]): string {
+  private applyColor(data: string, colorList: (AnsiColorValueType | AnsiEffectValueType)[]): string {
     if (!this.colorEnabled || !colorList.length) {
       return data;
     }
