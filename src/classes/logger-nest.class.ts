@@ -4,8 +4,8 @@ import {
   LoggerMetadataOutputOptionsInterface,
   LoggerOptionsInterface,
   LoggerOriginInterface,
-  LoggerTokenType,
 } from './logger.class';
+import { LoggerEnum } from './logger.map';
 
 const NEST_CALLER_LIST = [
   'NestFactory',
@@ -31,8 +31,7 @@ export class LoggerNestClass extends LoggerClass {
   ): void {
     const data = Array.isArray(message) ? message : [message];
     const metadata = this.buildRenderMetadata(origin, metadataOptions);
-    const base =
-      metadata && NEST_CALLER_LIST.includes(metadata.caller) ? LoggerTokenType.CONTEXT : LoggerTokenType.DEFAULT;
+    const base = metadata && NEST_CALLER_LIST.includes(metadata.caller) ? LoggerEnum.CONTEXT : LoggerEnum.DEFAULT;
     this.stdout({
       level,
       metadata,
@@ -48,7 +47,7 @@ export class LoggerNestClass extends LoggerClass {
 
   private colorizeMessage(
     message: string,
-    baseType: LoggerTokenType,
+    baseType: LoggerEnum,
     isHttpMethod: (value: string) => boolean = () => false,
   ): string {
     if (!this.options.color) {
@@ -62,9 +61,9 @@ export class LoggerNestClass extends LoggerClass {
         }
         const match = chunk.match(/[A-Z]+/);
         if (match && isHttpMethod(match[0])) {
-          return chunk.replace(match[0], this.render(LoggerTokenType.METHOD, match[0]));
+          return chunk.replace(match[0], this.render(LoggerEnum.METHOD, match[0]));
         }
-        const type = chunk.includes('/') ? LoggerTokenType.URL : baseType;
+        const type = chunk.includes('/') ? LoggerEnum.URL : baseType;
         return this.colorizeString(chunk, type);
       })
       .join('');

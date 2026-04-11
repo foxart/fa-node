@@ -3,9 +3,9 @@ import {
   LoggerLevelType,
   LoggerOptionsInterface,
   LoggerOriginInterface,
-  LoggerTokenType,
   LoggerTraceFrameInterface,
 } from './logger.class';
+import { LoggerEnum } from './logger.map';
 
 export interface LoggerNodeInterface {
   log(message: unknown, ...optionalParams: unknown[]): unknown;
@@ -14,18 +14,6 @@ export interface LoggerNodeInterface {
   debug(message: unknown, ...optionalParams: unknown[]): unknown;
   info(message: unknown, ...optionalParams: unknown[]): unknown;
 }
-
-// interface TraceInterface {
-//   file: string;
-//   caller: string;
-//   method: string | undefined;
-// }
-
-// interface OutputMetadataInterface {
-//   file: string;
-//   caller?: string;
-//   method?: string;
-// }
 
 export class LoggerNodeClass extends LoggerClass implements LoggerNodeInterface {
   public constructor(options: LoggerOptionsInterface) {
@@ -63,7 +51,7 @@ export class LoggerNodeClass extends LoggerClass implements LoggerNodeInterface 
         metadata: this.buildRenderMetadata(trace),
         messages: args,
         debugTrace: this.getStack(new Error().stack),
-        formatString: (value) => this.colorizeString(value, LoggerTokenType.STRING),
+        formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
       });
       return;
     }
@@ -75,7 +63,7 @@ export class LoggerNodeClass extends LoggerClass implements LoggerNodeInterface 
       metadata: this.buildRenderMetadata(origin),
       messages: args,
       debugTrace: this.getStack(new Error().stack),
-      formatString: (value) => this.colorizeString(value, LoggerTokenType.STRING),
+      formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
     });
   }
 

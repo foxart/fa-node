@@ -15,6 +15,7 @@ import {
   SymbolArrowType,
   SymbolStatusType,
 } from '../helpers/symbol.helper';
+import { LOGGER_MAP, LoggerEnum } from './logger.map';
 
 function safePush(list: string[], value: string | undefined): void {
   if (value) {
@@ -74,56 +75,6 @@ export interface LoggerRenderOutputOptionsInterface {
 }
 
 export type LoggerLevelType = 'LOG' | 'INF' | 'WRN' | 'ERR' | 'DBG' | 'FTL';
-
-export enum LoggerTokenType {
-  DEFAULT,
-  CONTEXT,
-  CALLER,
-  METHOD,
-  LINE,
-  /**
-   * STRING, NUMBER, DATE, TIME, SECOND, INFO, URL, BRACKET, PUNCTUATION, SYMBOL
-   */
-  STRING,
-  NUMBER,
-  DATE,
-  TIME,
-  SECOND,
-  URL,
-  BRACKET,
-  PUNCTUATION,
-  SYMBOL,
-  /**
-   * BRACKETS
-   */
-  PARENTHESIS, // ()
-  SQUARE_BRACKET, // []
-  CURLY_BRACKET, // {}
-  ANGLE_BRACKET, // <>
-  /**
-   * PUNCTUATION
-   */
-  DOT, // .
-  COMMA, // ,
-  COLON, // :
-  SEMICOLON, // ;
-  /**
-   * SYMBOLS
-   */
-  PLUS, // +
-  SLASH = 'slash', // /\
-  Dash = 'dash', // -
-  Pipe = 'pipe', // |
-  Underscore = 'underscore', // _
-  Backtick = 'backtick', // `
-  Quote = 'quote', // "'
-  Equals = 'equals', // =
-  Asterisk = 'asterisk', // *
-  Ampersand = 'ampersand', // &
-  Percent = 'percent', // %
-  Hash = 'hash', // #
-  At = 'at', // @
-}
 
 type PipeLike = {
   pipe?: (...args: unknown[]) => unknown;
@@ -205,53 +156,6 @@ const LEVEL_COLOR_MAP: Record<LoggerLevelType, AnsiColorKeyType> = {
   ERR: 'red',
   DBG: 'magenta',
   FTL: 'red',
-};
-
-const TOKEN_COLOR_MAP: Record<LoggerTokenType, (AnsiColorValueType | AnsiEffectValueType)[]> = {
-  [LoggerTokenType.DEFAULT]: [],
-  [LoggerTokenType.CONTEXT]: [EFFECT_ON.bold, FOREGROUND_ON.white],
-  [LoggerTokenType.CALLER]: [EFFECT_ON.bold, FOREGROUND_ON.blue],
-  [LoggerTokenType.METHOD]: [EFFECT_ON.bold, FOREGROUND_ON.cyan],
-  [LoggerTokenType.LINE]: [EFFECT_ON.dim, FOREGROUND_ON.blue],
-  /**
-   *
-   */
-  [LoggerTokenType.STRING]: [FOREGROUND_ON.green],
-  [LoggerTokenType.NUMBER]: [FOREGROUND_ON.yellow],
-  [LoggerTokenType.DATE]: [FOREGROUND_ON.magenta],
-  [LoggerTokenType.TIME]: [FOREGROUND_ON.cyan],
-  [LoggerTokenType.SECOND]: [EFFECT_ON.dim, FOREGROUND_ON.cyan],
-  [LoggerTokenType.URL]: [EFFECT_ON.bold, FOREGROUND_ON.blue],
-  [LoggerTokenType.BRACKET]: [FOREGROUND_ON.white],
-  [LoggerTokenType.PUNCTUATION]: [FOREGROUND_ON.white],
-  [LoggerTokenType.SYMBOL]: [FOREGROUND_ON.white],
-
-  // punctuation
-  [LoggerTokenType.DOT]: [FOREGROUND_ON.white],
-  [LoggerTokenType.COMMA]: [FOREGROUND_ON.white],
-  [LoggerTokenType.COLON]: [FOREGROUND_ON.white],
-  [LoggerTokenType.SEMICOLON]: [FOREGROUND_ON.white],
-
-  // brackets
-  [LoggerTokenType.PARENTHESIS]: [EFFECT_ON.bold, FOREGROUND_ON.magenta],
-  [LoggerTokenType.SQUARE_BRACKET]: [EFFECT_ON.bold, FOREGROUND_ON.magenta],
-  [LoggerTokenType.CURLY_BRACKET]: [EFFECT_ON.bold, FOREGROUND_ON.magenta],
-  [LoggerTokenType.ANGLE_BRACKET]: [EFFECT_ON.bold, FOREGROUND_ON.magenta],
-
-  // symbols
-  [LoggerTokenType.PLUS]: [EFFECT_ON.dim, FOREGROUND_ON.cyan],
-  [LoggerTokenType.SLASH]: [EFFECT_ON.dim, FOREGROUND_ON.cyan],
-  [LoggerTokenType.Dash]: [FOREGROUND_ON.white],
-  [LoggerTokenType.Pipe]: [FOREGROUND_ON.white],
-  [LoggerTokenType.Underscore]: [FOREGROUND_ON.white],
-  [LoggerTokenType.Backtick]: [FOREGROUND_ON.green],
-  [LoggerTokenType.Quote]: [FOREGROUND_ON.green],
-  [LoggerTokenType.Equals]: [FOREGROUND_ON.white],
-  [LoggerTokenType.Asterisk]: [FOREGROUND_ON.white],
-  [LoggerTokenType.Ampersand]: [FOREGROUND_ON.white],
-  [LoggerTokenType.Percent]: [FOREGROUND_ON.white],
-  [LoggerTokenType.Hash]: [FOREGROUND_ON.white],
-  [LoggerTokenType.At]: [FOREGROUND_ON.white],
 };
 
 const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
@@ -480,7 +384,7 @@ export class LoggerClass {
       .join(' ');
   }
 
-  protected colorizeString(message: string, baseType: LoggerTokenType): string {
+  protected colorizeString(message: string, baseType: LoggerEnum): string {
     if (!this.options.color) {
       return message;
     }
@@ -494,17 +398,17 @@ export class LoggerClass {
         case ']':
         case '(':
         case ')':
-          return this.render(LoggerTokenType.PUNCTUATION, value);
+          return this.render(LoggerEnum.PUNCTUATION, value);
         case '/':
-          return this.render(LoggerTokenType.SLASH, value);
+          return this.render(LoggerEnum.SLASH, value);
         case ',':
-          return this.render(LoggerTokenType.COMMA, value);
+          return this.render(LoggerEnum.COMMA, value);
         case ':':
-          return this.render(LoggerTokenType.COLON, value);
+          return this.render(LoggerEnum.COLON, value);
         case ';':
-          return this.render(LoggerTokenType.SEMICOLON, value);
+          return this.render(LoggerEnum.SEMICOLON, value);
         case '.':
-          return this.render(LoggerTokenType.DOT, value);
+          return this.render(LoggerEnum.DOT, value);
         default:
           return this.render(baseType, value);
       }
@@ -521,16 +425,16 @@ export class LoggerClass {
       const isString = mode === 'single' || mode === 'double';
       if (char === "'" && mode !== 'double') {
         mode = mode === 'single' ? 'normal' : 'single';
-        out += this.render(LoggerTokenType.PUNCTUATION, char);
+        out += this.render(LoggerEnum.PUNCTUATION, char);
         continue;
       }
       if (char === '"' && mode !== 'single') {
         mode = mode === 'double' ? 'normal' : 'double';
-        out += this.render(LoggerTokenType.PUNCTUATION, char);
+        out += this.render(LoggerEnum.PUNCTUATION, char);
         continue;
       }
       if (isString && char !== '"' && char !== "'") {
-        out += this.render(LoggerTokenType.STRING, char);
+        out += this.render(LoggerEnum.STRING, char);
         continue;
       }
       // removed HTTP method detection here
@@ -547,7 +451,7 @@ export class LoggerClass {
         while (index + 1 < message.length && NUMBER_PART_CHAR_REGEXP.test(message[index + 1])) {
           number += message[++index];
         }
-        out += this.render(LoggerTokenType.NUMBER, number);
+        out += this.render(LoggerEnum.NUMBER, number);
         continue;
       }
       if (mode === 'normal' && TOKEN_SEPARATOR_CHARS.includes(char)) {
@@ -570,15 +474,15 @@ export class LoggerClass {
       })
       .join('\n');
     return [
-      this.render(LoggerTokenType.PUNCTUATION, '{'),
+      this.render(LoggerEnum.PUNCTUATION, '{'),
       '\n',
       linkList,
       '\n',
-      this.render(LoggerTokenType.PUNCTUATION, '}'),
+      this.render(LoggerEnum.PUNCTUATION, '}'),
     ].join('');
   }
 
-  protected render(token: LoggerTokenType, data: string): string {
+  protected render(token: LoggerEnum, data: string): string {
     return this.applyToken(token, data);
   }
 
@@ -605,11 +509,11 @@ export class LoggerClass {
       const year = this.pad(datetime.getFullYear());
       const month = this.pad(datetime.getMonth() + 1);
       const day = this.pad(datetime.getDate());
-      parts.push(this.applyToken(LoggerTokenType.DATE, year));
-      parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, '/'));
-      parts.push(this.applyToken(LoggerTokenType.DATE, month));
-      parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, '/'));
-      parts.push(this.applyToken(LoggerTokenType.DATE, day));
+      parts.push(this.applyToken(LoggerEnum.DATE, year));
+      parts.push(this.applyToken(LoggerEnum.PUNCTUATION, '/'));
+      parts.push(this.applyToken(LoggerEnum.DATE, month));
+      parts.push(this.applyToken(LoggerEnum.PUNCTUATION, '/'));
+      parts.push(this.applyToken(LoggerEnum.DATE, day));
     }
     if (time) {
       if (date) {
@@ -618,15 +522,15 @@ export class LoggerClass {
       const hours = this.pad(datetime.getHours());
       const minutes = this.pad(datetime.getMinutes());
       const seconds = this.pad(datetime.getSeconds());
-      parts.push(this.applyToken(LoggerTokenType.TIME, hours));
-      parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, ':'));
-      parts.push(this.applyToken(LoggerTokenType.TIME, minutes));
-      parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, ':'));
-      parts.push(this.applyToken(LoggerTokenType.TIME, seconds));
+      parts.push(this.applyToken(LoggerEnum.TIME, hours));
+      parts.push(this.applyToken(LoggerEnum.PUNCTUATION, ':'));
+      parts.push(this.applyToken(LoggerEnum.TIME, minutes));
+      parts.push(this.applyToken(LoggerEnum.PUNCTUATION, ':'));
+      parts.push(this.applyToken(LoggerEnum.TIME, seconds));
       if (withMilliseconds) {
         const milliseconds = this.pad(datetime.getMilliseconds(), 3);
-        parts.push(this.applyToken(LoggerTokenType.PUNCTUATION, '.'));
-        parts.push(this.applyToken(LoggerTokenType.SECOND, milliseconds));
+        parts.push(this.applyToken(LoggerEnum.PUNCTUATION, '.'));
+        parts.push(this.applyToken(LoggerEnum.SECOND, milliseconds));
       }
     }
     return parts.join('');
@@ -646,9 +550,9 @@ export class LoggerClass {
     const caller = metadata?.caller ? metadata.caller : undefined;
     const method = metadata?.method ? metadata?.method : undefined;
     return [
-      this.applyToken(LoggerTokenType.CALLER, caller ?? method ?? '<unknown>'),
-      this.applyToken(LoggerTokenType.PUNCTUATION, '.'),
-      this.applyToken(LoggerTokenType.METHOD, method ?? '<unknown>'),
+      this.applyToken(LoggerEnum.CALLER, caller ?? method ?? '<unknown>'),
+      this.applyToken(LoggerEnum.PUNCTUATION, '.'),
+      this.applyToken(LoggerEnum.METHOD, method ?? '<unknown>'),
       //
     ].join('');
   }
@@ -668,7 +572,7 @@ export class LoggerClass {
     if (!this.options.pid) {
       return undefined;
     }
-    return this.applyToken(LoggerTokenType.LINE, this.pid);
+    return this.applyToken(LoggerEnum.LINE, this.pid);
   }
 
   private renderDebug(level: LoggerLevelType, trace: LoggerTraceFrameInterface[], enabled = true): string | undefined {
@@ -685,7 +589,7 @@ export class LoggerClass {
     const elapsed = Math.floor(performance.now() - this.startedAt);
     return (
       this.applyForeground(level, '+') +
-      this.applyToken(LoggerTokenType.TIME, elapsed.toString()) +
+      this.applyToken(LoggerEnum.TIME, elapsed.toString()) +
       this.applyForeground(level, 'ms')
     );
   }
@@ -694,7 +598,7 @@ export class LoggerClass {
     if (!this.options.link || !file) {
       return undefined;
     }
-    return this.applyForeground(level, 'at ') + this.render(LoggerTokenType.URL, file);
+    return this.applyForeground(level, 'at ') + this.render(LoggerEnum.URL, file);
   }
 
   /**
@@ -966,10 +870,10 @@ export class LoggerClass {
     return AnsiHelper.apply(data, [this.bg[LEVEL_COLOR_MAP[level]] ?? this.ef.underline]);
   }
 
-  private applyToken(token: LoggerTokenType, data: string): string {
+  private applyToken(token: LoggerEnum, data: string): string {
     if (!this.colorEnabled) {
       return data;
     }
-    return AnsiHelper.apply(data, TOKEN_COLOR_MAP[token] ?? [this.ef.underline]);
+    return AnsiHelper.apply(data, LOGGER_MAP[token] ?? [this.ef.underline]);
   }
 }
