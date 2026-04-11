@@ -6,6 +6,7 @@ import {
   LoggerOriginInterface,
 } from './logger.class';
 import { LoggerEnum } from './logger.map';
+import { StackHelper } from '../helpers/stack.helper';
 
 const NEST_CALLER_LIST = [
   'NestFactory',
@@ -36,7 +37,7 @@ export class LoggerNestClass extends LoggerClass {
       level,
       metadata,
       messages: data,
-      debugTrace: this.stackToTrace(new Error().stack),
+      debugTrace: StackHelper.toTrace(new Error().stack),
       formatString: (value) => {
         return this.colorizeMessage(value, base, (t) => {
           return HTTP_METHOD_SET.has(t);

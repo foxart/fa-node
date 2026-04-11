@@ -8,6 +8,8 @@ import {
   AnsiForegroundType,
   AnsiHelper,
 } from '../helpers/ansi.helper';
+import type { LoggerOriginInterface, StackFrameInterface } from '../helpers/stack.helper';
+import { StackHelper } from '../helpers/stack.helper';
 import {
   SYMBOL_ARROW,
   SYMBOL_COMMON,
@@ -16,6 +18,8 @@ import {
   SymbolStatusType,
 } from '../helpers/symbol.helper';
 import { LOGGER_MAP, LoggerEnum } from './logger.map';
+
+export type { LoggerOriginInterface, StackFrameInterface } from '../helpers/stack.helper';
 
 function safePush(list: string[], value: string | undefined): void {
   if (value) {
@@ -42,19 +46,6 @@ export interface LoggerOptionsInterface {
   maxArrayLength?: number;
 }
 
-export interface LoggerTraceFrameInterface {
-  file: string;
-  caller: string;
-  method?: string;
-  line?: number;
-  column?: number;
-}
-
-export interface LoggerOriginInterface {
-  frame?: LoggerTraceFrameInterface;
-  visible: boolean;
-}
-
 export interface LoggerMetadataInterface {
   caller: string;
   method?: string;
@@ -70,7 +61,7 @@ export interface LoggerRenderOutputOptionsInterface {
   level: LoggerLevelType;
   metadata: LoggerMetadataInterface | undefined;
   messages: unknown[];
-  debugTrace: LoggerTraceFrameInterface[];
+  debugTrace: StackFrameInterface[];
   formatString?: (value: string) => string;
 }
 
@@ -116,32 +107,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null;
 }
 
-// Trace-related helpers
-function normalizeTraceFilePath(file: string): string {
-  return file.replace(/\\/g, '/');
-}
-
-function isNodeModuleTraceFile(file: string): boolean {
-  return normalizeTraceFilePath(file).includes('node_modules/');
-}
-
-function isNodeInternalTraceFile(file: string): boolean {
-  const normalizedFile = normalizeTraceFilePath(file);
-  return normalizedFile.startsWith('internal/') || normalizedFile.startsWith('node:');
-}
-
-function isRuntimeTraceCaller(caller: string): boolean {
-  return caller === 'process' || caller === 'Module' || caller === 'Function';
-}
-
-function isAnonymousTraceFrame(caller: string, method: string): boolean {
-  return caller === '<anonymous>' || (caller.length === 0 && method.length === 0);
-}
-
-function isNativeTraceFile(file: string): boolean {
-  return file === 'native';
-}
-
 const EFFECT_ON: AnsiEffectType = AnsiHelper.ef;
 const FOREGROUND_ON: AnsiForegroundType = AnsiHelper.fg;
 const BACKGROUND_ON: AnsiBackgroundType = AnsiHelper.bg;
@@ -158,7 +123,6 @@ const LEVEL_COLOR_MAP: Record<LoggerLevelType, AnsiColorKeyType> = {
   FTL: 'red',
 };
 
-const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
 const TOKEN_SEPARATOR_CHARS = `()[]{}<>,:;./`;
 const UPPERCASE_CHAR_REGEXP = /[A-Z]/;
 const NUMBER_CHAR_REGEXP = /[0-9]/;
@@ -190,7 +154,7 @@ export class LoggerClass {
     this.status = SYMBOL_STATUS;
   }
 
-  public resolveCaller(frame: LoggerTraceFrameInterface | undefined): string {
+  public resolveCaller(frame: StackFrameInterface | undefined): string {
     if (frame?.caller && frame.caller !== '<anonymous>') {
       return frame.caller;
     }
@@ -228,12 +192,12 @@ export class LoggerClass {
     return {
       caller,
       method,
-      linkFile: origin?.visible ? this.formatTraceFrameLocation(frame) : undefined,
+      linkFile: origin?.visible ? StackHelper.formatFrameLocation(frame) : undefined,
     };
   }
 
   public resolveOrigin(stack = '', level = 0): LoggerOriginInterface {
-    return this.resolveOriginFromTrace(this.stackToTrace(stack), level);
+    return StackHelper.resolveOrigin(StackHelper.toTrace(stack), level);
   }
 
   /**
@@ -299,7 +263,7 @@ export class LoggerClass {
     // process.stderr.write(this.applyColor(error.message, [this.effect.reset]));
     process.stderr.write('\n');
     if (error.stack) {
-      const trace = this.getVisibleTraceItems(this.stackToTrace(error.stack));
+      const trace = StackHelper.getVisibleItems(StackHelper.toTrace(error.stack));
       if (trace.length) {
         // process.stderr.write(this.applyColor('Stack trace:', [this.effect.bold, this.foreground.magenta]));
         process.stderr.write('\n');
@@ -319,61 +283,9 @@ export class LoggerClass {
     process.exit(1);
   }
 
-  protected stackToTrace(stack = ''): LoggerTraceFrameInterface[] {
-    if (!stack) {
-      return [];
-    }
-    const root = process.cwd();
-    const result: LoggerTraceFrameInterface[] = [];
-    for (const match of stack.matchAll(STACK_REGEXP)) {
-      const context = match[1];
-      const dotIndex = context.indexOf('.');
-      const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
-      const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
-      const location = match[2];
-      const locationMatch = /^(.*):(\d+):(\d+)$/.exec(location);
-      let file = locationMatch?.[1] ?? location;
-      if (root && file.startsWith(root)) {
-        file = file.slice(root.length).replace(/^\/|\/$/g, '') || '.';
-      } else {
-        file = file.replace(/^\/|\/$/g, '');
-      }
-      result.push({
-        caller,
-        method,
-        file,
-        line: locationMatch ? Number(locationMatch[2]) : undefined,
-        column: locationMatch ? Number(locationMatch[3]) : undefined,
-      });
-    }
-    return result;
-  }
-
-  protected resolveOriginFromTrace(trace: LoggerTraceFrameInterface[], level: number): LoggerOriginInterface {
-    const visibleFrame = trace.slice(level).find((item) => this.isVisibleTraceItem(item));
-    if (visibleFrame) {
-      return {
-        frame: this.cloneTraceFrame(visibleFrame),
-        visible: true,
-      };
-    }
-    const fallbackFrame =
-      trace[level] ??
-      trace.slice(level).find((item) => {
-        return item.file || item.caller || item.method;
-      });
-    if (!fallbackFrame) {
-      return { visible: false };
-    }
-    return {
-      frame: this.cloneTraceFrame(fallbackFrame),
-      visible: false,
-    };
-  }
-
   protected formatMessageList(
     messages: unknown[],
-    renderTrace: (trace: LoggerTraceFrameInterface[]) => string,
+    renderTrace: (trace: StackFrameInterface[]) => string,
     prettify: (value: unknown) => string,
     formatString?: (value: string) => string,
   ): string {
@@ -463,12 +375,12 @@ export class LoggerClass {
     return out + this.ef.reset;
   }
 
-  protected formatTraceBlock(level: LoggerLevelType, trace: LoggerTraceFrameInterface[]): string {
-    const linkList = this.getVisibleTraceItems(trace)
+  protected formatTraceBlock(level: LoggerLevelType, trace: StackFrameInterface[]): string {
+    const linkList = StackHelper.getVisibleItems(trace)
       .map((item) => {
         return [
           '    ',
-          this.renderLink(level, this.formatTraceFrameLocation(item)),
+          this.renderLink(level, StackHelper.formatFrameLocation(item)),
           //
         ].join('');
       })
@@ -575,7 +487,7 @@ export class LoggerClass {
     return this.applyToken(LoggerEnum.LINE, this.pid);
   }
 
-  private renderDebug(level: LoggerLevelType, trace: LoggerTraceFrameInterface[], enabled = true): string | undefined {
+  private renderDebug(level: LoggerLevelType, trace: StackFrameInterface[], enabled = true): string | undefined {
     if (!enabled) {
       return undefined;
     }
@@ -609,42 +521,6 @@ export class LoggerClass {
     return value.toString().padStart(length, '0');
   }
 
-  private getVisibleTraceItems(trace: LoggerTraceFrameInterface[]): LoggerTraceFrameInterface[] {
-    return trace.filter((item) => this.isVisibleTraceItem(item));
-  }
-
-  private isVisibleTraceItem(item: LoggerTraceFrameInterface): boolean {
-    const { file = '', caller = '', method = '' } = item;
-    return !(
-      isNodeModuleTraceFile(file) ||
-      isNodeInternalTraceFile(file) ||
-      isRuntimeTraceCaller(caller) ||
-      isAnonymousTraceFrame(caller, method) ||
-      isNativeTraceFile(file)
-    );
-  }
-
-  private cloneTraceFrame(frame: LoggerTraceFrameInterface): LoggerTraceFrameInterface {
-    return {
-      file: frame.file,
-      caller: frame.caller,
-      method: frame.method,
-      line: frame.line,
-      column: frame.column,
-    };
-  }
-
-  private formatTraceFrameLocation(frame: LoggerTraceFrameInterface): string {
-    const parts = [frame.file];
-    if (frame.line !== undefined) {
-      parts.push(String(frame.line));
-      if (frame.column !== undefined) {
-        parts.push(String(frame.column));
-      }
-    }
-    return parts.join(':');
-  }
-
   private normalizeForInspect(data: unknown, seen = new WeakSet()): unknown {
     return this.normalizeCircular(
       data,
@@ -658,7 +534,7 @@ export class LoggerClass {
 
   private formatTopLevelError(
     error: Error,
-    renderTrace: (trace: LoggerTraceFrameInterface[]) => string,
+    renderTrace: (trace: StackFrameInterface[]) => string,
     prettify: (value: unknown) => string,
   ): string {
     const payload = this.serializeError(error);
@@ -679,7 +555,7 @@ export class LoggerClass {
 
   private formatMessageValue(
     message: unknown,
-    renderTrace: (trace: LoggerTraceFrameInterface[]) => string,
+    renderTrace: (trace: StackFrameInterface[]) => string,
     prettify: (value: unknown) => string,
     formatString?: (value: string) => string,
   ): string {
@@ -804,20 +680,20 @@ export class LoggerClass {
   ): {
     name: string;
     message: string;
-    stack?: LoggerTraceFrameInterface[] | string;
+    stack?: StackFrameInterface[] | string;
     details?: Record<string, unknown>;
   } {
     const result: {
       name: string;
       message: string;
-      stack?: LoggerTraceFrameInterface[] | string;
+      stack?: StackFrameInterface[] | string;
       details?: Record<string, unknown>;
     } = {
       name: error.name,
       message: error.message,
     };
     if (this.options.errorStack && error.stack) {
-      const stack = this.getVisibleTraceItems(this.stackToTrace(error.stack));
+      const stack = StackHelper.getVisibleItems(StackHelper.toTrace(error.stack));
       result.stack = stack.length > 0 ? stack : error.stack;
     }
     const details = this.normalizeErrorDetails(error, seen);

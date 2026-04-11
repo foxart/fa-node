@@ -4,7 +4,7 @@ import {
   LoggerLevelType,
   LoggerMetadataInterface,
   LoggerOriginInterface,
-  LoggerTraceFrameInterface,
+  StackFrameInterface,
 } from '../classes/logger.class';
 import { DataHelper } from '../helpers/data.helper';
 
@@ -57,7 +57,7 @@ export class LoggerApplicationService extends LoggerNodeAbstract {
     }
 
     const baseFrame = origin.frame;
-    const frame: LoggerTraceFrameInterface | undefined = baseFrame
+    const frame: StackFrameInterface | undefined = baseFrame
       ? {
           ...baseFrame,
           caller: metadata.caller,

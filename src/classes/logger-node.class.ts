@@ -1,9 +1,10 @@
+import { StackHelper } from '../helpers/stack.helper';
 import {
   LoggerClass,
   LoggerLevelType,
   LoggerOptionsInterface,
   LoggerOriginInterface,
-  LoggerTraceFrameInterface,
+  StackFrameInterface,
 } from './logger.class';
 import { LoggerEnum } from './logger.map';
 
@@ -21,53 +22,45 @@ export class LoggerNodeClass extends LoggerClass implements LoggerNodeInterface 
   }
 
   public log(...data: unknown[]): void {
-    this.print('LOG', this.getStack(new Error().stack), data);
+    this.print('LOG', StackHelper.toTrace(new Error().stack), data);
   }
 
   public error(...data: unknown[]): void {
-    this.print('ERR', this.getStack(new Error().stack), data);
+    this.print('ERR', StackHelper.toTrace(new Error().stack), data);
   }
 
   public warn(...data: unknown[]): void {
-    this.print('WRN', this.getStack(new Error().stack), data);
+    this.print('WRN', StackHelper.toTrace(new Error().stack), data);
   }
 
   public debug(...data: unknown[]): void {
-    this.print('DBG', this.getStack(new Error().stack), data);
+    this.print('DBG', StackHelper.toTrace(new Error().stack), data);
   }
 
   public info(...data: unknown[]): void {
-    this.print('INF', this.getStack(new Error().stack), data);
+    this.print('INF', StackHelper.toTrace(new Error().stack), data);
   }
 
-  public print(
-    level: LoggerLevelType,
-    trace: LoggerTraceFrameInterface[] | LoggerOriginInterface,
-    args: unknown[],
-  ): void {
+  public print(level: LoggerLevelType, trace: StackFrameInterface[] | LoggerOriginInterface, args: unknown[]): void {
     if (!Array.isArray(trace)) {
       this.stdout({
         level,
         metadata: this.buildRenderMetadata(trace),
         messages: args,
-        debugTrace: this.getStack(new Error().stack),
+        debugTrace: StackHelper.toTrace(new Error().stack),
         formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
       });
       return;
     }
 
     const traceIndex = this.options.traceIndex ?? 1;
-    const origin = this.resolveOriginFromTrace(trace, traceIndex);
+    const origin = StackHelper.resolveOrigin(trace, traceIndex);
     this.stdout({
       level,
       metadata: this.buildRenderMetadata(origin),
       messages: args,
-      debugTrace: this.getStack(new Error().stack),
+      debugTrace: StackHelper.toTrace(new Error().stack),
       formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
     });
-  }
-
-  public getStack(stack?: string): LoggerTraceFrameInterface[] {
-    return this.stackToTrace(stack);
   }
 }
