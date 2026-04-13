@@ -1,12 +1,12 @@
 import { MongoClient, WithId } from 'mongodb';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { CodegenHelper } from './codegen.helper';
-import { ConverterHelper } from './converter.helper';
-import { DataHelper } from './data.helper';
-import { IoHelper } from './io.helper';
+import { CodegenHelper } from '../helpers/codegen.helper';
+import { ConverterHelper } from '../helpers/converter.helper';
+import { DataHelper } from '../helpers/data.helper';
+import { IoHelper } from '../helpers/io.helper';
 
-export interface MigrationMongoInterface {
+export interface MigrationMongoCliInterface {
   up(db: unknown): Promise<void>;
   down(db: unknown): Promise<void>;
 }
@@ -301,36 +301,8 @@ class MigrationMongoSingleton {
     const indexName = `${migrationName.replace(/-/g, '_')}_${timestamp}`;
     try {
       const template = this.configuration.template
-        ? // ? "import { Db } from 'mongodb';\n" +
-          //   "import { MigrationMongoInterface } from 'fa-node';\n" +
-          //   '\n' +
-          //   '/**\n' +
-          //   ' * MongoMigrationClass\n' +
-          //   ' */\n' +
-          //   '\n' +
-          //   "const COLLECTION = 'mongoMigrationCollection';\n" +
-          //   "const FIELD = 'mongoMigrationField';\n" +
-          //   'const INDEX = `${FIELD}_index`;\n' +
-          //   '\n' +
-          //   'export class MongoMigrationClass implements MigrationMongoInterface {\n' +
-          //   '  public async up(db: Db): Promise<void> {\n' +
-          //   '    await db.collection(COLLECTION).createIndex(\n' +
-          //   '      {\n' +
-          //   '        [FIELD]: 1,\n' +
-          //   '      },\n' +
-          //   '      {\n' +
-          //   '        name: INDEX,\n' +
-          //   '        unique: true,\n' +
-          //   '      },\n' +
-          //   '    );\n' +
-          //   '  }\n' +
-          //   '\n' +
-          //   '  public async down(db: Db): Promise<void> {\n' +
-          //   '    await db.collection(COLLECTION).dropIndex(INDEX);\n' +
-          //   '  }\n' +
-          //   '}\n'
-          IoHelper.readFileSync(this.configuration.template).toString()
-        : IoHelper.readFileSync(`${__dirname}/migration-mongo.template`).toString();
+        ? IoHelper.readFileSync(this.configuration.template).toString()
+        : IoHelper.readFileSync(`${__dirname}/migration-mongo.template.ts`).toString();
       return template
         .replace(/MongoMigrationClass/g, className)
         .replace(/mongoMigrationCollection/g, collectionName)
@@ -342,7 +314,7 @@ class MigrationMongoSingleton {
     }
   }
 
-  private async getMigration(filePath: string): Promise<MigrationMongoInterface> {
+  private async getMigration(filePath: string): Promise<MigrationMongoCliInterface> {
     try {
       const module = (await import(`${this.configuration.path}/${this.getMigrationFileName(filePath)}`)) as Record<
         string,
@@ -353,7 +325,7 @@ class MigrationMongoSingleton {
         CodegenHelper.logError(filePath, new Error(`No valid constructor in: ${filePath}`));
         process.exit(1);
       }
-      const ClassToLoad = module[className] as new () => MigrationMongoInterface;
+      const ClassToLoad = module[className] as new () => MigrationMongoCliInterface;
       return new ClassToLoad();
     } catch (e) {
       CodegenHelper.logError(filePath, e as Error);
@@ -425,4 +397,4 @@ class MigrationMongoSingleton {
   }
 }
 
-export const MigrationMongoHelper = MigrationMongoSingleton.getInstance();
+export const MigrationMongoCli = MigrationMongoSingleton.getInstance();
