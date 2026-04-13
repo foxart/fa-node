@@ -4,7 +4,7 @@
 
 - реальные stateful/service-like классы:
   configuration.class.ts, crypt.class.ts, decorator.class.ts, middleware.class.ts,
-  transformer.class.ts, validator.class.ts, logger.class.ts, logger-node.class.ts, logger-
+  transformer.class.ts, validator.class.ts, logger.class.ts, logger.node.ts, logger-
   nest.class.ts
 - value/error abstraction:
   error.class.ts

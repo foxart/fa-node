@@ -1,13 +1,13 @@
 // GENERATED CODE -- DO NOT EDIT!
 import { Db } from 'mongodb';
-import { MigrationMongoInterface } from './migration-mongo.helper';
+import { MigrationMongoCliInterface } from './migration-mongo.cli';
 
 const COLLECTION = 'mongoMigrationCollection';
 const FIELD = 'mongoMigrationField';
 const INDEX = 'mongo_migration_index';
 
 /** Создание коллекции */
-export class MongoMigrationClassCreateCollection implements MigrationMongoInterface {
+export class MongoMigrationClassCreateCollection implements MigrationMongoCliInterface {
   public async up(db: Db): Promise<void> {
     await db.createCollection(COLLECTION);
   }
@@ -18,7 +18,7 @@ export class MongoMigrationClassCreateCollection implements MigrationMongoInterf
 }
 
 /** Добавление поля с дефолтным значением */
-export class MongoMigrationClassAddField implements MigrationMongoInterface {
+export class MongoMigrationClassAddField implements MigrationMongoCliInterface {
   public async up(db: Db): Promise<void> {
     await db.collection(COLLECTION).updateMany({}, { $set: { [FIELD]: true } });
   }
@@ -29,7 +29,7 @@ export class MongoMigrationClassAddField implements MigrationMongoInterface {
 }
 
 /** Массовое обновление данных */
-export class MongoMigrationClassNormalize implements MigrationMongoInterface {
+export class MongoMigrationClassNormalize implements MigrationMongoCliInterface {
   public async up(db: Db): Promise<void> {
     await db.collection(COLLECTION).updateMany({}, [{ $set: { [FIELD]: { $toLower: `$${FIELD}` } } }]);
   }
@@ -40,7 +40,7 @@ export class MongoMigrationClassNormalize implements MigrationMongoInterface {
 }
 
 /** Создание уникального индекса */
-export class MongoMigrationClassAddUniqueIndex implements MigrationMongoInterface {
+export class MongoMigrationClassAddUniqueIndex implements MigrationMongoCliInterface {
   public async up(db: Db): Promise<void> {
     await db.collection(COLLECTION).createIndex({ [FIELD]: 1 }, { unique: true, name: INDEX });
   }
@@ -51,7 +51,7 @@ export class MongoMigrationClassAddUniqueIndex implements MigrationMongoInterfac
 }
 
 /** Композитный индекс */
-export class MongoMigrationClassAddCompositeIndex implements MigrationMongoInterface {
+export class MongoMigrationClassAddCompositeIndex implements MigrationMongoCliInterface {
   public async up(db: Db): Promise<void> {
     await db.collection(COLLECTION).createIndex({ userId: 1, productId: 1 }, { unique: false, name: INDEX });
   }
@@ -62,7 +62,7 @@ export class MongoMigrationClassAddCompositeIndex implements MigrationMongoInter
 }
 
 /** Текстовый индекс */
-export class MongoMigrationClassAddTextIndex implements MigrationMongoInterface {
+export class MongoMigrationClassAddTextIndex implements MigrationMongoCliInterface {
   public async up(db: Db): Promise<void> {
     await db.collection(COLLECTION).createIndex({ content: 'text' }, { name: INDEX });
   }
@@ -73,7 +73,7 @@ export class MongoMigrationClassAddTextIndex implements MigrationMongoInterface 
 }
 
 /** TTL индекс */
-export class MongoMigrationClassAddTtlIndex implements MigrationMongoInterface {
+export class MongoMigrationClassAddTtlIndex implements MigrationMongoCliInterface {
   public async up(db: Db): Promise<void> {
     await db.collection(COLLECTION).createIndex({ [FIELD]: 1 }, { expireAfterSeconds: 0, name: INDEX });
   }
@@ -84,7 +84,7 @@ export class MongoMigrationClassAddTtlIndex implements MigrationMongoInterface {
 }
 
 /** Индекс с partialFilterExpression */
-export class MongoMigrationClassAddSparseIndex implements MigrationMongoInterface {
+export class MongoMigrationClassAddSparseIndex implements MigrationMongoCliInterface {
   public async up(db: Db): Promise<void> {
     await db
       .collection(COLLECTION)
