@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { LoggerNodeAbstract } from '../abstract/logger-node.abstract';
 import { DataHelper } from '../helpers/data.helper';
+import { LoggerNodeAbstract } from './logger-node.abstract';
 import { LoggerLevelType, LoggerMetadataInterface, LoggerOriginInterface, StackFrameInterface } from './logger.class';
 
 interface LoggerAppInterface {

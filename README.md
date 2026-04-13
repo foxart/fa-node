@@ -1,46 +1,68 @@
 # FA-NODE
 
-- Event Loop — это механизм, который позволяет Node.js обрабатывать асинхронные задачи, управляемые стеком вызовов,
-  очередью колл беков и фазами цикла.
-- Фазы Event Loop: timers, pending callbacks, idle/prepare, poll, check, и close.
+Если смотреть прагматично, у тебя сейчас смешаны 3 разные категории:
 
-1. **Timers**
+- реальные stateful/service-like классы:
+  configuration.class.ts, crypt.class.ts, decorator.class.ts, middleware.class.ts,
+  transformer.class.ts, validator.class.ts, logger.class.ts, logger-node.class.ts, logger-
+  nest.class.ts
+- value/error abstraction:
+  error.class.ts
+- вообще не class-layer:
+  logger.map.ts
+  logger-application.service.ts
 
-- `setTimeout`
-- `setInterval`
+Ключевая проблема не в том, что там есть class, а в том, что папка и суффиксы перестали отражать роль
+модуля.
 
-2. **Pending Callbacks**
-   Обрабатываются колл беки для некоторых системных операций:
+Что бы я сделал:
 
-- Ошибки ввода-вывода (например, сетевые запросы).
+- если проект на TypeScript и это обычный application/library code, убрал бы суффикс Class почти
+  везде
+- оставил бы имена по роли, а не по синтаксису языка
+- разнес бы файлы по папкам, а не пытался все держать в classes
 
-3. **Idle, Prepare**
-   Внутренние действия Node.js (обычно не затрагивает пользовательский код).
-4. **Poll**
-   Самая важная и активная фаза:
+Нормальнее выглядело бы так:
 
-- Обрабатывает готовые операции I/O (чтение/запись файлов, сетевые запросы).
-- Если задач нет, может ожидать новых событий.
+- src/logger/logger.ts
+- src/logger/logger-node.ts
+- src/logger/logger-nest.ts
+- src/logger/logger.map.ts
+- src/logger/logger-application.service.ts
+- src/config/configuration.ts
+- src/crypto/crypt.ts
+- src/decorators/decorator.ts
+- src/validation/validator.ts
+- src/transform/transformer.ts
+- src/errors/error.ts
+- src/middleware/middleware.ts
 
-5. **Check**
-   Здесь выполняются колл беки из:
+По смыслу конкретно:
 
-- `setImmediate`.
+- logger-application.service.ts уже сейчас выбивается: это service, не class-файл
+- logger.map.ts точно не должен жить в classes
+- error.class.ts можно оставить как error.ts или даже app-error.ts, если хочешь семантику
+- DecoratorClass, TransformerClass, ValidatorClass как имена экспортов тоже избыточны. Обычно
+  достаточно Decorator, Transformer, Validator
 
-6. **Close Callbacks**
-   Выполняются коллбеки закрытия:
+Когда суффикс Class бывает оправдан:
 
-- Например, `socket.on('close')` или события закрытия дескриптора.
+- если в публичном API у тебя есть конфликт имен, например Logger type, Logger interface и Logger
+  implementation
+- если это сознательный стиль всей библиотеки и он реально дает читаемость
+- если рядом есть LoggerFactory, LoggerInterface, LoggerAbstract, и ты хочешь явно различать
+  реализации
 
+Но у тебя сейчас это уже не дает ясности, а создает шум. Особенно потому, что:
 
-1. **Worker Threads**
-   Создает потоки для выполнения кода параллельно основному потоку.
-   Потоки изолированы, общение происходит через сообщения.
-2. **Cluster**
-   Используется для создания процессов-воркеров, позволяя использовать все ядра процессора.
-   Полезно для масштабирования серверов.
-3. **Пул потоков (Thread Pool)**
-   Node.js автоматически использует пул потоков через `libuv` для I/O-операций.
-   Пул можно кастомизировать через библиотеки или нативные модули.
-4. **Сторонние библиотеки**
-   Например, `workerpool` предоставляет удобный интерфейс для управления задачами в потоках.
+- есть *.service.ts
+- есть *.map.ts
+- есть helpers, abstractions и classes вперемешку
+- часть файлов экспортирует не только класс, но и типы/константы
+
+Итог:
+
+- Class как suffix здесь не нужен как default
+- проблема больше архитектурная, чем чисто naming
+- лучше перейти от “папка по конструкции языка” к “папки по ответственности”
+

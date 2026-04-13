@@ -1,10 +1,10 @@
-import { LoggerNestClass } from '../classes/logger-nest.class';
+import { LoggerNestClass } from './logger-nest.class';
 import {
   LoggerLevelType,
   LoggerMetadataOutputOptionsInterface,
   LoggerOptionsInterface,
   LoggerOriginInterface,
-} from '../classes/logger.class';
+} from './logger.class';
 
 type LogLevel = ['verbose', 'debug', 'log', 'warn', 'error', 'fatal'];
 

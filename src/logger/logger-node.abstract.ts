@@ -1,5 +1,5 @@
-import { LoggerNodeClass, LoggerNodeInterface } from '../classes/logger-node.class';
-import { LoggerLevelType, LoggerOptionsInterface, LoggerOriginInterface } from '../classes/logger.class';
+import { LoggerNodeClass, LoggerNodeInterface } from './logger-node.class';
+import { LoggerLevelType, LoggerOptionsInterface, LoggerOriginInterface } from './logger.class';
 
 export class LoggerNodeAbstract implements LoggerNodeInterface {
   private readonly logger: LoggerNodeClass;

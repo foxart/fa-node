@@ -3,7 +3,7 @@ interface OptionsInterface {
   prefix?: string;
 }
 
-export abstract class RouteAbstract {
+export abstract class RouteClass {
   private readonly prefix: string;
 
   private readonly path: string;
