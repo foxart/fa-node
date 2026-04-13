@@ -38,7 +38,7 @@ const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'g
 // const PATH_REGEX = /(^|[\s,:;=([{])(\/?[^\s)\],}]+\/[^\s)\],}]+|\/)/g;
 export const PATH_REGEX = /(^|[\s,:;=])([^\s"'()\[\]{}]*\/[^\s"'()\[\]{}]*)/g;
 
-export class LoggerNestClass {
+export class LoggerNest {
   private readonly performanceStart = performance.now();
   private readonly color: ConsoleClass;
 

@@ -1,66 +1,45 @@
-import { StackHelper } from '../helpers/stack.helper';
-import {
-  LoggerClass,
-  LoggerLevelType,
-  LoggerOptionsInterface,
-  LoggerOriginInterface,
-  StackFrameInterface,
-} from './logger.class';
-import { LoggerEnum } from './logger.map';
+import { LoggerLevelType, LoggerOptionsInterface, LoggerOriginInterface } from './logger.class';
+import { LoggerNode, LoggerNodeInterface } from './logger.node';
 
-export interface LoggerNodeInterface {
-  log(message: unknown, ...optionalParams: unknown[]): unknown;
-  error(message: unknown, ...optionalParams: unknown[]): unknown;
-  warn(message: unknown, ...optionalParams: unknown[]): unknown;
-  debug(message: unknown, ...optionalParams: unknown[]): unknown;
-  info(message: unknown, ...optionalParams: unknown[]): unknown;
-}
+export type { LoggerNodeInterface } from './logger.node';
 
-export class LoggerNodeClass extends LoggerClass implements LoggerNodeInterface {
+export abstract class LoggerNodeClass implements LoggerNodeInterface {
+  private readonly logger: LoggerNode;
+
   public constructor(options: LoggerOptionsInterface) {
-    super(options);
+    this.logger = new LoggerNode(options);
   }
 
-  public log(...data: unknown[]): void {
-    this.print('LOG', StackHelper.toTrace(new Error().stack), data);
+  protected get origin(): LoggerOriginInterface {
+    return this.logger.resolveOrigin(new Error().stack, 2);
   }
 
-  public error(...data: unknown[]): void {
-    this.print('ERR', StackHelper.toTrace(new Error().stack), data);
+  public log(message?: unknown, ...params: unknown[]): void {
+    this.stdout('LOG', this.origin, message, ...params);
   }
 
-  public warn(...data: unknown[]): void {
-    this.print('WRN', StackHelper.toTrace(new Error().stack), data);
+  public error(message?: unknown, ...params: unknown[]): void {
+    this.stdout('ERR', this.origin, message, ...params);
   }
 
-  public debug(...data: unknown[]): void {
-    this.print('DBG', StackHelper.toTrace(new Error().stack), data);
+  public warn(message?: unknown, ...params: unknown[]): void {
+    this.stdout('WRN', this.origin, message, ...params);
   }
 
-  public info(...data: unknown[]): void {
-    this.print('INF', StackHelper.toTrace(new Error().stack), data);
+  public debug(message?: unknown, ...params: unknown[]): void {
+    this.stdout('DBG', this.origin, message, ...params);
   }
 
-  public print(level: LoggerLevelType, trace: StackFrameInterface[] | LoggerOriginInterface, args: unknown[]): void {
-    if (!Array.isArray(trace)) {
-      this.stdout({
-        level,
-        metadata: this.buildRenderMetadata(trace),
-        messages: args,
-        debugTrace: StackHelper.toTrace(new Error().stack),
-        formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
-      });
-      return;
-    }
+  public info(message?: unknown, ...params: unknown[]): void {
+    this.stdout('INF', this.origin, message, ...params);
+  }
 
-    const traceIndex = this.options.traceIndex ?? 1;
-    const origin = StackHelper.resolveOrigin(trace, traceIndex);
-    this.stdout({
-      level,
-      metadata: this.buildRenderMetadata(origin),
-      messages: args,
-      debugTrace: StackHelper.toTrace(new Error().stack),
-      formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
-    });
+  public errorWithStack(stack: string | undefined, message?: unknown, ...params: unknown[]): void {
+    const origin = stack ? this.logger.resolveOrigin(stack, 0) : this.origin;
+    this.stdout('ERR', origin, message, ...params);
+  }
+
+  protected stdout(level: LoggerLevelType, origin: LoggerOriginInterface, ...params: unknown[]): void {
+    this.logger.print(level, origin, params);
   }
 }

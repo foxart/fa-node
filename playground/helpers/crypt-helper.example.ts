@@ -1,4 +1,4 @@
-import { CryptClass, LoggerNestClass, LoggerNodeClass, SystemHelper } from '../../src';
+import { CryptClass, LoggerNest, LoggerNode, SystemHelper } from '../../src';
 
 function rotate(rawPayload: string, oldCrypt: CryptClass, newCrypt: CryptClass): string {
   const { dek, encryptedData, ivData, tagData } = oldCrypt.unwrapDek(rawPayload);
@@ -47,7 +47,7 @@ export function run(): void {
   //   }),
   // );
   // console.log(process.cwd(), __dirname);
-  const nest = new LoggerNestClass({
+  const nest = new LoggerNest({
     pid: true,
     date: true,
     time: true,
@@ -60,7 +60,7 @@ export function run(): void {
     errorStack: true,
     stackDebug: true,
   });
-  const system = new LoggerNodeClass({
+  const system = new LoggerNode({
     pid: true,
     date: true,
     time: true,

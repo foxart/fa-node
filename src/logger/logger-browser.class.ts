@@ -1,4 +1,4 @@
-enum BrowserConsoleLevel {
+enum LevenEnum {
   LOG = 'LOG',
   INF = 'INFO',
   WRN = 'WARNING',
@@ -32,13 +32,13 @@ const background = {
 const padding = 'padding: 2px 8px;';
 const fontWeightBold = 'font-weight: bold;';
 const borderRadius = 'border-radius: 4px;';
-const LEVEL_STYLES: Record<BrowserConsoleLevel, string> = {
-  [BrowserConsoleLevel.LOG]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.GREEN}`,
-  [BrowserConsoleLevel.INF]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.BLUE}`,
-  [BrowserConsoleLevel.WRN]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.BLACK} ${background.YELLOW}`,
-  [BrowserConsoleLevel.ERR]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.RED}`,
-  [BrowserConsoleLevel.DBG]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.BLACK} ${background.WHITE}`,
-  [BrowserConsoleLevel.CST]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.MAGENTA}`,
+const LEVEL_STYLES: Record<LevenEnum, string> = {
+  [LevenEnum.LOG]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.GREEN}`,
+  [LevenEnum.INF]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.BLUE}`,
+  [LevenEnum.WRN]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.BLACK} ${background.YELLOW}`,
+  [LevenEnum.ERR]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.RED}`,
+  [LevenEnum.DBG]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.BLACK} ${background.WHITE}`,
+  [LevenEnum.CST]: `${padding} ${fontWeightBold} ${borderRadius} ${foreground.WHITE} ${background.MAGENTA}`,
 };
 const RESET_STYLES = `
   padding: 0;
@@ -73,7 +73,7 @@ interface ConsoleBrowserOptionsInterface {
   performance?: boolean;
 }
 
-class LoggerBrowser {
+export abstract class LoggerBrowserClass {
   private readonly performanceStart: number;
 
   public constructor(private readonly options: ConsoleBrowserOptionsInterface = {}) {
@@ -81,30 +81,30 @@ class LoggerBrowser {
   }
 
   public log(...args: unknown[]): unknown[] {
-    return this.wrap(BrowserConsoleLevel.LOG, args);
+    return this.wrap(LevenEnum.LOG, args);
   }
 
   public info(...args: unknown[]): unknown[] {
-    return this.wrap(BrowserConsoleLevel.INF, args);
+    return this.wrap(LevenEnum.INF, args);
   }
 
   public warn(...args: unknown[]): unknown[] {
-    return this.wrap(BrowserConsoleLevel.WRN, args);
+    return this.wrap(LevenEnum.WRN, args);
   }
 
   public error(...args: unknown[]): unknown[] {
-    return this.wrap(BrowserConsoleLevel.ERR, args);
+    return this.wrap(LevenEnum.ERR, args);
   }
 
   public debug(...args: unknown[]): unknown[] {
-    return this.wrap(BrowserConsoleLevel.DBG, args);
+    return this.wrap(LevenEnum.DBG, args);
   }
 
   public custom(...args: unknown[]): unknown[] {
-    return this.wrap(BrowserConsoleLevel.CST, args);
+    return this.wrap(LevenEnum.CST, args);
   }
 
-  private wrap(level: BrowserConsoleLevel, args: unknown[]): unknown[] {
+  private wrap(level: LevenEnum, args: unknown[]): unknown[] {
     const styleList: string[] = [];
     const templateList: string[] = [];
     // Add log level, if enabled
@@ -137,34 +137,5 @@ class LoggerBrowser {
           ...args,
         ]
       : args;
-  }
-}
-
-const consoleLog = console.log.bind(console);
-const consoleWarn = console.warn.bind(console);
-const consoleInfo = console.info.bind(console);
-const consoleError = console.error.bind(console);
-const consoleDebug = console.debug.bind(console);
-
-export class LoggerBrowserClass {
-  private readonly logger: LoggerBrowser;
-
-  public constructor(options: ConsoleBrowserOptionsInterface) {
-    this.logger = new LoggerBrowser(options);
-  }
-
-  public override(): void {
-    console.log = console.log.bind(this, ...this.logger.log());
-    console.warn = console.warn.bind(this, ...this.logger.warn());
-    console.info = console.info.bind(this, ...this.logger.info());
-    console.error = console.error.bind(this, ...this.logger.error());
-  }
-
-  public restore(): void {
-    console.log = consoleLog;
-    console.info = consoleInfo;
-    console.warn = consoleWarn;
-    console.error = consoleError;
-    console.debug = consoleDebug;
   }
 }

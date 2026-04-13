@@ -1,16 +1,16 @@
 import { LoggerService } from '@nestjs/common';
 import {
-  LoggerNestClass,
+  LoggerNest,
   LoggerNestLevelType,
   LoggerNestMetadataInterface,
   LoggerNestOptionsInterface,
 } from '../classes/logger-nest.class';
 
 export class LoggerApplicationAbstract implements LoggerService {
-  private readonly logger: LoggerNestClass;
+  private readonly logger: LoggerNest;
 
   public constructor(options: LoggerNestOptionsInterface) {
-    this.logger = new LoggerNestClass(options);
+    this.logger = new LoggerNest(options);
   }
 
   protected get metadata(): LoggerNestMetadataInterface {

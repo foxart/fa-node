@@ -1,4 +1,4 @@
-import { ConsoleHelper, LoggerNodeClass } from '../src';
+import { ConsoleHelper, LoggerNode } from '../src';
 
 export function initCatch(): void {
   process.on('uncaughtException', (error) => {
@@ -13,7 +13,7 @@ export function initCatch(): void {
 
 export function initConsole(): void {
   // Array.from(Array(5).keys()).forEach(() => console.log('|'));
-  const myConsole = new LoggerNodeClass({
+  const myConsole = new LoggerNode({
     // traceIndex: 2,
     color: true,
     level: true,
