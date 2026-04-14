@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { hookToProcess } from './helpers/process.helper';
+import { ProcessHelper } from './helpers/process.helper';
 import { AppModule } from './nest/app.module';
 import { LoggerNestService } from './nest/logger-nest.service';
 
@@ -9,7 +9,7 @@ void (async function bootstrap(): Promise<void> {
     bufferLogs: true,
   });
   const logger = app.get(LoggerNestService);
-  hookToProcess(logger, {
+  ProcessHelper.hook(logger, {
     exitSignals: ['SIGTERM', 'SIGINT'],
     logOnlySignals: ['SIGHUP', 'SIGABRT'],
     handleErrors: true,
