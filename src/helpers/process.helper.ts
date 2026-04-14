@@ -1,9 +1,17 @@
 import os from 'node:os';
 import { StackHelper } from './stack.helper';
 
-type ProcessEventType = 'unhandledRejection' | 'uncaughtException' | 'exit' | NodeJS.Signals;
-type ProcessHandlerType = ((code: number) => void) | ((reason: unknown) => void) | (() => void);
-type ProcessHandlerEntryType = [ProcessEventType, ProcessHandlerType];
+type SignalType = NodeJS.Signals;
+type ProcessEventType = 'unhandledRejection' | 'uncaughtException' | 'exit' | SignalType;
+type ProcessHandlerByEventType = {
+  unhandledRejection: (reason: unknown) => void;
+  uncaughtException: (error: Error) => void;
+  exit: (code: number) => void;
+} & Record<SignalType, () => void>;
+type ProcessHandlerType = ProcessHandlerByEventType[ProcessEventType];
+type ProcessHandlerEntryType = {
+  [Event in ProcessEventType]: [Event, ProcessHandlerByEventType[Event]];
+}[ProcessEventType];
 type ProcessLogLevelType = 'log' | 'warn' | 'error' | 'debug';
 type ProcessWriteMetadataMethodType = (
   level: 'LOG' | 'WRN' | 'ERR' | 'DBG',
@@ -12,8 +20,8 @@ type ProcessWriteMetadataMethodType = (
 ) => void;
 
 export interface ProcessConfigInterface {
-  exitSignals?: NodeJS.Signals[];
-  logOnlySignals?: NodeJS.Signals[];
+  exitSignals?: SignalType[];
+  logOnlySignals?: SignalType[];
   handleErrors?: boolean;
   handleExit?: boolean;
   exitOnSignal?: boolean;
@@ -27,8 +35,8 @@ export interface ProcessConfigInterface {
 }
 
 type ProcessResolvedConfigType = {
-  exitSignals: NodeJS.Signals[];
-  logOnlySignals: NodeJS.Signals[];
+  exitSignals: SignalType[];
+  logOnlySignals: SignalType[];
   handleErrors: boolean;
   handleExit: boolean;
   exitOnSignal: boolean;
@@ -150,13 +158,19 @@ class ProcessHelperClass {
     this.handlerMap.set(event, handlerList);
   }
 
+  private createHandlerEntry<Event extends ProcessEventType>(
+    event: Event,
+    handler: ProcessHandlerByEventType[Event],
+  ): ProcessHandlerEntryType {
+    return [event, handler] as ProcessHandlerEntryType;
+  }
+
   private buildHandlers(logger: ProcessLoggerInterface, config: ProcessResolvedConfigType): ProcessHandlerEntryType[] {
     const handlerList: ProcessHandlerEntryType[] = [...config.customHandlers];
 
     if (config.handleErrors) {
-      handlerList.push([
-        'unhandledRejection',
-        (reason: unknown): void =>
+      handlerList.push(
+        this.createHandlerEntry('unhandledRejection', (reason: unknown): void =>
           this.handleEvent(
             logger,
             'error',
@@ -165,10 +179,10 @@ class ProcessHelperClass {
             config.exitOnUnhandledRejection,
             config.errorExitCode,
           ),
-      ]);
-      handlerList.push([
-        'uncaughtException',
-        (error: Error): void =>
+        ),
+      );
+      handlerList.push(
+        this.createHandlerEntry('uncaughtException', (error: Error): void =>
           this.handleEvent(
             logger,
             'error',
@@ -177,23 +191,28 @@ class ProcessHelperClass {
             config.exitOnUncaughtException,
             config.errorExitCode,
           ),
-      ]);
+        ),
+      );
     }
 
     for (const signal of config.exitSignals) {
-      handlerList.push([
-        signal,
-        (): void =>
+      handlerList.push(
+        this.createHandlerEntry(signal, (): void =>
           this.handleEvent(logger, config.signalLogLevel, 'signal', signal, config.exitOnSignal, config.exitCode),
-      ]);
+        ),
+      );
     }
 
     for (const signal of config.logOnlySignals) {
-      handlerList.push([signal, (): void => this.handleEvent(logger, config.signalLogLevel, 'signal', signal)]);
+      handlerList.push(
+        this.createHandlerEntry(signal, (): void => this.handleEvent(logger, config.signalLogLevel, 'signal', signal)),
+      );
     }
 
     if (config.handleExit) {
-      handlerList.push(['exit', (code: number): void => this.handleEvent(logger, 'debug', 'exit', code)]);
+      handlerList.push(
+        this.createHandlerEntry('exit', (code: number): void => this.handleEvent(logger, 'debug', 'exit', code)),
+      );
     }
 
     return handlerList;
