@@ -17,8 +17,7 @@ interface UrlInterface {
   hashParams?: { [key: string]: string };
 }
 
-class ParserSingleton {
-  private static self: ParserSingleton;
+class ParserHelperClass {
   private static readonly stackRegexp = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
 
   private static readonly urlRegexp: RegExp = new RegExp(
@@ -31,13 +30,6 @@ class ParserSingleton {
     ].join(''),
   );
 
-  public static getInstance(): ParserSingleton {
-    if (!ParserSingleton.self) {
-      ParserSingleton.self = new ParserSingleton();
-    }
-    return ParserSingleton.self;
-  }
-
   public path(fullPath: string): PathInterface {
     const fileName = fullPath.substring(fullPath.lastIndexOf('/') + 1);
     return {
@@ -48,7 +40,7 @@ class ParserSingleton {
   }
 
   public url(url: string): UrlInterface | null {
-    const regexp = new RegExp(ParserSingleton.urlRegexp.source);
+    const regexp = new RegExp(ParserHelperClass.urlRegexp.source);
     const match = url.match(regexp);
     return (
       match && {
@@ -85,4 +77,4 @@ class ParserSingleton {
   }
 }
 
-export const ParserHelper = ParserSingleton.getInstance();
+export const ParserHelper = new ParserHelperClass();

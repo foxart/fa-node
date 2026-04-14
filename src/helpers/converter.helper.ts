@@ -1,13 +1,4 @@
-class ConverterSingleton {
-  private static self: ConverterSingleton;
-
-  public static getInstance(): ConverterSingleton {
-    if (!ConverterSingleton.self) {
-      ConverterSingleton.self = new ConverterSingleton();
-    }
-    return ConverterSingleton.self;
-  }
-
+class ConverterHelperClass {
   /** Первая буква заглавная, остальное без изменений */
   public capitalize(str: string): string {
     if (!str) return '';
@@ -122,4 +113,4 @@ class ConverterSingleton {
   }
 }
 
-export const ConverterHelper = ConverterSingleton.getInstance();
+export const ConverterHelper = new ConverterHelperClass();

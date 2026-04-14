@@ -26,16 +26,7 @@ const STATUS = {
   error: '✖', // error
 } as const;
 
-class CodegenSingleton {
-  private static self: CodegenSingleton;
-
-  public static getInstance(): CodegenSingleton {
-    if (!CodegenSingleton.self) {
-      CodegenSingleton.self = new CodegenSingleton();
-    }
-    return CodegenSingleton.self;
-  }
-
+class CodegenHelperClass {
   public displayMessage(name: string, message: string): void {
     const result = [
       this.applyColor(` ${name.toUpperCase()} `, [COLORS.bg.cyan]),
@@ -204,4 +195,4 @@ class CodegenSingleton {
   }
 }
 
-export const CodegenHelper = CodegenSingleton.getInstance();
+export const CodegenHelper = new CodegenHelperClass();

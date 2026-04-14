@@ -15,13 +15,6 @@ type ProcessHandlerType =
 type ProcessHandlerEntryType = [ProcessEventType, ProcessHandlerType];
 type ProcessLogLevelType = 'log' | 'warn' | 'error' | 'debug';
 
-export interface ProcessLoggerInterface {
-  log(...message: unknown[]): void;
-  error(...message: unknown[]): void;
-  warn(...message: unknown[]): void;
-  debug(...message: unknown[]): void;
-}
-
 export interface ProcessConfigInterface {
   exitSignals: SignalType[];
   logOnlySignals: SignalType[];
@@ -35,6 +28,13 @@ export interface ProcessConfigInterface {
   signalLogLevel: ProcessLogLevelType;
   maxListeners: number;
   customHandlers: ProcessHandlerEntryType[];
+}
+
+export interface ProcessLoggerInterface {
+  log(...message: unknown[]): void;
+  error(...message: unknown[]): void;
+  warn(...message: unknown[]): void;
+  debug(...message: unknown[]): void;
 }
 
 const processLoggerMethodMap: Record<ProcessLogLevelType, keyof ProcessLoggerInterface> = {
@@ -59,18 +59,9 @@ const defaultProcessConfig: ProcessConfigInterface = {
   customHandlers: [],
 };
 
-class ProcessSingleton {
-  private static self: ProcessSingleton;
-
+class ProcessHelperClass {
   private isHooked = false;
   private readonly handlerMap = new Map<ProcessEventType, ProcessHandlerType[]>();
-
-  public static getInstance(): ProcessSingleton {
-    if (!ProcessSingleton.self) {
-      ProcessSingleton.self = new ProcessSingleton();
-    }
-    return ProcessSingleton.self;
-  }
 
   public register(logger: ProcessLoggerInterface, config: Partial<ProcessConfigInterface> = {}): void {
     if (this.isHooked) {
@@ -183,5 +174,4 @@ class ProcessSingleton {
   }
 }
 
-export const ProcessHelper = ProcessSingleton.getInstance();
-//
+export const ProcessHelper = new ProcessHelperClass();

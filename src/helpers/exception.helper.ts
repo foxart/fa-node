@@ -32,16 +32,7 @@ export enum ExceptionTypeEnum {
   UNKNOWN = 'Unknown',
 }
 
-class ExceptionSingleton {
-  private static self: ExceptionSingleton;
-
-  public static getInstance(): ExceptionSingleton {
-    if (!ExceptionSingleton.self) {
-      ExceptionSingleton.self = new ExceptionSingleton();
-    }
-    return ExceptionSingleton.self;
-  }
-
+class ExceptionHelperClass {
   public castToException(payload: unknown): ExceptionInterface {
     let result;
     if (payload instanceof HttpException) {
@@ -138,7 +129,7 @@ class ExceptionSingleton {
 
   private castUnknown(error: unknown): ExceptionInterface {
     return {
-      name: ExceptionSingleton.name,
+      name: ExceptionHelperClass.name,
       message: typeof error === 'object' ? ConverterHelper.toJson(error) : '',
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: this.codeFromHttpStatus(HttpStatus.INTERNAL_SERVER_ERROR),
@@ -163,4 +154,4 @@ class ExceptionSingleton {
   }
 }
 
-export const ExceptionHelper = ExceptionSingleton.getInstance();
+export const ExceptionHelper = new ExceptionHelperClass();

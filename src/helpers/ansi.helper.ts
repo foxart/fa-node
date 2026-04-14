@@ -45,18 +45,10 @@ const EFFECT = {
   hidden: '\x1b[8m',
 } as const;
 
-class ColorSingleton {
-  private static self: ColorSingleton;
+class AnsiHelperClass {
   public readonly ef = EFFECT;
   public readonly fg = FOREGROUND;
   public readonly bg = BACKGROUND;
-
-  public static getInstance(): ColorSingleton {
-    if (!ColorSingleton.self) {
-      ColorSingleton.self = new ColorSingleton();
-    }
-    return ColorSingleton.self;
-  }
 
   public apply(data: string, ansiList: (AnsiColorValueType | AnsiEffectValueType)[]): string {
     if (!ansiList.length) {
@@ -66,4 +58,4 @@ class ColorSingleton {
   }
 }
 
-export const AnsiHelper = ColorSingleton.getInstance();
+export const AnsiHelper = new AnsiHelperClass();

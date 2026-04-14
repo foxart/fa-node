@@ -396,21 +396,12 @@ const LOCATION_LIST: LocationInterface[] = [
   { city: 'Zagreb', country: 'Croatia', countryCode: 'HR', phoneCode: '+385', postalCode: '10000', street: 'Ilica' },
 ] as const;
 
-class RandomSingleton {
-  private static self: RandomSingleton;
-
+class RandomHelperClass {
   private readonly characters = [
     Array.from({ length: 26 }, (_, i) => String.fromCharCode(i + 65)).join(''),
     Array.from({ length: 26 }, (_, i) => String.fromCharCode(i + 97)).join(''),
     Array.from({ length: 10 }, (_, i) => i).join(''),
   ].join('');
-
-  public static getInstance(): RandomSingleton {
-    if (!RandomSingleton.self) {
-      RandomSingleton.self = new RandomSingleton();
-    }
-    return RandomSingleton.self;
-  }
 
   /* ------------------------------------------------------------------ */
   /* BASE RANDOM                                                         */
@@ -532,4 +523,4 @@ class RandomSingleton {
   }
 }
 
-export const RandomHelper = RandomSingleton.getInstance();
+export const RandomHelper = new RandomHelperClass();

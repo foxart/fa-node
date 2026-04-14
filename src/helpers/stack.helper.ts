@@ -38,16 +38,7 @@ function isNativeTraceFile(file: string): boolean {
   return file === 'native';
 }
 
-class StackSingleton {
-  private static self: StackSingleton;
-
-  public static getInstance(): StackSingleton {
-    if (!StackSingleton.self) {
-      StackSingleton.self = new StackSingleton();
-    }
-    return StackSingleton.self;
-  }
-
+class StackHelperClass {
   public toTrace(stack = ''): StackFrameInterface[] {
     if (!stack) {
       return [];
@@ -139,4 +130,4 @@ class StackSingleton {
   }
 }
 
-export const StackHelper = StackSingleton.getInstance();
+export const StackHelper = new StackHelperClass();

@@ -26,19 +26,11 @@ type ApplyCallbackType = (key: string | number, value: unknown) => [string | num
 
 const STACK_REGEXP = new RegExp('^ *at\\s+(.*?)\\s*\\(?(\\S+:\\d+:\\d+)\\)?', 'gm');
 
-class DataSingleton {
-  private static self: DataSingleton;
+class DataHelperClass {
   private readonly isNode: boolean;
 
-  private constructor() {
+  public constructor() {
     this.isNode = !!(typeof process !== 'undefined' && process?.versions?.node);
-  }
-
-  public static getInstance(): DataSingleton {
-    if (!DataSingleton.self) {
-      DataSingleton.self = new DataSingleton();
-    }
-    return DataSingleton.self;
   }
 
   /**
@@ -328,4 +320,4 @@ class DataSingleton {
   }
 }
 
-export const DataHelper = DataSingleton.getInstance();
+export const DataHelper = new DataHelperClass();

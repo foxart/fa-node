@@ -7,16 +7,7 @@ interface ParseInterface {
   hash: string;
 }
 
-class PasswordSingleton {
-  private static self: PasswordSingleton;
-
-  public static getInstance(): PasswordSingleton {
-    if (!PasswordSingleton.self) {
-      PasswordSingleton.self = new PasswordSingleton();
-    }
-    return PasswordSingleton.self;
-  }
-
+class PasswordHelperClass {
   public encrypt(password: string, rounds = 10): string {
     return bcrypt.hashSync(password, rounds);
   }
@@ -35,4 +26,4 @@ class PasswordSingleton {
   }
 }
 
-export const PasswordHelper = PasswordSingleton.getInstance();
+export const PasswordHelper = new PasswordHelperClass();

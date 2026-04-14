@@ -7,16 +7,7 @@ interface IsEmptyOptionsInterface {
   emptyObject?: boolean;
 }
 
-class Check {
-  private static self: Check;
-
-  public static getInstance(): Check {
-    if (!Check.self) {
-      Check.self = new Check();
-    }
-    return Check.self;
-  }
-
+class CheckHelperClass {
   public isArray(data: unknown): data is unknown[] {
     return Array.isArray(data);
   }
@@ -129,4 +120,4 @@ class Check {
   }
 }
 
-export const CheckHelper = Check.getInstance();
+export const CheckHelper = new CheckHelperClass();

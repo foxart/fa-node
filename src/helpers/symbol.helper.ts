@@ -31,19 +31,10 @@ export type SymbolArrowType = typeof SYMBOL_ARROW;
 export type SymbolStatusType = typeof SYMBOL_STATUS;
 export type SymbolCommonType = typeof SYMBOL_COMMON;
 
-class SymbolSingleton {
-  private static self: SymbolSingleton;
-
+class SymbolHelperClass {
   public readonly arrow = SYMBOL_ARROW;
   public readonly status = SYMBOL_STATUS;
   public readonly common = SYMBOL_COMMON;
-
-  public static getInstance(): SymbolSingleton {
-    if (!SymbolSingleton.self) {
-      SymbolSingleton.self = new SymbolSingleton();
-    }
-    return SymbolSingleton.self;
-  }
 }
 
-export const SymbolHelper = SymbolSingleton.getInstance();
+export const SymbolHelper = new SymbolHelperClass();

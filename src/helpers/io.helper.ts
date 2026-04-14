@@ -1,16 +1,7 @@
 import fs, { ObjectEncodingOptions, WriteFileOptions } from 'fs';
 import path from 'path';
 
-class IoSingleton {
-  private static self: IoSingleton;
-
-  public static getInstance(): IoSingleton {
-    if (!IoSingleton.self) {
-      IoSingleton.self = new IoSingleton();
-    }
-    return IoSingleton.self;
-  }
-
+class IoHelperClass {
   public checkPath(path: string): boolean {
     return fs.existsSync(path);
   }
@@ -104,4 +95,4 @@ class IoSingleton {
   }
 }
 
-export const IoHelper = IoSingleton.getInstance();
+export const IoHelper = new IoHelperClass();

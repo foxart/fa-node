@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { isIP } from 'net';
 import os from 'node:os';
 
-class IpSingleton {
+class IpHelperClass {
   public getLocalIp(): string | null {
     const osNetworkInterfaces = os.networkInterfaces();
     for (const interfaceList of Object.values(osNetworkInterfaces)) {
@@ -117,4 +117,4 @@ class IpSingleton {
   }
 }
 
-export const IpHelper = new IpSingleton();
+export const IpHelper = new IpHelperClass();

@@ -3,20 +3,11 @@ import ms from 'ms';
 /**
  * todo rename to TimerHelper, sleep move to ProcessHelper
  */
-class SystemSingleton {
-  private static self: SystemSingleton;
-
+class SystemHelperClass {
   private readonly timeMap: Map<string, [number, number]>;
 
-  private constructor() {
+  public constructor() {
     this.timeMap = new Map();
-  }
-
-  public static getInstance(): SystemSingleton {
-    if (!SystemSingleton.self) {
-      SystemSingleton.self = new SystemSingleton();
-    }
-    return SystemSingleton.self;
   }
 
   public timeStart(label?: string): void {
@@ -48,4 +39,4 @@ class SystemSingleton {
   }
 }
 
-export const SystemHelper = SystemSingleton.getInstance();
+export const SystemHelper = new SystemHelperClass();
