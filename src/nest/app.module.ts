@@ -18,7 +18,7 @@ export class AppModule implements OnModuleInit, OnApplicationBootstrap {
 
   public onApplicationBootstrap(): void {
     setTimeout(() => {
-      // throw new Error('onApplicationBootstrap');
+      throw new Error('onApplicationBootstrap');
     }, 100);
   }
 }

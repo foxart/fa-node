@@ -19,7 +19,7 @@ const NEST_CALLER_LIST = [
 ];
 const HTTP_METHOD_SET = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']);
 
-export type LogLevel = ['verbose', 'debug', 'log', 'warn', 'error', 'fatal'];
+type LogLevel = ['verbose', 'debug', 'log', 'warn', 'error', 'fatal'];
 
 export interface LoggerNestInterface {
   log(message: unknown, ...optionalParams: unknown[]): unknown;
