@@ -12,7 +12,6 @@ export class AppModule implements OnModuleInit, OnApplicationBootstrap {
   public constructor(private readonly logger: LoggerNodeService) {}
 
   public onModuleInit(): void {
-    console.clear();
     ConsoleHelper.override(this.logger);
   }
 

@@ -10,12 +10,15 @@ void (async function bootstrap(): Promise<void> {
   });
   const logger = app.get(LoggerNestService);
   ProcessHelper.hook(logger, {
-    exitSignals: ['SIGTERM', 'SIGINT'],
+    exitSignals: ['SIGTERM', 'SIGINT', 'SIGUSR2'],
     logOnlySignals: ['SIGHUP', 'SIGABRT'],
     handleErrors: true,
     handleExit: true,
+    exitOnSignal: true,
+    exitOnUncaughtException: false,
+    exitOnUnhandledRejection: false,
   });
   app.useLogger(logger);
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 8888);
   logger.verbose('Listening', await app.getUrl(), 'MyApplication');
 })();

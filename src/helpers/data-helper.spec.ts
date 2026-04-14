@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+import { describe, expect, it } from '@jest/globals';
 import { DataHelper } from './data.helper';
 
 describe('DataHelper', () => {

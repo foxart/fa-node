@@ -34,8 +34,10 @@ export class MongoMigrationClassNormalize implements MigrationMongoCliInterface 
     await db.collection(COLLECTION).updateMany({}, [{ $set: { [FIELD]: { $toLower: `$${FIELD}` } } }]);
   }
 
-  public async down(db: Db): Promise<void> {
+  public down(_db: Db): Promise<void> {
+    void _db;
     // откат невозможно без бэкапа
+    return Promise.resolve();
   }
 }
 

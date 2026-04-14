@@ -250,7 +250,6 @@ export class LoggerClass {
   }
 
   protected stdoutCatch(data: unknown, error: Error): void {
-    const message = '---------------[LOGGER STDOUT ERROR]---------------';
     process.stderr.write('\n');
     // process.stderr.write(this.applyColor(message, [this.effect.bold, this.foreground.red]));
     process.stderr.write('\n');

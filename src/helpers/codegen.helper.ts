@@ -29,8 +29,6 @@ const STATUS = {
 class CodegenSingleton {
   private static self: CodegenSingleton;
 
-  private constructor() {}
-
   public static getInstance(): CodegenSingleton {
     if (!CodegenSingleton.self) {
       CodegenSingleton.self = new CodegenSingleton();
