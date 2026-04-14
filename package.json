@@ -8,15 +8,16 @@
   "private": false,
   "scripts": {
     "start": "nodemon -e ts --watch src --watch playground -x ts-node playground/index.ts",
-    "start:nest": "npm --prefix nest run start:dev",
+    "start:nest": "nodemon -e ts --watch src --watch test --ignore dist -x ts-node -P tsconfig.nest.json src/nest.ts",
     "start:test": "nodemon -e js,json --watch src src/test.js",
     "migrator": "nodemon -e ts --watch src --watch playground --ignore node_modules -x ts-node playground/index.ts new my-test",
     "migrator-help": "ts-node playground/index.ts new --help",
     "prebuild": "rimraf dist",
-    "build:assets": "cp src/helpers/*.template dist/helpers && cp src/cli/migration-mongo.template.ts dist/helpers/migration-mongo.template.ts",
+    "build:assets": "cp src/cli/migration-mongo.template.ts dist/cli/migration-mongo.template.ts",
     "build": "tsc -p tsconfig.build.json && npm run build:assets",
     "lint": "eslint -c .eslintrc.js \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
+    "test:nest": "jest --config test/jest-e2e.json",
     "prepack": "npm run build",
     "publish:public": "npm publish --access=public",
     "publish:dry": "npm publish --dry-run"
@@ -56,12 +57,15 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@nestjs/platform-express": "^11.1.18",
+    "@nestjs/testing": "^11.1.18",
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.2",
     "@types/graphql": "^14.5.0",
     "@types/jest": "^29.5.12",
     "@types/ms": "^0.7.34",
     "@types/node": "^22.13.10",
+    "@types/supertest": "^7.0.0",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
@@ -74,6 +78,7 @@
     "prettier-plugin-multiline-arrays": "^3.0.4",
     "rimraf": "^5.0.5",
     "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.3"

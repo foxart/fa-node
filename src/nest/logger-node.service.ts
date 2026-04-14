@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { DataHelper } from '../helpers/data.helper';
-import { LoggerNode } from './logger.node';
-import { LoggerLevelType, LoggerMetadataInterface, LoggerOriginInterface, StackFrameInterface } from './logger.class';
+import {
+  LoggerLevelType,
+  LoggerMetadataInterface,
+  LoggerOriginInterface,
+  StackFrameInterface,
+} from '../logger/logger.class';
+import { LoggerNode } from '../logger/logger.node';
 
 interface LoggerAppInterface {
   level: LoggerLevelType;
