@@ -54,6 +54,7 @@ export interface LoggerMetadataInterface {
 
 export interface LoggerMetadataOutputOptionsInterface {
   callerOverride?: string;
+  methodOverride?: string;
   hideMethodSet?: ReadonlySet<string>;
 }
 
@@ -188,7 +189,8 @@ export class LoggerClass {
       return undefined;
     }
     const caller = options.callerOverride ?? this.resolveCaller(frame);
-    const method = frame.method && options.hideMethodSet?.has(frame.method) ? undefined : frame.method;
+    const method =
+      options.methodOverride ?? (frame.method && options.hideMethodSet?.has(frame.method) ? undefined : frame.method);
     return {
       caller,
       method,

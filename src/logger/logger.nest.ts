@@ -123,6 +123,17 @@ export class LoggerNest extends LoggerClass implements LoggerNestInterface {
     });
   }
 
+  public writeWithMetadata(
+    level: LoggerLevelType,
+    metadataOptions: LoggerMetadataOutputOptionsInterface,
+    ...messages: unknown[]
+  ): void {
+    this.print(level, this.origin, messages, {
+      ...LoggerNest.LOGGER_METADATA_OPTIONS,
+      ...metadataOptions,
+    });
+  }
+
   protected write(
     level: LoggerLevelType,
     origin: LoggerOriginInterface,

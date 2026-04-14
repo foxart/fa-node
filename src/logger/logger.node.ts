@@ -2,6 +2,7 @@ import { StackHelper } from '../helpers/stack.helper';
 import {
   LoggerClass,
   LoggerLevelType,
+  LoggerMetadataOutputOptionsInterface,
   LoggerOptionsInterface,
   LoggerOriginInterface,
   StackFrameInterface,
@@ -62,6 +63,21 @@ export class LoggerNode extends LoggerClass {
     this.stdout({
       level,
       metadata: this.buildRenderMetadata(origin),
+      messages: args,
+      debugTrace: StackHelper.toTrace(new Error().stack),
+      formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
+    });
+  }
+
+  public writeWithMetadata(
+    level: LoggerLevelType,
+    metadataOptions: LoggerMetadataOutputOptionsInterface,
+    ...args: unknown[]
+  ): void {
+    const origin = this.origin;
+    this.stdout({
+      level,
+      metadata: this.buildRenderMetadata(origin, metadataOptions),
       messages: args,
       debugTrace: StackHelper.toTrace(new Error().stack),
       formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),

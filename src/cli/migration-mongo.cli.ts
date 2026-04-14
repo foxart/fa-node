@@ -44,8 +44,7 @@ interface CommandInterface {
   handler: (argv: { collection: string }) => void;
 }
 
-class MigrationMongoSingleton {
-  private static self: MigrationMongoSingleton;
+class MigrationMongoCliClass {
   private static readonly migrationFileExtensionRegexp = /\.(ts|js)$/;
 
   private client!: MongoClient;
@@ -56,16 +55,9 @@ class MigrationMongoSingleton {
 
   private readonly commandList: CommandInterface[];
 
-  private constructor() {
+  public constructor() {
     this.clientIsConnected = false;
     this.commandList = this.getCommandList();
-  }
-
-  public static getInstance(): MigrationMongoSingleton {
-    if (!MigrationMongoSingleton.self) {
-      MigrationMongoSingleton.self = new MigrationMongoSingleton();
-    }
-    return MigrationMongoSingleton.self;
   }
 
   public async migrate(configuration: ConfigurationInterface): Promise<void> {
@@ -375,7 +367,7 @@ class MigrationMongoSingleton {
   }
 
   private normalizeMigrationFileName(fileName: string): string {
-    return fileName.replace(MigrationMongoSingleton.migrationFileExtensionRegexp, '');
+    return fileName.replace(MigrationMongoCliClass.migrationFileExtensionRegexp, '');
   }
 
   private scanMigrationFiles(): string[] {
@@ -397,4 +389,5 @@ class MigrationMongoSingleton {
   }
 }
 
-export const MigrationMongoCli = MigrationMongoSingleton.getInstance();
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const MigrationMongoCli: MigrationMongoCliClass = new MigrationMongoCliClass();

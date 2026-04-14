@@ -14,6 +14,11 @@ type ProcessHandlerType =
   | ProcessUncaughtExceptionHandlerType;
 type ProcessHandlerEntryType = [ProcessEventType, ProcessHandlerType];
 type ProcessLogLevelType = 'log' | 'warn' | 'error' | 'debug';
+type ProcessWriteMetadataMethodType = (
+  level: 'LOG' | 'WRN' | 'ERR' | 'DBG',
+  metadata: { callerOverride: string; methodOverride: string },
+  ...message: unknown[]
+) => void;
 
 export interface ProcessConfigInterface {
   exitSignals: SignalType[];
@@ -31,17 +36,22 @@ export interface ProcessConfigInterface {
 }
 
 export interface ProcessLoggerInterface {
+  writeWithMetadata?: ProcessWriteMetadataMethodType;
+
   log(...message: unknown[]): void;
+
   error(...message: unknown[]): void;
+
   warn(...message: unknown[]): void;
+
   debug(...message: unknown[]): void;
 }
 
-const processLoggerMethodMap: Record<ProcessLogLevelType, keyof ProcessLoggerInterface> = {
-  log: 'log',
-  warn: 'warn',
-  error: 'error',
-  debug: 'debug',
+const processLogLevelMap: Record<ProcessLogLevelType, 'LOG' | 'WRN' | 'ERR' | 'DBG'> = {
+  log: 'LOG',
+  warn: 'WRN',
+  error: 'ERR',
+  debug: 'DBG',
 };
 
 const defaultProcessConfig: ProcessConfigInterface = {
@@ -123,14 +133,22 @@ class ProcessHelperClass {
 
     if (config.handleErrors) {
       addHandler('unhandledRejection', (reason: ProcessRejectionReasonType) => {
-        this.safeLog(logger, 'error', 'Process unhandled rejection:', reason);
+        try {
+          this.logWithMetadata(logger, 'error', 'unhandledRejection', reason);
+        } catch {
+          // no-op
+        }
         if (config.exitOnUnhandledRejection) {
           process.exit(config.errorExitCode);
         }
       });
 
       addHandler('uncaughtException', (error: ProcessErrorType) => {
-        this.safeLog(logger, 'error', 'Process uncaught exception:', error);
+        try {
+          this.logWithMetadata(logger, 'error', 'uncaughtException', error);
+        } catch {
+          // no-op
+        }
         if (config.exitOnUncaughtException) {
           process.exit(config.errorExitCode);
         }
@@ -139,7 +157,11 @@ class ProcessHelperClass {
 
     for (const signal of config.exitSignals) {
       addHandler(signal, () => {
-        this.safeLog(logger, config.signalLogLevel, `Process received signal: ${signal}`);
+        try {
+          this.logWithMetadata(logger, config.signalLogLevel, 'signal', signal);
+        } catch {
+          // no-op
+        }
         if (config.exitOnSignal) {
           process.exit(config.exitCode);
         }
@@ -148,13 +170,21 @@ class ProcessHelperClass {
 
     for (const signal of config.logOnlySignals) {
       addHandler(signal, () => {
-        this.safeLog(logger, config.signalLogLevel, `Process received signal: ${signal}`);
+        try {
+          this.logWithMetadata(logger, config.signalLogLevel, 'signal', signal);
+        } catch {
+          // no-op
+        }
       });
     }
 
     if (config.handleExit) {
       addHandler('exit', (code: ProcessExitCodeType) => {
-        this.safeLog(logger, 'debug', 'Process exited with code:', code);
+        try {
+          this.logWithMetadata(logger, 'debug', 'exit', code);
+        } catch {
+          // no-op
+        }
       });
     }
 
@@ -165,11 +195,52 @@ class ProcessHelperClass {
     return handlerList;
   }
 
-  private safeLog(logger: ProcessLoggerInterface, level: ProcessLogLevelType, ...message: unknown[]): void {
-    try {
-      logger[processLoggerMethodMap[level]](...message);
-    } catch {
-      // no-op
+  private logWithMetadata(
+    logger: ProcessLoggerInterface,
+    level: ProcessLogLevelType,
+    method: string,
+    payload: unknown,
+  ): void {
+    const message = this.buildMessage(method, payload);
+
+    if (logger.writeWithMetadata) {
+      logger.writeWithMetadata(
+        processLogLevelMap[level],
+        { callerOverride: 'ProcessHelper', methodOverride: method },
+        ...message,
+      );
+      return;
+    }
+
+    switch (level) {
+      case 'log':
+        logger.log(...message);
+        return;
+      case 'warn':
+        logger.warn(...message);
+        return;
+      case 'error':
+        logger.error(...message);
+        return;
+      case 'debug':
+        logger.debug(...message);
+    }
+  }
+
+  private buildMessage(method: string, payload: unknown): unknown[] {
+    switch (method) {
+      case 'unhandledRejection':
+        return [payload];
+      case 'uncaughtException':
+        return [payload];
+      case 'signal':
+        return [String(payload)];
+      case 'exit':
+        // return 'Process exited with code:', payload;
+
+        return [payload];
+      default:
+        return [payload];
     }
   }
 }
