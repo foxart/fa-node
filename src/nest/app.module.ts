@@ -1,21 +1,27 @@
 import { Module, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { ConsoleHelper } from '../helpers/console.helper';
-import { ProcessHelper } from '../helpers/process.helper';
 import { AppController } from './app.controller';
 import { LoggerNestService } from './logger-nest.service';
 import { LoggerNodeService } from './logger-node.service';
-import { PROCESS_CONFIG } from './process.config';
+import { UnhandledExceptionFilter } from './unhandled-exception.filter';
 
 @Module({
   imports: [],
   controllers: [AppController],
-  providers: [LoggerNestService, LoggerNodeService],
+  providers: [
+    LoggerNestService,
+    LoggerNodeService,
+    {
+      provide: APP_FILTER,
+      useClass: UnhandledExceptionFilter,
+    },
+  ],
 })
 export class AppModule implements OnModuleInit, OnApplicationBootstrap {
   public constructor(private readonly logger: LoggerNodeService) {}
 
   public onModuleInit(): void {
-    ProcessHelper.hook(this.logger, PROCESS_CONFIG);
     ConsoleHelper.override(this.logger);
   }
 
@@ -25,3 +31,4 @@ export class AppModule implements OnModuleInit, OnApplicationBootstrap {
     }, 100);
   }
 }
+//
