@@ -8,6 +8,7 @@
   "private": false,
   "scripts": {
     "start": "nodemon -e ts --watch src --watch playground -x ts-node playground/index.ts",
+    "start:nest": "npm --prefix nest run start:dev",
     "start:test": "nodemon -e js,json --watch src src/test.js",
     "migrator": "nodemon -e ts --watch src --watch playground --ignore node_modules -x ts-node playground/index.ts new my-test",
     "migrator-help": "ts-node playground/index.ts new --help",
