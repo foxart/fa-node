@@ -1,3 +1,5 @@
+import os from 'node:os';
+
 type SignalType = NodeJS.Signals;
 type ProcessEventType = 'unhandledRejection' | 'uncaughtException' | 'exit' | SignalType;
 type ProcessExitCodeType = number;
@@ -53,6 +55,22 @@ const processLogLevelMap: Record<ProcessLogLevelType, 'LOG' | 'WRN' | 'ERR' | 'D
   error: 'ERR',
   debug: 'DBG',
 };
+
+const processSignalByExitCodeMap = new Map<number, SignalType>();
+for (const signal of [
+  'SIGABRT',
+  'SIGALRM',
+  'SIGHUP',
+  'SIGINT',
+  'SIGKILL',
+  'SIGPIPE',
+  'SIGQUIT',
+  'SIGSEGV',
+  'SIGTERM',
+  'SIGTRAP',
+] as const) {
+  processSignalByExitCodeMap.set(128 + os.constants.signals[signal], signal);
+}
 
 const defaultProcessConfig: ProcessConfigInterface = {
   exitSignals: ['SIGTERM', 'SIGINT'],
@@ -236,11 +254,26 @@ class ProcessHelperClass {
       case 'signal':
         return [String(payload)];
       case 'exit':
-        // return 'Process exited with code:', payload;
-
-        return [payload];
+        return [this.describeExitCode(payload)];
       default:
         return [payload];
+    }
+  }
+
+  private describeExitCode(payload: unknown): string {
+    if (typeof payload !== 'number') {
+      return `Exited with unknown code: ${String(payload)}`;
+    }
+
+    switch (payload) {
+      case 0:
+        return 'Success';
+      case 1:
+        return 'General error';
+      default:
+        return processSignalByExitCodeMap.has(payload)
+          ? String(processSignalByExitCodeMap.get(payload))
+          : payload.toString();
     }
   }
 }

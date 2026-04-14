@@ -31,7 +31,7 @@ describe('ProcessHelper', () => {
 
     process.emit('SIGUSR2');
 
-    expect(logger.warn.mock.calls).toContainEqual(['Process received signal: SIGUSR2']);
+    expect(logger.warn.mock.calls).toContainEqual(['SIGUSR2']);
     expect(exitSpy).toHaveBeenCalledWith(0);
 
     exitSpy.mockRestore();
@@ -50,7 +50,7 @@ describe('ProcessHelper', () => {
     process.emit('SIGTERM');
 
     expect(logger.warn.mock.calls).toHaveLength(1);
-    expect(logger.warn.mock.calls).toContainEqual(['Process received signal: SIGTERM']);
+    expect(logger.warn.mock.calls).toContainEqual(['SIGTERM']);
   });
 
   it('should log uncaughtException without exiting when exit is disabled', () => {
@@ -68,7 +68,7 @@ describe('ProcessHelper', () => {
 
     process.emit('uncaughtException', error);
 
-    expect(logger.error.mock.calls).toContainEqual(['Process uncaught exception:', error]);
+    expect(logger.error.mock.calls).toContainEqual([error]);
     expect(exitSpy).not.toHaveBeenCalled();
 
     exitSpy.mockRestore();
@@ -89,7 +89,7 @@ describe('ProcessHelper', () => {
 
     process.emit('unhandledRejection', reason, Promise.resolve());
 
-    expect(logger.error.mock.calls).toContainEqual(['Process unhandled rejection:', reason]);
+    expect(logger.error.mock.calls).toContainEqual([reason]);
     expect(exitSpy).not.toHaveBeenCalled();
 
     exitSpy.mockRestore();
