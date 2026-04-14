@@ -1,4 +1,5 @@
 import os from 'node:os';
+import { StackHelper } from './stack.helper';
 
 type SignalType = NodeJS.Signals;
 type ProcessEventType = 'unhandledRejection' | 'uncaughtException' | 'exit' | SignalType;
@@ -54,6 +55,7 @@ type ProcessResolvedConfigType = {
 
 export interface ProcessLoggerInterface {
   writeWithMetadata?: ProcessWriteMetadataMethodType;
+  errorWithStack?: (stack: string | undefined, message?: unknown, ...params: unknown[]) => void;
 
   log(...message: unknown[]): void;
 
@@ -236,6 +238,18 @@ class ProcessHelperClass {
   ): void {
     const message = this.buildMessage(method, payload);
 
+    if (level === 'error' && payload instanceof Error) {
+      const stack = this.buildProcessStack(method, payload);
+
+      if (logger.errorWithStack) {
+        logger.errorWithStack(stack, payload);
+        return;
+      }
+
+      logger.error(payload, stack, 'ProcessHelper');
+      return;
+    }
+
     if (logger.writeWithMetadata) {
       logger.writeWithMetadata(
         processLogLevelMap[level],
@@ -258,6 +272,23 @@ class ProcessHelperClass {
       case 'debug':
         logger.debug(...message);
     }
+  }
+
+  private buildProcessStack(method: string, error: Error): string | undefined {
+    if (!error.stack) {
+      return undefined;
+    }
+
+    const origin = StackHelper.resolveOrigin(StackHelper.toTrace(error.stack), 0);
+    const location = origin.frame ? StackHelper.formatFrameLocation(origin.frame) : undefined;
+    if (!location) {
+      return error.stack;
+    }
+
+    const [header, ...rest] = error.stack.split('\n');
+    return [header || error.name || 'Error', `    at ProcessHelper.${method} (${location})`, ...rest.slice(1)].join(
+      '\n',
+    );
   }
 
   private buildMessage(method: string, payload: unknown): unknown[] {

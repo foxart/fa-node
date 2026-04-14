@@ -3,6 +3,7 @@ import { ProcessHelper, ProcessLoggerInterface } from './process.helper';
 
 describe('ProcessHelper', () => {
   const createLogger = (): jest.Mocked<ProcessLoggerInterface> => ({
+    errorWithStack: jest.fn(),
     log: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
@@ -55,6 +56,9 @@ describe('ProcessHelper', () => {
 
   it('should log uncaughtException without exiting when exit is disabled', () => {
     const logger = createLogger();
+    const errorWithStack = logger.errorWithStack as jest.MockedFunction<
+      NonNullable<ProcessLoggerInterface['errorWithStack']>
+    >;
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     const error = new Error('boom');
 
@@ -68,7 +72,9 @@ describe('ProcessHelper', () => {
 
     process.emit('uncaughtException', error);
 
-    expect(logger.error.mock.calls).toContainEqual([error]);
+    expect(errorWithStack.mock.calls).toHaveLength(1);
+    expect(errorWithStack.mock.calls[0]?.[0]).toContain('at ProcessHelper.uncaughtException');
+    expect(errorWithStack.mock.calls[0]?.[1]).toBe(error);
     expect(exitSpy).not.toHaveBeenCalled();
 
     exitSpy.mockRestore();
@@ -76,6 +82,9 @@ describe('ProcessHelper', () => {
 
   it('should log unhandledRejection without exiting when exit is disabled', () => {
     const logger = createLogger();
+    const errorWithStack = logger.errorWithStack as jest.MockedFunction<
+      NonNullable<ProcessLoggerInterface['errorWithStack']>
+    >;
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     const reason = new Error('reject');
 
@@ -89,7 +98,9 @@ describe('ProcessHelper', () => {
 
     process.emit('unhandledRejection', reason, Promise.resolve());
 
-    expect(logger.error.mock.calls).toContainEqual([reason]);
+    expect(errorWithStack.mock.calls).toHaveLength(1);
+    expect(errorWithStack.mock.calls[0]?.[0]).toContain('at ProcessHelper.unhandledRejection');
+    expect(errorWithStack.mock.calls[0]?.[1]).toBe(reason);
     expect(exitSpy).not.toHaveBeenCalled();
 
     exitSpy.mockRestore();
