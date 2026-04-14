@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataHelper } from '../helpers/data.helper';
-import { LoggerNodeClass } from './logger-node.class';
+import { LoggerNode } from './logger.node';
 import { LoggerLevelType, LoggerMetadataInterface, LoggerOriginInterface, StackFrameInterface } from './logger.class';
 
 interface LoggerAppInterface {
@@ -12,7 +12,7 @@ interface LoggerAppInterface {
 }
 
 @Injectable()
-export class LoggerNodeService extends LoggerNodeClass {
+export class LoggerNodeService extends LoggerNode {
   public constructor() {
     super({});
   }
@@ -23,9 +23,9 @@ export class LoggerNodeService extends LoggerNodeClass {
     const originForStdout: LoggerOriginInterface = this.buildOriginForStdout(origin, dto.metadata);
 
     if (dto.keywords) {
-      this.stdout(dto.level, originForStdout, dto.data, ...dto.keywords);
+      this.write(dto.level, originForStdout, dto.data, ...dto.keywords);
     } else {
-      this.stdout(dto.level, originForStdout, dto.data);
+      this.write(dto.level, originForStdout, dto.data);
     }
 
     /** RepositoryAppLogService */

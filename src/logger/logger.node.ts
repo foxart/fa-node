@@ -21,6 +21,10 @@ export class LoggerNode extends LoggerClass {
     super(options);
   }
 
+  protected get origin(): LoggerOriginInterface {
+    return this.resolveOrigin(new Error().stack, 2);
+  }
+
   public log(...data: unknown[]): void {
     this.print('LOG', StackHelper.toTrace(new Error().stack), data);
   }
@@ -62,5 +66,14 @@ export class LoggerNode extends LoggerClass {
       debugTrace: StackHelper.toTrace(new Error().stack),
       formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
     });
+  }
+
+  public errorWithStack(stack: string | undefined, message?: unknown, ...params: unknown[]): void {
+    const origin = stack ? this.resolveOrigin(stack, 0) : this.origin;
+    this.write('ERR', origin, message, ...params);
+  }
+
+  protected write(level: LoggerLevelType, origin: LoggerOriginInterface, ...params: unknown[]): void {
+    this.print(level, origin, params);
   }
 }

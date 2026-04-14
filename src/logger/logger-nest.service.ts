@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { LoggerNestClass } from './logger-nest.class';
+import { LoggerNest } from './logger.nest';
 
 @Injectable()
-export class LoggerNestService extends LoggerNestClass {
+export class LoggerNestService extends LoggerNest {
   public constructor() {
     super({});
   }

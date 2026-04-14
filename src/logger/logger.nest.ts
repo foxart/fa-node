@@ -31,9 +31,74 @@ export interface LoggerNestInterface {
   setLogLevels?(levels: LogLevel[]): unknown;
 }
 
-export class LoggerNest extends LoggerClass {
+export class LoggerNest extends LoggerClass implements LoggerNestInterface {
+  private static readonly LOGGER_METHOD_SET = new Set(['log', 'error', 'warn', 'debug', 'verbose', 'fatal']);
+  private static readonly LOGGER_METADATA_OPTIONS: LoggerMetadataOutputOptionsInterface = {
+    hideMethodSet: LoggerNest.LOGGER_METHOD_SET,
+  };
+
   public constructor(options: LoggerOptionsInterface) {
     super(options);
+  }
+
+  protected get origin(): LoggerOriginInterface {
+    return this.resolveOrigin(new Error().stack, 2);
+  }
+
+  public log(message?: unknown, ...params: unknown[]): void {
+    const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
+    this.write('LOG', this.origin, context, message, ...params);
+  }
+
+  public error(message: unknown, ...params: unknown[]): void {
+    const origin = this.origin;
+    let context: string | undefined;
+    let stack: string | undefined;
+    if (params.length > 0 && typeof params[0] === 'string' && /\n\s*at\s+/m.test(params[0])) {
+      stack = params.shift() as string;
+    }
+    if (params.length > 0 && typeof params[params.length - 1] === 'string') {
+      context = params.pop() as string;
+    }
+    const caller = context ?? '';
+    const outputMessages: unknown[] = [];
+    if (stack && typeof message === 'string') {
+      const match = message.match(/^([^:]+):\s*(.*)$/);
+      outputMessages.push({
+        name: match?.[1] || 'Error',
+        message: match?.[2] || message,
+        stack,
+      });
+    } else if (message !== undefined) {
+      outputMessages.push(message);
+    }
+    for (const param of params) {
+      outputMessages.push(param);
+    }
+    const [firstMessage, ...restMessages] = outputMessages.length > 0 ? outputMessages : [undefined];
+    if (firstMessage !== undefined) {
+      this.write('ERR', stack ? this.resolveOrigin(stack, 0) : origin, caller, firstMessage, ...restMessages);
+    }
+  }
+
+  public warn(message?: unknown, ...params: unknown[]): void {
+    const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
+    this.write('WRN', this.origin, context, message, ...params);
+  }
+
+  public debug(message?: unknown, ...params: unknown[]): void {
+    const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
+    this.write('DBG', this.origin, context, message, ...params);
+  }
+
+  public verbose(message?: unknown, ...params: unknown[]): void {
+    const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
+    this.write('INF', this.origin, context, message, ...params);
+  }
+
+  public fatal(message?: unknown, ...params: unknown[]): void {
+    const context = typeof params[params.length - 1] === 'string' ? (params.pop() as string) : undefined;
+    this.write('FTL', this.origin, context, message, ...params);
   }
 
   public print(
@@ -55,6 +120,22 @@ export class LoggerNest extends LoggerClass {
           return HTTP_METHOD_SET.has(t);
         });
       },
+    });
+  }
+
+  protected write(
+    level: LoggerLevelType,
+    origin: LoggerOriginInterface,
+    context: string | undefined,
+    message: unknown,
+    ...params: unknown[]
+  ): void {
+    if (message === 'Nest application successfully started') {
+      return;
+    }
+    this.print(level, origin, [message, ...params], {
+      ...LoggerNest.LOGGER_METADATA_OPTIONS,
+      callerOverride: context,
     });
   }
 

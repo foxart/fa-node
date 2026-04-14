@@ -1,7 +1,3 @@
-/** NEST */
-export * from './logger/logger-nest.class';
-export * from './logger/logger-node.class';
-
 /** CLASSES */
 export * from './classes/configuration.class';
 export * from './classes/crypt.class';
