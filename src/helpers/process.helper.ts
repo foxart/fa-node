@@ -1,20 +1,8 @@
 import os from 'node:os';
 import { StackHelper } from './stack.helper';
 
-type SignalType = NodeJS.Signals;
-type ProcessEventType = 'unhandledRejection' | 'uncaughtException' | 'exit' | SignalType;
-type ProcessExitCodeType = number;
-type ProcessErrorType = Error;
-type ProcessRejectionReasonType = unknown;
-type ProcessSignalHandlerType = () => void;
-type ProcessExitHandlerType = (code: ProcessExitCodeType) => void;
-type ProcessUnhandledRejectionHandlerType = (reason: ProcessRejectionReasonType) => void;
-type ProcessUncaughtExceptionHandlerType = (error: ProcessErrorType) => void;
-type ProcessHandlerType =
-  | ProcessSignalHandlerType
-  | ProcessExitHandlerType
-  | ProcessUnhandledRejectionHandlerType
-  | ProcessUncaughtExceptionHandlerType;
+type ProcessEventType = 'unhandledRejection' | 'uncaughtException' | 'exit' | NodeJS.Signals;
+type ProcessHandlerType = ((code: number) => void) | ((reason: unknown) => void) | (() => void);
 type ProcessHandlerEntryType = [ProcessEventType, ProcessHandlerType];
 type ProcessLogLevelType = 'log' | 'warn' | 'error' | 'debug';
 type ProcessWriteMetadataMethodType = (
@@ -24,8 +12,8 @@ type ProcessWriteMetadataMethodType = (
 ) => void;
 
 export interface ProcessConfigInterface {
-  exitSignals?: SignalType[];
-  logOnlySignals?: SignalType[];
+  exitSignals?: NodeJS.Signals[];
+  logOnlySignals?: NodeJS.Signals[];
   handleErrors?: boolean;
   handleExit?: boolean;
   exitOnSignal?: boolean;
@@ -39,8 +27,8 @@ export interface ProcessConfigInterface {
 }
 
 type ProcessResolvedConfigType = {
-  exitSignals: SignalType[];
-  logOnlySignals: SignalType[];
+  exitSignals: NodeJS.Signals[];
+  logOnlySignals: NodeJS.Signals[];
   handleErrors: boolean;
   handleExit: boolean;
   exitOnSignal: boolean;
@@ -73,7 +61,7 @@ const processLogLevelMap: Record<ProcessLogLevelType, 'LOG' | 'WRN' | 'ERR' | 'D
   debug: 'DBG',
 };
 
-const processSignalByExitCodeMap = new Map<number, SignalType>();
+const processSignalByExitCodeMap = new Map<number, NodeJS.Signals>();
 for (const signal of [
   'SIGABRT',
   'SIGALRM',
@@ -88,6 +76,8 @@ for (const signal of [
 ] as const) {
   processSignalByExitCodeMap.set(128 + os.constants.signals[signal], signal);
 }
+
+const processHelperCaller = 'ProcessHelper';
 
 const defaultProcessConfig: ProcessResolvedConfigType = {
   exitSignals: ['SIGTERM', 'SIGINT'],
@@ -161,83 +151,79 @@ class ProcessHelperClass {
   }
 
   private buildHandlers(logger: ProcessLoggerInterface, config: ProcessResolvedConfigType): ProcessHandlerEntryType[] {
-    const handlerList: ProcessHandlerEntryType[] = [];
-    const addHandler = (event: ProcessEventType, handler: ProcessHandlerType): void => {
-      handlerList.push([event, handler]);
-    };
+    const handlerList: ProcessHandlerEntryType[] = [...config.customHandlers];
 
     if (config.handleErrors) {
-      addHandler('unhandledRejection', (reason: ProcessRejectionReasonType) => {
-        try {
-          this.logWithMetadata(logger, 'error', 'unhandledRejection', reason);
-        } catch {
-          // no-op
-        }
-        if (config.exitOnUnhandledRejection) {
-          process.exit(config.errorExitCode);
-        }
-      });
-
-      addHandler('uncaughtException', (error: ProcessErrorType) => {
-        try {
-          this.logWithMetadata(logger, 'error', 'uncaughtException', error);
-        } catch {
-          // no-op
-        }
-        if (config.exitOnUncaughtException) {
-          process.exit(config.errorExitCode);
-        }
-      });
+      handlerList.push([
+        'unhandledRejection',
+        (reason: unknown): void =>
+          this.handleEvent(
+            logger,
+            'error',
+            'unhandledRejection',
+            reason,
+            config.exitOnUnhandledRejection,
+            config.errorExitCode,
+          ),
+      ]);
+      handlerList.push([
+        'uncaughtException',
+        (error: Error): void =>
+          this.handleEvent(
+            logger,
+            'error',
+            'uncaughtException',
+            error,
+            config.exitOnUncaughtException,
+            config.errorExitCode,
+          ),
+      ]);
     }
 
     for (const signal of config.exitSignals) {
-      addHandler(signal, () => {
-        try {
-          this.logWithMetadata(logger, config.signalLogLevel, 'signal', signal);
-        } catch {
-          // no-op
-        }
-        if (config.exitOnSignal) {
-          process.exit(config.exitCode);
-        }
-      });
+      handlerList.push([
+        signal,
+        (): void =>
+          this.handleEvent(logger, config.signalLogLevel, 'signal', signal, config.exitOnSignal, config.exitCode),
+      ]);
     }
 
     for (const signal of config.logOnlySignals) {
-      addHandler(signal, () => {
-        try {
-          this.logWithMetadata(logger, config.signalLogLevel, 'signal', signal);
-        } catch {
-          // no-op
-        }
-      });
+      handlerList.push([signal, (): void => this.handleEvent(logger, config.signalLogLevel, 'signal', signal)]);
     }
 
     if (config.handleExit) {
-      addHandler('exit', (code: ProcessExitCodeType) => {
-        try {
-          this.logWithMetadata(logger, 'debug', 'exit', code);
-        } catch {
-          // no-op
-        }
-      });
-    }
-
-    for (const [event, handler] of config.customHandlers) {
-      addHandler(event, handler);
+      handlerList.push(['exit', (code: number): void => this.handleEvent(logger, 'debug', 'exit', code)]);
     }
 
     return handlerList;
   }
 
-  private logWithMetadata(
+  private handleEvent(
     logger: ProcessLoggerInterface,
     level: ProcessLogLevelType,
-    method: string,
+    method: 'unhandledRejection' | 'uncaughtException' | 'signal' | 'exit',
+    payload: unknown,
+    shouldExit = false,
+    exitCode = 0,
+  ): void {
+    try {
+      this.log(logger, level, method, payload);
+    } catch {
+      // no-op
+    }
+
+    if (shouldExit) {
+      process.exit(exitCode);
+    }
+  }
+
+  private log(
+    logger: ProcessLoggerInterface,
+    level: ProcessLogLevelType,
+    method: 'unhandledRejection' | 'uncaughtException' | 'signal' | 'exit',
     payload: unknown,
   ): void {
-    const message = this.buildMessage(method, payload);
-
     if (level === 'error' && payload instanceof Error) {
       const stack = this.buildProcessStack(method, payload);
 
@@ -246,14 +232,17 @@ class ProcessHelperClass {
         return;
       }
 
-      logger.error(payload, stack, 'ProcessHelper');
+      logger.error(payload, stack, processHelperCaller);
       return;
     }
+
+    const message =
+      method === 'signal' ? [String(payload)] : method === 'exit' ? [this.describeExitCode(payload)] : [payload];
 
     if (logger.writeWithMetadata) {
       logger.writeWithMetadata(
         processLogLevelMap[level],
-        { callerOverride: 'ProcessHelper', methodOverride: method },
+        { callerOverride: processHelperCaller, methodOverride: method },
         ...message,
       );
       return;
@@ -286,24 +275,11 @@ class ProcessHelperClass {
     }
 
     const [header, ...rest] = error.stack.split('\n');
-    return [header || error.name || 'Error', `    at ProcessHelper.${method} (${location})`, ...rest.slice(1)].join(
-      '\n',
-    );
-  }
-
-  private buildMessage(method: string, payload: unknown): unknown[] {
-    switch (method) {
-      case 'unhandledRejection':
-        return [payload];
-      case 'uncaughtException':
-        return [payload];
-      case 'signal':
-        return [String(payload)];
-      case 'exit':
-        return [this.describeExitCode(payload)];
-      default:
-        return [payload];
-    }
+    return [
+      header || error.name || 'Error',
+      `    at ${processHelperCaller}.${method} (${location})`,
+      ...rest.slice(1),
+    ].join('\n');
   }
 
   private describeExitCode(payload: unknown): string {
