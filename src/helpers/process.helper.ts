@@ -23,6 +23,21 @@ type ProcessWriteMetadataMethodType = (
 ) => void;
 
 export interface ProcessConfigInterface {
+  exitSignals?: SignalType[];
+  logOnlySignals?: SignalType[];
+  handleErrors?: boolean;
+  handleExit?: boolean;
+  exitOnSignal?: boolean;
+  exitCode?: number;
+  exitOnUncaughtException?: boolean;
+  exitOnUnhandledRejection?: boolean;
+  errorExitCode?: number;
+  signalLogLevel?: ProcessLogLevelType;
+  maxListeners?: number;
+  customHandlers?: ProcessHandlerEntryType[];
+}
+
+type ProcessResolvedConfigType = {
   exitSignals: SignalType[];
   logOnlySignals: SignalType[];
   handleErrors: boolean;
@@ -35,7 +50,7 @@ export interface ProcessConfigInterface {
   signalLogLevel: ProcessLogLevelType;
   maxListeners: number;
   customHandlers: ProcessHandlerEntryType[];
-}
+};
 
 export interface ProcessLoggerInterface {
   writeWithMetadata?: ProcessWriteMetadataMethodType;
@@ -72,7 +87,7 @@ for (const signal of [
   processSignalByExitCodeMap.set(128 + os.constants.signals[signal], signal);
 }
 
-const defaultProcessConfig: ProcessConfigInterface = {
+const defaultProcessConfig: ProcessResolvedConfigType = {
   exitSignals: ['SIGTERM', 'SIGINT'],
   logOnlySignals: ['SIGHUP'],
   handleErrors: true,
@@ -91,7 +106,7 @@ class ProcessHelperClass {
   private isHooked = false;
   private readonly handlerMap = new Map<ProcessEventType, ProcessHandlerType[]>();
 
-  public register(logger: ProcessLoggerInterface, config: Partial<ProcessConfigInterface> = {}): void {
+  public register(logger: ProcessLoggerInterface, config: ProcessConfigInterface = {}): void {
     if (this.isHooked) {
       return;
     }
@@ -107,7 +122,7 @@ class ProcessHelperClass {
     this.isHooked = true;
   }
 
-  public hook(logger: ProcessLoggerInterface, config: Partial<ProcessConfigInterface> = {}): void {
+  public hook(logger: ProcessLoggerInterface, config: ProcessConfigInterface = {}): void {
     this.register(logger, config);
   }
 
@@ -122,8 +137,8 @@ class ProcessHelperClass {
     this.isHooked = false;
   }
 
-  private normalizeConfig(config: Partial<ProcessConfigInterface>): ProcessConfigInterface {
-    const normalizedConfig: ProcessConfigInterface = {
+  private normalizeConfig(config: ProcessConfigInterface): ProcessResolvedConfigType {
+    const normalizedConfig: ProcessResolvedConfigType = {
       ...defaultProcessConfig,
       ...config,
       exitSignals: config.exitSignals ?? defaultProcessConfig.exitSignals,
@@ -143,7 +158,7 @@ class ProcessHelperClass {
     this.handlerMap.set(event, handlerList);
   }
 
-  private buildHandlers(logger: ProcessLoggerInterface, config: ProcessConfigInterface): ProcessHandlerEntryType[] {
+  private buildHandlers(logger: ProcessLoggerInterface, config: ProcessResolvedConfigType): ProcessHandlerEntryType[] {
     const handlerList: ProcessHandlerEntryType[] = [];
     const addHandler = (event: ProcessEventType, handler: ProcessHandlerType): void => {
       handlerList.push([event, handler]);

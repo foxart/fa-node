@@ -27,7 +27,7 @@ function safePush(list: string[], value: string | undefined): void {
   }
 }
 
-export interface LoggerOptionsInterface {
+export interface LoggerConfigInterface {
   color?: boolean;
   level?: boolean;
   env?: string;
@@ -137,17 +137,11 @@ export class LoggerClass {
   public readonly status: SymbolStatusType;
   protected readonly pid = process.pid.toString();
   protected readonly startedAt = performance.now();
-  protected readonly options: LoggerOptionsInterface;
+  // protected readonly config: LoggerConfigInterface;
   protected readonly colorEnabled: boolean;
 
-  public constructor(options: LoggerOptionsInterface) {
-    const normalizedOptions: LoggerOptionsInterface = {
-      metadata: false,
-      ...options,
-    };
-    const colorEnabled = Boolean(normalizedOptions.color);
-    this.options = normalizedOptions;
-    this.colorEnabled = colorEnabled;
+  public constructor(protected readonly config: LoggerConfigInterface) {
+    this.colorEnabled = Boolean(config.color);
     this.ef = EFFECT_ON;
     this.fg = FOREGROUND_ON;
     this.bg = BACKGROUND_ON;
@@ -235,7 +229,7 @@ export class LoggerClass {
         formatString,
       ),
     );
-    safePush(parts, this.renderDebug(level, debugTrace, !!this.options.stackDebug && level === 'DBG'));
+    safePush(parts, this.renderDebug(level, debugTrace, !!this.config.stackDebug && level === 'DBG'));
     safePush(parts, this.renderPerformance(level));
     const link = this.renderLink(level, metadata?.linkFile);
     if (link) {
@@ -298,7 +292,7 @@ export class LoggerClass {
   }
 
   protected colorizeString(message: string, baseType: LoggerEnum): string {
-    if (!this.options.color) {
+    if (!this.config.color) {
       return message;
     }
     const applySymbol = (value: string): string => {
@@ -412,7 +406,7 @@ export class LoggerClass {
    */
 
   private renderTimestamp(withMilliseconds = true): string | undefined {
-    const { date, time } = this.options;
+    const { date, time } = this.config;
     if (!date && !time) {
       return undefined;
     }
@@ -450,14 +444,14 @@ export class LoggerClass {
   }
 
   private renderLevel(level: LoggerLevelType): string | undefined {
-    if (!this.options.level) {
+    if (!this.config.level) {
       return undefined;
     }
     return this.applyForeground(level, SYMBOL_COMMON.SEPARATOR) + this.applyBackground(level, ` ${level} `);
   }
 
   private renderMetadata(metadata: LoggerMetadataInterface | undefined): string | undefined {
-    if (!this.options.metadata) {
+    if (!this.config.metadata) {
       return undefined;
     }
     const caller = metadata?.caller ? metadata.caller : undefined;
@@ -471,18 +465,16 @@ export class LoggerClass {
   }
 
   private renderEnv(level: LoggerLevelType): string | undefined {
-    if (!this.options.env) {
+    if (!this.config.env) {
       return undefined;
     }
     return (
-      this.applyBackground(level, '[') +
-      this.applyForeground(level, this.options.env) +
-      this.applyBackground(level, ']')
+      this.applyBackground(level, '[') + this.applyForeground(level, this.config.env) + this.applyBackground(level, ']')
     );
   }
 
   private renderPid(): string | undefined {
-    if (!this.options.pid) {
+    if (!this.config.pid) {
       return undefined;
     }
     return this.applyToken(LoggerEnum.LINE, this.pid);
@@ -496,11 +488,12 @@ export class LoggerClass {
   }
 
   private renderPerformance(level: LoggerLevelType): string | undefined {
-    if (!this.options.performance) {
+    if (!this.config.performance) {
       return undefined;
     }
     const elapsed = Math.floor(performance.now() - this.startedAt);
     return (
+      ' ' +
       this.applyForeground(level, '+') +
       this.applyToken(LoggerEnum.TIME, elapsed.toString()) +
       this.applyForeground(level, 'ms')
@@ -508,7 +501,7 @@ export class LoggerClass {
   }
 
   private renderLink(level: LoggerLevelType, file: string | undefined): string | undefined {
-    if (!this.options.link || !file) {
+    if (!this.config.link || !file) {
       return undefined;
     }
     return this.applyForeground(level, 'at ') + this.render(LoggerEnum.URL, file);
@@ -571,9 +564,9 @@ export class LoggerClass {
 
   private utilInspect(data: unknown): string {
     return util.inspect(this.normalizeForInspect(data), {
-      colors: this.options.color,
-      showHidden: this.options.hidden,
-      sorted: this.options.sort,
+      colors: this.config.color,
+      showHidden: this.config.hidden,
+      sorted: this.config.sort,
       depth: null,
     });
   }
@@ -584,8 +577,8 @@ export class LoggerClass {
     seen = new WeakSet(),
     depth = 0,
   ): unknown {
-    const maxDepth = this.options.maxDepth ?? 5;
-    const maxArrayLength = this.options.maxArrayLength ?? 5;
+    const maxDepth = this.config.maxDepth ?? 5;
+    const maxArrayLength = this.config.maxArrayLength ?? 5;
     // depth guard
     if (depth > maxDepth) {
       return '[Max depth reached]';
@@ -693,7 +686,7 @@ export class LoggerClass {
       name: error.name,
       message: error.message,
     };
-    if (this.options.errorStack && error.stack) {
+    if (this.config.errorStack && error.stack) {
       const stack = StackHelper.getVisibleItems(StackHelper.toTrace(error.stack));
       result.stack = stack.length > 0 ? stack : error.stack;
     }

@@ -1,9 +1,9 @@
 import { StackHelper } from '../helpers/stack.helper';
 import {
   LoggerClass,
+  LoggerConfigInterface,
   LoggerLevelType,
   LoggerMetadataOutputOptionsInterface,
-  LoggerOptionsInterface,
   LoggerOriginInterface,
 } from './logger.class';
 import { LoggerEnum } from './logger.map';
@@ -18,27 +18,33 @@ const NEST_CALLER_LIST = [
   'NestApplication',
 ];
 const HTTP_METHOD_SET = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']);
-
 type LogLevel = ['verbose', 'debug', 'log', 'warn', 'error', 'fatal'];
 
 export interface LoggerNestInterface {
   log(message: unknown, ...optionalParams: unknown[]): unknown;
+
   error(message: unknown, ...optionalParams: unknown[]): unknown;
+
   warn(message: unknown, ...optionalParams: unknown[]): unknown;
+
   debug?(message: unknown, ...optionalParams: unknown[]): unknown;
+
   verbose?(message: unknown, ...optionalParams: unknown[]): unknown;
+
   fatal?(message: unknown, ...optionalParams: unknown[]): unknown;
+
   setLogLevels?(levels: LogLevel[]): unknown;
 }
 
 export class LoggerNest extends LoggerClass implements LoggerNestInterface {
   private static readonly LOGGER_METHOD_SET = new Set(['log', 'error', 'warn', 'debug', 'verbose', 'fatal']);
+
   private static readonly LOGGER_METADATA_OPTIONS: LoggerMetadataOutputOptionsInterface = {
     hideMethodSet: LoggerNest.LOGGER_METHOD_SET,
   };
 
-  public constructor(options: LoggerOptionsInterface) {
-    super(options);
+  public constructor(config: LoggerConfigInterface) {
+    super(config);
   }
 
   protected get origin(): LoggerOriginInterface {
@@ -54,14 +60,21 @@ export class LoggerNest extends LoggerClass implements LoggerNestInterface {
     const origin = this.origin;
     let context: string | undefined;
     let stack: string | undefined;
+
     if (params.length > 0 && typeof params[0] === 'string' && /\n\s*at\s+/m.test(params[0])) {
       stack = params.shift() as string;
     }
     if (params.length > 0 && typeof params[params.length - 1] === 'string') {
       context = params.pop() as string;
     }
+
+    if (!stack && message instanceof Error && typeof message.stack === 'string') {
+      stack = message.stack;
+    }
+
     const caller = context ?? '';
     const outputMessages: unknown[] = [];
+
     if (stack && typeof message === 'string') {
       const match = message.match(/^([^:]+):\s*(.*)$/);
       outputMessages.push({
@@ -72,9 +85,13 @@ export class LoggerNest extends LoggerClass implements LoggerNestInterface {
     } else if (message !== undefined) {
       outputMessages.push(message);
     }
+
     for (const param of params) {
-      outputMessages.push(param);
+      if (param !== undefined) {
+        outputMessages.push(param);
+      }
     }
+
     const [firstMessage, ...restMessages] = outputMessages.length > 0 ? outputMessages : [undefined];
     if (firstMessage !== undefined) {
       this.write('ERR', stack ? this.resolveOrigin(stack, 0) : origin, caller, firstMessage, ...restMessages);
@@ -155,7 +172,7 @@ export class LoggerNest extends LoggerClass implements LoggerNestInterface {
     baseType: LoggerEnum,
     isHttpMethod: (value: string) => boolean = () => false,
   ): string {
-    if (!this.options.color) {
+    if (!this.config.color) {
       return message;
     }
     return message

@@ -1,9 +1,9 @@
 import { StackHelper } from '../helpers/stack.helper';
 import {
   LoggerClass,
+  LoggerConfigInterface,
   LoggerLevelType,
   LoggerMetadataOutputOptionsInterface,
-  LoggerOptionsInterface,
   LoggerOriginInterface,
   StackFrameInterface,
 } from './logger.class';
@@ -18,8 +18,8 @@ export interface LoggerNodeInterface {
 }
 
 export class LoggerNode extends LoggerClass {
-  public constructor(options: LoggerOptionsInterface) {
-    super(options);
+  public constructor(config: LoggerConfigInterface) {
+    super(config);
   }
 
   protected get origin(): LoggerOriginInterface {
@@ -58,7 +58,7 @@ export class LoggerNode extends LoggerClass {
       return;
     }
 
-    const traceIndex = this.options.traceIndex ?? 1;
+    const traceIndex = this.config.traceIndex ?? 1;
     const origin = StackHelper.resolveOrigin(trace, traceIndex);
     this.stdout({
       level,

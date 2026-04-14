@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { DataHelper } from '../helpers/data.helper';
 import {
+  LoggerConfigInterface,
   LoggerLevelType,
   LoggerMetadataInterface,
   LoggerOriginInterface,
   StackFrameInterface,
 } from '../logger/logger.class';
 import { LoggerNode } from '../logger/logger.node';
+import { LOGGER_CONFIG } from './logger.config';
 
 interface LoggerAppInterface {
   level: LoggerLevelType;
@@ -16,10 +18,16 @@ interface LoggerAppInterface {
   expiresAt?: Date;
 }
 
+const LOGGER_NODE_CONFIG: LoggerConfigInterface = {
+  ...LOGGER_CONFIG,
+  env: 'NODE',
+  link: true,
+};
+
 @Injectable()
 export class LoggerNodeService extends LoggerNode {
   public constructor() {
-    super({});
+    super(LOGGER_NODE_CONFIG);
   }
 
   public repository(dto: LoggerAppInterface): void {
