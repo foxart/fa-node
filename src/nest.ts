@@ -18,4 +18,3 @@ void (async function bootstrap(): Promise<void> {
   await app.listen(port, host);
   logger.verbose('Listening', `${protocol}://${host}:${port}`, 'MyApplication');
 })();
-//

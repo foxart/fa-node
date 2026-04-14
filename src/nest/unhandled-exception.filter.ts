@@ -27,7 +27,7 @@ export class UnhandledExceptionFilter implements ExceptionFilter<Error> {
         //   params: httpRequest.params,
         //   query: httpRequest.query,
         // });
-        this.service.error(error);
+        this.service.errorWithStack(error.stack, error);
         const exception = ExceptionHelper.castToException(error);
         http
           .getResponse<Response>()
@@ -74,7 +74,7 @@ export class UnhandledExceptionFilter implements ExceptionFilter<Error> {
         // correlationId: rpcMessage.properties.correlationId,
         // replyTo: rpcMessage.properties.replyTo,
         // });
-        this.service.error(error);
+        this.service.errorWithStack(error.stack, error);
         return throwError(() => error);
       }
       case 'ws': {
