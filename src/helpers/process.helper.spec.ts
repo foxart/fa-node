@@ -2,6 +2,11 @@ import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals
 import { ProcessHelper, ProcessLoggerInterface } from './process.helper';
 
 describe('ProcessHelper', () => {
+  const flushPromises = async (): Promise<void> =>
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
   const createLogger = (): jest.Mocked<ProcessLoggerInterface> => ({
     errorWithStack: jest.fn(),
     log: jest.fn(),
@@ -18,22 +23,45 @@ describe('ProcessHelper', () => {
     ProcessHelper.unhook();
   });
 
-  it('should log SIGUSR2 as exit signal and stop the process', () => {
+  it('should await shutdown handler before exit on exit signal', async () => {
+    const logger = createLogger();
+    const shutdownHandler = jest.fn(async () => undefined);
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+    ProcessHelper.hook(logger, {
+      exitSignals: ['SIGTERM', 'SIGINT'],
+      logOnlySignals: [],
+      handleErrors: false,
+      handleExit: false,
+      exitOnSignal: true,
+      shutdownHandler,
+    });
+
+    process.emit('SIGTERM');
+    await flushPromises();
+
+    expect(logger.warn.mock.calls).toContainEqual(['SIGTERM']);
+    expect(shutdownHandler).toHaveBeenCalledWith('SIGTERM');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+
+    exitSpy.mockRestore();
+  });
+
+  it('should log SIGUSR2 without exiting by default', async () => {
     const logger = createLogger();
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
     ProcessHelper.hook(logger, {
-      exitSignals: ['SIGTERM', 'SIGINT', 'SIGUSR2'],
-      logOnlySignals: [],
       handleErrors: false,
       handleExit: false,
       exitOnSignal: true,
     });
 
     process.emit('SIGUSR2');
+    await flushPromises();
 
     expect(logger.warn.mock.calls).toContainEqual(['SIGUSR2']);
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(exitSpy).not.toHaveBeenCalled();
 
     exitSpy.mockRestore();
   });

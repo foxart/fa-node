@@ -2,12 +2,14 @@ import os from 'node:os';
 import { StackHelper } from './stack.helper';
 
 type SignalType = NodeJS.Signals;
-type ProcessEventType = 'unhandledRejection' | 'uncaughtException' | 'exit' | SignalType;
+type ProcessMethodType = 'unhandledRejection' | 'uncaughtException' | 'signal' | 'exit';
+type ProcessEventType = Exclude<ProcessMethodType, 'signal'> | SignalType;
+type ProcessShutdownHandlerType = (signal: SignalType) => void | Promise<void>;
 type ProcessHandlerByEventType = {
-  unhandledRejection: (reason: unknown) => void;
-  uncaughtException: (error: Error) => void;
+  unhandledRejection: (reason: unknown) => void | Promise<void>;
+  uncaughtException: (error: Error) => void | Promise<void>;
   exit: (code: number) => void;
-} & Record<SignalType, () => void>;
+} & Record<SignalType, () => void | Promise<void>>;
 type ProcessHandlerType = ProcessHandlerByEventType[ProcessEventType];
 type ProcessHandlerEntryType = {
   [Event in ProcessEventType]: [Event, ProcessHandlerByEventType[Event]];
@@ -22,6 +24,7 @@ type ProcessWriteMetadataMethodType = (
 export interface ProcessConfigInterface {
   exitSignals?: SignalType[];
   logOnlySignals?: SignalType[];
+  shutdownHandler?: ProcessShutdownHandlerType;
   handleErrors?: boolean;
   handleExit?: boolean;
   exitOnSignal?: boolean;
@@ -37,6 +40,7 @@ export interface ProcessConfigInterface {
 type ProcessResolvedConfigType = {
   exitSignals: SignalType[];
   logOnlySignals: SignalType[];
+  shutdownHandler?: ProcessShutdownHandlerType;
   handleErrors: boolean;
   handleExit: boolean;
   exitOnSignal: boolean;
@@ -89,7 +93,8 @@ const processHelperCaller = 'ProcessHelper';
 
 const defaultProcessConfig: ProcessResolvedConfigType = {
   exitSignals: ['SIGTERM', 'SIGINT'],
-  logOnlySignals: ['SIGHUP'],
+  logOnlySignals: ['SIGHUP', 'SIGUSR2'],
+  shutdownHandler: undefined,
   handleErrors: true,
   handleExit: true,
   exitOnSignal: false,
@@ -104,9 +109,10 @@ const defaultProcessConfig: ProcessResolvedConfigType = {
 
 class ProcessHelperClass {
   private isHooked = false;
+  private shutdownPromise: Promise<void> | null = null;
   private readonly handlerMap = new Map<ProcessEventType, ProcessHandlerType[]>();
 
-  public register(logger: ProcessLoggerInterface, config: ProcessConfigInterface = {}): void {
+  public hook(logger: ProcessLoggerInterface, config: ProcessConfigInterface = {}): void {
     if (this.isHooked) {
       return;
     }
@@ -122,10 +128,6 @@ class ProcessHelperClass {
     this.isHooked = true;
   }
 
-  public hook(logger: ProcessLoggerInterface, config: ProcessConfigInterface = {}): void {
-    this.register(logger, config);
-  }
-
   public unhook(): void {
     for (const [event, handlers] of this.handlerMap.entries()) {
       for (const handler of handlers) {
@@ -135,21 +137,22 @@ class ProcessHelperClass {
 
     this.handlerMap.clear();
     this.isHooked = false;
+    this.shutdownPromise = null;
   }
 
   private normalizeConfig(config: ProcessConfigInterface): ProcessResolvedConfigType {
-    const normalizedConfig: ProcessResolvedConfigType = {
+    const exitSignals = config.exitSignals ?? defaultProcessConfig.exitSignals;
+    const logOnlySignals = (config.logOnlySignals ?? defaultProcessConfig.logOnlySignals).filter(
+      (signal) => !exitSignals.includes(signal),
+    );
+
+    return {
       ...defaultProcessConfig,
       ...config,
-      exitSignals: config.exitSignals ?? defaultProcessConfig.exitSignals,
-      logOnlySignals: config.logOnlySignals ?? defaultProcessConfig.logOnlySignals,
+      exitSignals,
+      logOnlySignals,
       customHandlers: config.customHandlers ?? defaultProcessConfig.customHandlers,
     };
-
-    const exitSignals = new Set(normalizedConfig.exitSignals);
-    normalizedConfig.logOnlySignals = normalizedConfig.logOnlySignals.filter((signal) => !exitSignals.has(signal));
-
-    return normalizedConfig;
   }
 
   private addHandler(event: ProcessEventType, handler: ProcessHandlerType): void {
@@ -170,62 +173,83 @@ class ProcessHelperClass {
 
     if (config.handleErrors) {
       handlerList.push(
-        this.createHandlerEntry('unhandledRejection', (reason: unknown): void =>
-          this.handleEvent(
-            logger,
-            'error',
-            'unhandledRejection',
-            reason,
-            config.exitOnUnhandledRejection,
-            config.errorExitCode,
-          ),
+        this.createHandlerEntry(
+          'unhandledRejection',
+          async (reason: unknown): Promise<void> =>
+            this.handleEvent(
+              logger,
+              'error',
+              'unhandledRejection',
+              reason,
+              config.exitOnUnhandledRejection,
+              config.errorExitCode,
+            ),
         ),
       );
       handlerList.push(
-        this.createHandlerEntry('uncaughtException', (error: Error): void =>
-          this.handleEvent(
-            logger,
-            'error',
-            'uncaughtException',
-            error,
-            config.exitOnUncaughtException,
-            config.errorExitCode,
-          ),
+        this.createHandlerEntry(
+          'uncaughtException',
+          async (error: Error): Promise<void> =>
+            this.handleEvent(
+              logger,
+              'error',
+              'uncaughtException',
+              error,
+              config.exitOnUncaughtException,
+              config.errorExitCode,
+            ),
         ),
       );
     }
 
     for (const signal of config.exitSignals) {
       handlerList.push(
-        this.createHandlerEntry(signal, (): void =>
-          this.handleEvent(logger, config.signalLogLevel, 'signal', signal, config.exitOnSignal, config.exitCode),
+        this.createHandlerEntry(
+          signal,
+          async (): Promise<void> =>
+            this.handleEvent(
+              logger,
+              config.signalLogLevel,
+              'signal',
+              signal,
+              config.exitOnSignal,
+              config.exitCode,
+              config.shutdownHandler,
+            ),
         ),
       );
     }
 
     for (const signal of config.logOnlySignals) {
       handlerList.push(
-        this.createHandlerEntry(signal, (): void => this.handleEvent(logger, config.signalLogLevel, 'signal', signal)),
+        this.createHandlerEntry(
+          signal,
+          async (): Promise<void> => this.handleEvent(logger, config.signalLogLevel, 'signal', signal),
+        ),
       );
     }
 
     if (config.handleExit) {
       handlerList.push(
-        this.createHandlerEntry('exit', (code: number): void => this.handleEvent(logger, 'debug', 'exit', code)),
+        this.createHandlerEntry(
+          'exit',
+          async (code: number): Promise<void> => this.handleEvent(logger, 'debug', 'exit', code),
+        ),
       );
     }
 
     return handlerList;
   }
 
-  private handleEvent(
+  private async handleEvent(
     logger: ProcessLoggerInterface,
     level: ProcessLogLevelType,
-    method: 'unhandledRejection' | 'uncaughtException' | 'signal' | 'exit',
+    method: ProcessMethodType,
     payload: unknown,
     shouldExit = false,
     exitCode = 0,
-  ): void {
+    shutdownHandler?: ProcessShutdownHandlerType,
+  ): Promise<void> {
     try {
       this.log(logger, level, method, payload);
     } catch {
@@ -233,14 +257,27 @@ class ProcessHelperClass {
     }
 
     if (shouldExit) {
+      if (method === 'signal' && typeof payload === 'string') {
+        await this.runShutdownHandler(payload as SignalType, shutdownHandler);
+      }
       process.exit(exitCode);
     }
+  }
+
+  private async runShutdownHandler(signal: SignalType, shutdownHandler?: ProcessShutdownHandlerType): Promise<void> {
+    if (!shutdownHandler) {
+      return;
+    }
+    this.shutdownPromise ??= Promise.resolve(shutdownHandler(signal)).finally(() => {
+      this.shutdownPromise = null;
+    });
+    await this.shutdownPromise;
   }
 
   private log(
     logger: ProcessLoggerInterface,
     level: ProcessLogLevelType,
-    method: 'unhandledRejection' | 'uncaughtException' | 'signal' | 'exit',
+    method: ProcessMethodType,
     payload: unknown,
   ): void {
     if (level === 'error' && payload instanceof Error) {
@@ -305,6 +342,7 @@ class ProcessHelperClass {
     if (typeof payload !== 'number') {
       return `Exited with unknown code: ${String(payload)}`;
     }
+    const signal = processSignalByExitCodeMap.get(payload);
 
     switch (payload) {
       case 0:
@@ -312,9 +350,7 @@ class ProcessHelperClass {
       case 1:
         return 'General error';
       default:
-        return processSignalByExitCodeMap.has(payload)
-          ? String(processSignalByExitCodeMap.get(payload))
-          : payload.toString();
+        return signal ?? payload.toString();
     }
   }
 }

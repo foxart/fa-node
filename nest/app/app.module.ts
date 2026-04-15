@@ -27,8 +27,10 @@ export class AppModule implements OnModuleInit, OnApplicationBootstrap {
 
   public onApplicationBootstrap(): void {
     setTimeout(() => {
-      throw new Error('onApplicationBootstrap');
-      //
+      // throw new Error('onApplicationBootstrap');
+      // process.kill(process.pid, 'SIGTERM');
+      // process.kill(process.pid, 'SIGINT');
+      // process.kill(process.pid, 'SIGUSR2');
     }, 100);
   }
 }
