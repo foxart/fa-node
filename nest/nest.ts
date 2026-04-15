@@ -13,7 +13,7 @@ void (async function bootstrap(): Promise<void> {
   const logger = app.get(LoggerNodeService);
   app.useLogger(logger);
   app.enableShutdownHooks();
-  ProcessHelper.hook(logger, PROCESS_CONFIG(app, logger));
+  ProcessHelper.hook(PROCESS_CONFIG(app, logger));
   const { protocol, host, port } = environment.app;
   await app.listen(port, host);
   // logger.verbose('Listening', `${protocol}://${host}:${port}`, 'MyApplication');
