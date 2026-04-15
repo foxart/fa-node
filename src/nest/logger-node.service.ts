@@ -21,6 +21,7 @@ interface LoggerAppInterface {
 const LOGGER_NODE_CONFIG: LoggerConfigInterface = {
   ...LOGGER_CONFIG,
   env: 'NODE',
+  errorStack: true,
   link: true,
 };
 
