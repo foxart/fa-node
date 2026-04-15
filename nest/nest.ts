@@ -1,6 +1,6 @@
+import { ProcessHelper } from '@helpers/process.helper';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ProcessHelper } from '../src/helpers/process.helper';
 import { AppModule } from './app/app.module';
 import { environment } from './common/environment';
 import { LoggerNodeService } from './common/logger-node.service';

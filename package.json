@@ -8,8 +8,7 @@
   "private": false,
   "scripts": {
     "start": "nodemon -e ts --watch src --watch playground -x ts-node playground/index.ts",
-    "start:nest": "nodemon -e ts --watch src --watch test --ignore dist -x ts-node -P tsconfig.nest.json nest/nest.ts",
-    "start:test": "nodemon -e js,json --watch src src/test.js",
+    "start:nest": "nodemon -e ts --watch src --watch nest --ignore dist -x ts-node -r tsconfig-paths/register -P tsconfig.nest.json nest/nest.ts",
     "migrator": "nodemon -e ts --watch src --watch playground --ignore node_modules -x ts-node playground/index.ts new my-test",
     "migrator-help": "ts-node playground/index.ts new --help",
     "prebuild": "rimraf dist",
@@ -81,6 +80,7 @@
     "supertest": "^7.0.0",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.4.3"
   }
 }

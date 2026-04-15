@@ -4,6 +4,6 @@
     "sourceMap": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts", "nest/**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }

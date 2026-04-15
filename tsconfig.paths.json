@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "paths": {
-      "@common/*": ["src/classes/*"],
-      "@config/*": ["src/cli/*"],
-      "@environments/*": ["src/helpers/*"],
-      "@repository/*": ["src/logger/*"]
+      "@classes/*": ["src/classes/*"],
+      "@cli/*": ["src/cli/*"],
+      "@helpers/*": ["src/helpers/*"],
+      "@logger/*": ["src/logger/*"]
     }
   }
 }
