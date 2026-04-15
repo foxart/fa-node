@@ -17,19 +17,16 @@ describe('ProcessHelper', () => {
   });
 
   it('should await shutdown handler before exit on exit signal', async () => {
-    const signalHandler = jest.fn<(signal: NodeJS.Signals) => void>();
     const shutdownHandler = jest.fn(() => Promise.resolve());
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
     ProcessHelper.hook({
       shutdownHandler,
-      signalHandler,
     });
 
     process.emit('SIGTERM');
     await flushPromises();
 
-    expect(signalHandler).toHaveBeenCalledWith('SIGTERM');
     expect(shutdownHandler).toHaveBeenCalledWith('SIGTERM');
     expect(exitSpy).toHaveBeenCalledWith(0);
 
@@ -44,13 +41,11 @@ describe('ProcessHelper', () => {
   });
 
   it('should keep graceful signals and log-only signals enabled by default when shutdown handler exists', async () => {
-    const signalHandler = jest.fn<(signal: NodeJS.Signals) => void>();
     const shutdownHandler = jest.fn(() => Promise.resolve());
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
     ProcessHelper.hook({
       shutdownHandler,
-      signalHandler,
     });
 
     process.emit('SIGUSR2');
@@ -58,8 +53,6 @@ describe('ProcessHelper', () => {
     process.emit('SIGINT');
     await flushPromises();
 
-    expect(signalHandler).toHaveBeenNthCalledWith(1, 'SIGUSR2');
-    expect(signalHandler).toHaveBeenNthCalledWith(2, 'SIGINT');
     expect(shutdownHandler).toHaveBeenCalledTimes(1);
     expect(shutdownHandler).toHaveBeenCalledWith('SIGINT');
     expect(exitSpy).toHaveBeenCalledWith(0);
@@ -68,19 +61,21 @@ describe('ProcessHelper', () => {
   });
 
   it('should not duplicate log-only signal that is also configured as exit signal', async () => {
-    const signalHandler = jest.fn<(signal: NodeJS.Signals) => void>();
+    const shutdownHandler = jest.fn(() => Promise.resolve());
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
     ProcessHelper.hook({
-      exitSignals: ['SIGTERM'],
-      logOnlySignals: ['SIGTERM', 'SIGUSR2'],
-      signalHandler,
+      shutdownHandler,
     });
 
     process.emit('SIGTERM');
     await flushPromises();
 
-    expect(signalHandler).toHaveBeenCalledTimes(1);
-    expect(signalHandler).toHaveBeenCalledWith('SIGTERM');
+    expect(shutdownHandler).toHaveBeenCalledTimes(1);
+    expect(shutdownHandler).toHaveBeenCalledWith('SIGTERM');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+
+    exitSpy.mockRestore();
   });
 
   it('should call uncaughtException handler when configured', async () => {
@@ -88,8 +83,6 @@ describe('ProcessHelper', () => {
     const error = new Error('boom');
 
     ProcessHelper.hook({
-      exitSignals: [],
-      logOnlySignals: [],
       uncaughtExceptionHandler,
     });
 
@@ -104,8 +97,6 @@ describe('ProcessHelper', () => {
     const reason = new Error('reject');
 
     ProcessHelper.hook({
-      exitSignals: [],
-      logOnlySignals: [],
       unhandledRejectionHandler,
     });
 
@@ -116,17 +107,19 @@ describe('ProcessHelper', () => {
   });
 
   it('should call exit handler with raw exit code', async () => {
-    const exitHandler = jest.fn<(code: number) => void>();
+    const exitHandler = jest.fn<(exit: { code: number; message: string; signal?: NodeJS.Signals }) => void>();
 
     ProcessHelper.hook({
-      exitSignals: [],
-      logOnlySignals: [],
       exitHandler,
     });
 
     process.emit('exit', 128 + os.constants.signals.SIGTERM);
     await flushPromises();
 
-    expect(exitHandler).toHaveBeenCalledWith(143);
+    expect(exitHandler).toHaveBeenCalledWith({
+      code: 143,
+      signal: 'SIGTERM',
+      message: 'Exited with code 143 (signal-derived: SIGTERM)',
+    });
   });
 });

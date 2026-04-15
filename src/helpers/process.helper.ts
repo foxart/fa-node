@@ -1,59 +1,39 @@
+import os from 'node:os';
+
 type SignalType = NodeJS.Signals;
 type ProcessEventType = 'unhandledRejection' | 'uncaughtException' | 'exit' | SignalType;
 type ProcessCallbackType<T> = (payload: T) => void | Promise<void>;
+type ProcessSignalHandlerType = () => void;
+export interface ProcessExitCodeDescriptionInterface {
+  code: number;
+  message: string;
+  signal?: SignalType;
+}
 type ProcessHandlerByEventType = {
   unhandledRejection: (reason: unknown) => void;
   uncaughtException: (error: Error) => void;
   exit: (code: number) => void;
-} & Record<SignalType, () => void>;
+} & Record<SignalType, ProcessSignalHandlerType>;
 type ProcessHandlerType = ProcessHandlerByEventType[ProcessEventType];
 type ProcessHandlerEntryType = {
   [Event in ProcessEventType]: [Event, ProcessHandlerByEventType[Event]];
 }[ProcessEventType];
 
 export interface ProcessConfigInterface {
-  exitSignals?: SignalType[];
-  logOnlySignals?: SignalType[];
   shutdownHandler?: ProcessCallbackType<SignalType>;
-  signalHandler?: ProcessCallbackType<SignalType>;
   unhandledRejectionHandler?: ProcessCallbackType<unknown>;
   uncaughtExceptionHandler?: ProcessCallbackType<Error>;
-  exitHandler?: ProcessCallbackType<number>;
-  exitOnSignal?: boolean;
-  exitCode?: number;
-  maxListeners?: number;
-  customHandlers?: ProcessHandlerEntryType[];
+  exitHandler?: ProcessCallbackType<ProcessExitCodeDescriptionInterface>;
 }
 
-type ProcessResolvedConfigType = {
-  exitSignals: SignalType[];
-  logOnlySignals: SignalType[];
-  shutdownHandler?: ProcessCallbackType<SignalType>;
-  signalHandler?: ProcessCallbackType<SignalType>;
-  unhandledRejectionHandler?: ProcessCallbackType<unknown>;
-  uncaughtExceptionHandler?: ProcessCallbackType<Error>;
-  exitHandler?: ProcessCallbackType<number>;
-  exitOnSignal: boolean;
-  exitCode: number;
-  maxListeners: number;
-  customHandlers: ProcessHandlerEntryType[];
-};
-
-const defaultProcessConfig: ProcessResolvedConfigType = {
-  exitSignals: ['SIGTERM', 'SIGINT'],
-  logOnlySignals: ['SIGHUP', 'SIGABRT', 'SIGUSR2'],
-  shutdownHandler: undefined,
-  signalHandler: undefined,
-  unhandledRejectionHandler: undefined,
-  uncaughtExceptionHandler: undefined,
-  exitHandler: undefined,
-  exitOnSignal: false,
-  exitCode: 0,
-  maxListeners: 10,
-  customHandlers: [],
-};
-
 class ProcessHelperClass {
+  private static readonly exitSignals: SignalType[] = ['SIGTERM', 'SIGINT'];
+  private static readonly logOnlySignals: SignalType[] = ['SIGHUP', 'SIGABRT', 'SIGUSR2'];
+  private static readonly exitCode = 0;
+  private static readonly maxListeners = 10;
+
+  private static readonly signalByExitCodeMap = ProcessHelperClass.createSignalByExitCodeMap();
+
   private isHooked = false;
   private shutdownPromise: Promise<void> | null = null;
   private readonly handlerMap = new Map<ProcessEventType, ProcessHandlerType[]>();
@@ -63,10 +43,9 @@ class ProcessHelperClass {
       return;
     }
 
-    const normalizedConfig = this.normalizeConfig(config);
-    process.setMaxListeners(normalizedConfig.maxListeners);
+    process.setMaxListeners(ProcessHelperClass.maxListeners);
 
-    for (const [event, handler] of this.buildHandlers(normalizedConfig)) {
+    for (const [event, handler] of this.buildHandlers(config)) {
       this.addHandler(event, handler);
       process.on(event, handler);
     }
@@ -86,24 +65,6 @@ class ProcessHelperClass {
     this.shutdownPromise = null;
   }
 
-  private normalizeConfig(config: ProcessConfigInterface): ProcessResolvedConfigType {
-    const exitSignals = config.exitSignals ?? defaultProcessConfig.exitSignals;
-    const logOnlySignals = (config.logOnlySignals ?? defaultProcessConfig.logOnlySignals).filter(
-      (signal) => !exitSignals.includes(signal),
-    );
-    const exitOnSignal =
-      config.exitOnSignal ?? (config.shutdownHandler !== undefined || defaultProcessConfig.exitOnSignal);
-
-    return {
-      ...defaultProcessConfig,
-      ...config,
-      exitSignals,
-      logOnlySignals,
-      exitOnSignal,
-      customHandlers: config.customHandlers ?? defaultProcessConfig.customHandlers,
-    };
-  }
-
   private addHandler(event: ProcessEventType, handler: ProcessHandlerType): void {
     const handlerList = this.handlerMap.get(event) ?? [];
     handlerList.push(handler);
@@ -117,14 +78,14 @@ class ProcessHelperClass {
     return [event, handler] as ProcessHandlerEntryType;
   }
 
-  private buildHandlers(config: ProcessResolvedConfigType): ProcessHandlerEntryType[] {
-    const handlerList: ProcessHandlerEntryType[] = [...config.customHandlers];
+  private buildHandlers(config: ProcessConfigInterface): ProcessHandlerEntryType[] {
+    const handlerList: ProcessHandlerEntryType[] = [];
 
     if (config.unhandledRejectionHandler) {
       const callback = config.unhandledRejectionHandler;
       handlerList.push(
         this.createHandlerEntry('unhandledRejection', (reason: unknown): void => {
-          void Promise.resolve(callback(reason));
+          this.runCallback(callback, reason);
         }),
       );
     }
@@ -133,23 +94,23 @@ class ProcessHelperClass {
       const callback = config.uncaughtExceptionHandler;
       handlerList.push(
         this.createHandlerEntry('uncaughtException', (error: Error): void => {
-          void Promise.resolve(callback(error));
+          this.runCallback(callback, error);
         }),
       );
     }
 
-    for (const signal of config.exitSignals) {
+    for (const signal of ProcessHelperClass.exitSignals) {
       handlerList.push(
         this.createHandlerEntry(signal, (): void => {
-          void this.handleSignal(signal, config, true);
+          void this.handleSignal(signal, config.shutdownHandler);
         }),
       );
     }
 
-    for (const signal of config.logOnlySignals) {
+    for (const signal of ProcessHelperClass.logOnlySignals) {
       handlerList.push(
         this.createHandlerEntry(signal, (): void => {
-          void this.handleSignal(signal, config, false);
+          return;
         }),
       );
     }
@@ -158,7 +119,7 @@ class ProcessHelperClass {
       const callback = config.exitHandler;
       handlerList.push(
         this.createHandlerEntry('exit', (code: number): void => {
-          void Promise.resolve(callback(code));
+          this.runCallback(callback, this.describeExitCode(code));
         }),
       );
     }
@@ -166,21 +127,9 @@ class ProcessHelperClass {
     return handlerList;
   }
 
-  private async handleSignal(
-    signal: SignalType,
-    config: ProcessResolvedConfigType,
-    shouldExit: boolean,
-  ): Promise<void> {
-    if (config.signalHandler) {
-      await Promise.resolve(config.signalHandler(signal));
-    }
-
-    if (!shouldExit || !config.exitOnSignal) {
-      return;
-    }
-
-    await this.runShutdownHandler(signal, config.shutdownHandler);
-    process.exit(config.exitCode);
+  private async handleSignal(signal: SignalType, shutdownHandler?: ProcessCallbackType<SignalType>): Promise<void> {
+    await this.runShutdownHandler(signal, shutdownHandler);
+    process.exit(ProcessHelperClass.exitCode);
   }
 
   private async runShutdownHandler(
@@ -198,6 +147,54 @@ class ProcessHelperClass {
     }
 
     await this.shutdownPromise;
+  }
+
+  private runCallback<T>(callback: ProcessCallbackType<T>, payload: T): void {
+    void Promise.resolve(callback(payload));
+  }
+
+  private describeExitCode(code: number): ProcessExitCodeDescriptionInterface {
+    const signal = ProcessHelperClass.signalByExitCodeMap.get(code);
+
+    switch (code) {
+      case 0:
+        return {
+          code,
+          message: 'Exited with code 0 (success)',
+        };
+      case 1:
+        return {
+          code,
+          message: 'Exited with code 1 (general error)',
+        };
+      default:
+        return {
+          code,
+          signal,
+          message: signal ? `Exited with code ${code} (signal-derived: ${signal})` : `Exited with code ${code}`,
+        };
+    }
+  }
+
+  private static createSignalByExitCodeMap(): Map<number, NodeJS.Signals> {
+    const signalByExitCodeMap = new Map<number, NodeJS.Signals>();
+
+    for (const signal of [
+      'SIGABRT',
+      'SIGALRM',
+      'SIGHUP',
+      'SIGINT',
+      'SIGKILL',
+      'SIGPIPE',
+      'SIGQUIT',
+      'SIGSEGV',
+      'SIGTERM',
+      'SIGTRAP',
+    ] as const) {
+      signalByExitCodeMap.set(128 + os.constants.signals[signal], signal);
+    }
+
+    return signalByExitCodeMap;
   }
 }
 
