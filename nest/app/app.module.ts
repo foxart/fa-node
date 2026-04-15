@@ -19,9 +19,10 @@ import { AppController } from './app.controller';
   ],
 })
 export class AppModule implements OnModuleInit, OnApplicationBootstrap {
-  public constructor(private readonly logger: LoggerNodeService) {}
+  public constructor(private readonly loggerNodeService: LoggerNodeService) {}
   public onModuleInit(): void {
-    ConsoleHelper.override(this.logger);
+    // ProcessHelper.hook(PROCESS_CONFIG(app, logger));
+    ConsoleHelper.override(this.loggerNodeService);
     // console.log('onModuleInit');
   }
 

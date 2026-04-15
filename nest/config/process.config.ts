@@ -14,6 +14,7 @@ export const PROCESS_CONFIG = (app: INestApplication, logger: LoggerNodeService)
       }
       await shutdownPromise;
       logger.debug('Shutdown finished', signal, 'NestProcess');
+      //
     },
     exitHandler: (exit): void => {
       logger.debug(exit.message);
