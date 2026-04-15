@@ -26,11 +26,10 @@ describe('ProcessHelper', () => {
 
   it('should await shutdown handler before exit on exit signal', async () => {
     const logger = createLogger();
-    const shutdownHandler = jest.fn(async () => undefined);
+    const shutdownHandler = jest.fn(() => Promise.resolve());
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
     ProcessHelper.hook(logger, {
-      handleErrors: false,
       handleExit: false,
       shutdownHandler,
     });
@@ -45,13 +44,23 @@ describe('ProcessHelper', () => {
     exitSpy.mockRestore();
   });
 
+  it('should not attach error handlers by default', () => {
+    const logger = createLogger();
+
+    ProcessHelper.hook(logger, {
+      handleExit: false,
+    });
+
+    expect(process.listeners('uncaughtException')).toHaveLength(0);
+    expect(process.listeners('unhandledRejection')).toHaveLength(0);
+  });
+
   it('should keep graceful signals and log-only signals enabled by default when shutdown handler exists', async () => {
     const logger = createLogger();
-    const shutdownHandler = jest.fn(async () => undefined);
+    const shutdownHandler = jest.fn(() => Promise.resolve());
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
     ProcessHelper.hook(logger, {
-      handleErrors: false,
       handleExit: false,
       shutdownHandler,
     });
@@ -75,7 +84,6 @@ describe('ProcessHelper', () => {
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
     ProcessHelper.hook(logger, {
-      handleErrors: false,
       handleExit: false,
       exitOnSignal: true,
     });
@@ -95,7 +103,6 @@ describe('ProcessHelper', () => {
     ProcessHelper.hook(logger, {
       exitSignals: ['SIGTERM'],
       logOnlySignals: ['SIGTERM', 'SIGUSR2'],
-      handleErrors: false,
       handleExit: false,
     });
 
@@ -105,63 +112,58 @@ describe('ProcessHelper', () => {
     expect(logger.warn.mock.calls).toContainEqual(['SIGTERM']);
   });
 
-  it('should log uncaughtException without exiting when exit is disabled', () => {
+  it('should log uncaughtException and call custom handler', async () => {
     const logger = createLogger();
+    const uncaughtExceptionHandler = jest.fn(() => Promise.resolve());
     const errorWithStack = logger.errorWithStack as jest.MockedFunction<
       NonNullable<ProcessLoggerInterface['errorWithStack']>
     >;
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     const error = new Error('boom');
 
     ProcessHelper.hook(logger, {
-      handleErrors: true,
       handleExit: false,
       exitSignals: [],
       logOnlySignals: [],
-      exitOnUncaughtException: false,
+      uncaughtExceptionHandler,
     });
 
     process.emit('uncaughtException', error);
+    await flushPromises();
 
     expect(errorWithStack.mock.calls).toHaveLength(1);
     expect(errorWithStack.mock.calls[0]?.[0]).toContain('at ProcessHelper.uncaughtException');
     expect(errorWithStack.mock.calls[0]?.[1]).toBe(error);
-    expect(exitSpy).not.toHaveBeenCalled();
-
-    exitSpy.mockRestore();
+    expect(uncaughtExceptionHandler).toHaveBeenCalledWith(error);
   });
 
-  it('should log unhandledRejection without exiting when exit is disabled', () => {
+  it('should log unhandledRejection and call custom handler', async () => {
     const logger = createLogger();
+    const unhandledRejectionHandler = jest.fn(() => Promise.resolve());
     const errorWithStack = logger.errorWithStack as jest.MockedFunction<
       NonNullable<ProcessLoggerInterface['errorWithStack']>
     >;
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     const reason = new Error('reject');
 
     ProcessHelper.hook(logger, {
-      handleErrors: true,
       handleExit: false,
       exitSignals: [],
       logOnlySignals: [],
-      exitOnUnhandledRejection: false,
+      unhandledRejectionHandler,
     });
 
     process.emit('unhandledRejection', reason, Promise.resolve());
+    await flushPromises();
 
     expect(errorWithStack.mock.calls).toHaveLength(1);
     expect(errorWithStack.mock.calls[0]?.[0]).toContain('at ProcessHelper.unhandledRejection');
     expect(errorWithStack.mock.calls[0]?.[1]).toBe(reason);
-    expect(exitSpy).not.toHaveBeenCalled();
-
-    exitSpy.mockRestore();
+    expect(unhandledRejectionHandler).toHaveBeenCalledWith(reason);
   });
 
   it('should describe exit event as exit code, not as raw signal name', () => {
     const logger = createLogger();
 
     ProcessHelper.hook(logger, {
-      handleErrors: false,
       handleExit: true,
       exitSignals: [],
       logOnlySignals: [],

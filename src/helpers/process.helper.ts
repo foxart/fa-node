@@ -4,12 +4,15 @@ import { StackHelper } from './stack.helper';
 type SignalType = NodeJS.Signals;
 type ProcessMethodType = 'unhandledRejection' | 'uncaughtException' | 'signal' | 'exit';
 type ProcessEventType = Exclude<ProcessMethodType, 'signal'> | SignalType;
-type ProcessShutdownHandlerType = (signal: SignalType) => void | Promise<void>;
+type ProcessCallbackType<T> = (payload: T) => void | Promise<void>;
+type ProcessShutdownHandlerType = ProcessCallbackType<SignalType>;
+type ProcessUnhandledRejectionHandlerType = ProcessCallbackType<unknown>;
+type ProcessUncaughtExceptionHandlerType = ProcessCallbackType<Error>;
 type ProcessHandlerByEventType = {
-  unhandledRejection: (reason: unknown) => void | Promise<void>;
-  uncaughtException: (error: Error) => void | Promise<void>;
+  unhandledRejection: (reason: unknown) => void;
+  uncaughtException: (error: Error) => void;
   exit: (code: number) => void;
-} & Record<SignalType, () => void | Promise<void>>;
+} & Record<SignalType, () => void>;
 type ProcessHandlerType = ProcessHandlerByEventType[ProcessEventType];
 type ProcessHandlerEntryType = {
   [Event in ProcessEventType]: [Event, ProcessHandlerByEventType[Event]];
@@ -25,13 +28,11 @@ export interface ProcessConfigInterface {
   exitSignals?: SignalType[];
   logOnlySignals?: SignalType[];
   shutdownHandler?: ProcessShutdownHandlerType;
-  handleErrors?: boolean;
+  unhandledRejectionHandler?: ProcessUnhandledRejectionHandlerType;
+  uncaughtExceptionHandler?: ProcessUncaughtExceptionHandlerType;
   handleExit?: boolean;
   exitOnSignal?: boolean;
   exitCode?: number;
-  exitOnUncaughtException?: boolean;
-  exitOnUnhandledRejection?: boolean;
-  errorExitCode?: number;
   signalLogLevel?: ProcessLogLevelType;
   maxListeners?: number;
   customHandlers?: ProcessHandlerEntryType[];
@@ -41,13 +42,11 @@ type ProcessResolvedConfigType = {
   exitSignals: SignalType[];
   logOnlySignals: SignalType[];
   shutdownHandler?: ProcessShutdownHandlerType;
-  handleErrors: boolean;
+  unhandledRejectionHandler?: ProcessUnhandledRejectionHandlerType;
+  uncaughtExceptionHandler?: ProcessUncaughtExceptionHandlerType;
   handleExit: boolean;
   exitOnSignal: boolean;
   exitCode: number;
-  exitOnUncaughtException: boolean;
-  exitOnUnhandledRejection: boolean;
-  errorExitCode: number;
   signalLogLevel: ProcessLogLevelType;
   maxListeners: number;
   customHandlers: ProcessHandlerEntryType[];
@@ -95,13 +94,11 @@ const defaultProcessConfig: ProcessResolvedConfigType = {
   exitSignals: ['SIGTERM', 'SIGINT'],
   logOnlySignals: ['SIGHUP', 'SIGABRT', 'SIGUSR2'],
   shutdownHandler: undefined,
-  handleErrors: true,
+  unhandledRejectionHandler: undefined,
+  uncaughtExceptionHandler: undefined,
   handleExit: true,
   exitOnSignal: false,
   exitCode: 0,
-  exitOnUncaughtException: false,
-  exitOnUnhandledRejection: false,
-  errorExitCode: 1,
   signalLogLevel: 'warn',
   maxListeners: 10,
   customHandlers: [],
@@ -174,70 +171,53 @@ class ProcessHelperClass {
   private buildHandlers(logger: ProcessLoggerInterface, config: ProcessResolvedConfigType): ProcessHandlerEntryType[] {
     const handlerList: ProcessHandlerEntryType[] = [...config.customHandlers];
 
-    if (config.handleErrors) {
+    if (config.unhandledRejectionHandler) {
+      const callback = config.unhandledRejectionHandler;
       handlerList.push(
-        this.createHandlerEntry(
-          'unhandledRejection',
-          async (reason: unknown): Promise<void> =>
-            this.handleEvent(
-              logger,
-              'error',
-              'unhandledRejection',
-              reason,
-              config.exitOnUnhandledRejection,
-              config.errorExitCode,
-            ),
-        ),
+        this.createHandlerEntry('unhandledRejection', (reason: unknown): void => {
+          void this.handleCallbackEvent(logger, 'unhandledRejection', reason, callback);
+        }),
       );
+    }
+
+    if (config.uncaughtExceptionHandler) {
+      const callback = config.uncaughtExceptionHandler;
       handlerList.push(
-        this.createHandlerEntry(
-          'uncaughtException',
-          async (error: Error): Promise<void> =>
-            this.handleEvent(
-              logger,
-              'error',
-              'uncaughtException',
-              error,
-              config.exitOnUncaughtException,
-              config.errorExitCode,
-            ),
-        ),
+        this.createHandlerEntry('uncaughtException', (error: Error): void => {
+          void this.handleCallbackEvent(logger, 'uncaughtException', error, callback);
+        }),
       );
     }
 
     for (const signal of config.exitSignals) {
       handlerList.push(
-        this.createHandlerEntry(
-          signal,
-          async (): Promise<void> =>
-            this.handleEvent(
-              logger,
-              config.signalLogLevel,
-              'signal',
-              signal,
-              config.exitOnSignal,
-              config.exitCode,
-              config.shutdownHandler,
-            ),
-        ),
+        this.createHandlerEntry(signal, (): void => {
+          void this.handleEvent(
+            logger,
+            config.signalLogLevel,
+            'signal',
+            signal,
+            config.exitOnSignal,
+            config.exitCode,
+            config.shutdownHandler,
+          );
+        }),
       );
     }
 
     for (const signal of config.logOnlySignals) {
       handlerList.push(
-        this.createHandlerEntry(
-          signal,
-          async (): Promise<void> => this.handleEvent(logger, config.signalLogLevel, 'signal', signal),
-        ),
+        this.createHandlerEntry(signal, (): void => {
+          void this.handleEvent(logger, config.signalLogLevel, 'signal', signal);
+        }),
       );
     }
 
     if (config.handleExit) {
       handlerList.push(
-        this.createHandlerEntry(
-          'exit',
-          async (code: number): Promise<void> => this.handleEvent(logger, 'debug', 'exit', code),
-        ),
+        this.createHandlerEntry('exit', (code: number): void => {
+          void this.handleEvent(logger, 'debug', 'exit', code);
+        }),
       );
     }
 
@@ -265,6 +245,21 @@ class ProcessHelperClass {
       }
       process.exit(exitCode);
     }
+  }
+
+  private async handleCallbackEvent<TPayload>(
+    logger: ProcessLoggerInterface,
+    method: 'unhandledRejection' | 'uncaughtException',
+    payload: TPayload,
+    callback: ProcessCallbackType<TPayload>,
+  ): Promise<void> {
+    try {
+      this.log(logger, 'error', method, payload);
+    } catch {
+      // no-op
+    }
+
+    await Promise.resolve(callback(payload));
   }
 
   private async runShutdownHandler(signal: SignalType, shutdownHandler?: ProcessShutdownHandlerType): Promise<void> {
