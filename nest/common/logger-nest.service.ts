@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { LoggerConfigInterface } from '../logger/logger.class';
-import { LoggerNest } from '../logger/logger.nest';
-import { LOGGER_CONFIG } from './logger.config';
+import { LoggerConfigInterface } from '../../src/logger/logger.class';
+import { LoggerNest } from '../../src/logger/logger.nest';
+import { LOGGER_CONFIG } from '../config/logger.config';
 
 const LOGGER_NEST_CONFIG: LoggerConfigInterface = {
   ...LOGGER_CONFIG,

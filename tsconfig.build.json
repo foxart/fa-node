@@ -1,14 +1,5 @@
 {
   "extends": "./tsconfig.json",
   "include": ["src"],
-  "exclude": [
-    "dist",
-    "node_modules",
-    "test",
-    "src/nest.ts",
-    "src/nest/app.controller.ts",
-    "src/nest/app.module.ts",
-    "src/nest/app.service.ts",
-    "**/*spec.ts"
-  ]
+  "exclude": ["dist", "nest", "node_modules", "test", "**/*spec.ts"]
 }
