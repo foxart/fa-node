@@ -1,4 +1,4 @@
-import { AnsiColorValueType, AnsiEffectValueType, AnsiHelper } from '../helpers/ansi.helper';
+import { AnsiColorValueType, AnsiEffectValueType, AnsiHelper } from '@common/helpers/ansi.helper';
 
 export enum LoggerEnum {
   DEFAULT,

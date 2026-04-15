@@ -1,4 +1,4 @@
-import { ProcessHelper } from '@helpers/process.helper';
+import { ProcessHelper } from '@common/helpers/process.helper';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app/app.module';
@@ -18,4 +18,3 @@ void (async function bootstrap(): Promise<void> {
   // logger.verbose('Listening', `${protocol}://${host}:${port}`, 'MyApplication');
   logger.info('Listening', `${protocol}://${host}:${port}`, 'MyApplication');
 })();
-//

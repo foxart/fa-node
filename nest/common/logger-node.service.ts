@@ -1,13 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { DataHelper } from '../../src/helpers/data.helper';
+import { DataHelper } from '@common/helpers/data.helper';
 import {
   LoggerConfigInterface,
   LoggerLevelType,
   LoggerMetadataInterface,
   LoggerOriginInterface,
   StackFrameInterface,
-} from '../../src/logger/logger.class';
-import { LoggerNode } from '../../src/logger/logger.node';
+} from '@common/logger/logger.class';
+import { LoggerNode } from '@common/logger/logger.node';
+import { Injectable } from '@nestjs/common';
 import { LOGGER_CONFIG } from '../config/logger.config';
 
 interface LoggerAppInterface {

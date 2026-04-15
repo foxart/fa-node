@@ -1,6 +1,6 @@
+import { CheckHelper } from '@common/helpers/check.helper';
+import { ConverterHelper } from '@common/helpers/converter.helper';
 import { HttpStatus } from '@nestjs/common';
-import { CheckHelper } from '../helpers/check.helper';
-import { ConverterHelper } from '../helpers/converter.helper';
 
 export interface ErrorClassInterface {
   name?: string;

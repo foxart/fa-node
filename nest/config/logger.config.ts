@@ -1,4 +1,4 @@
-import { LoggerConfigInterface } from '../../src/logger/logger.class';
+import { LoggerConfigInterface } from '@common/logger/logger.class';
 
 export const LOGGER_CONFIG: LoggerConfigInterface = {
   color: true,

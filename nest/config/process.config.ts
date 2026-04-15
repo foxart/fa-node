@@ -1,4 +1,4 @@
-import { ProcessConfigInterface } from '../../src/helpers/process.helper';
+import { ProcessConfigInterface } from '@common/helpers/process.helper';
 
 export const PROCESS_CONFIG: ProcessConfigInterface = {
   exitSignals: ['SIGTERM', 'SIGINT', 'SIGUSR2'],

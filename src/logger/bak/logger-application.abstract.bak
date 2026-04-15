@@ -4,7 +4,7 @@ import {
   LoggerNestLevelType,
   LoggerNestMetadataInterface,
   LoggerNestOptionsInterface,
-} from '../classes/logger-nest.class';
+} from '@classes/logger-nest.class';
 
 export class LoggerApplicationAbstract implements LoggerService {
   private readonly logger: LoggerNest;

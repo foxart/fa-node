@@ -1,4 +1,4 @@
-import { StackHelper } from '../helpers/stack.helper';
+import { StackHelper } from '@common/helpers/stack.helper';
 import {
   LoggerClass,
   LoggerConfigInterface,
