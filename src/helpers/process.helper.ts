@@ -93,7 +93,7 @@ const processHelperCaller = 'ProcessHelper';
 
 const defaultProcessConfig: ProcessResolvedConfigType = {
   exitSignals: ['SIGTERM', 'SIGINT'],
-  logOnlySignals: ['SIGHUP', 'SIGUSR2'],
+  logOnlySignals: ['SIGHUP', 'SIGABRT', 'SIGUSR2'],
   shutdownHandler: undefined,
   handleErrors: true,
   handleExit: true,
@@ -145,12 +145,15 @@ class ProcessHelperClass {
     const logOnlySignals = (config.logOnlySignals ?? defaultProcessConfig.logOnlySignals).filter(
       (signal) => !exitSignals.includes(signal),
     );
+    const exitOnSignal =
+      config.exitOnSignal ?? (config.shutdownHandler !== undefined || defaultProcessConfig.exitOnSignal);
 
     return {
       ...defaultProcessConfig,
       ...config,
       exitSignals,
       logOnlySignals,
+      exitOnSignal,
       customHandlers: config.customHandlers ?? defaultProcessConfig.customHandlers,
     };
   }
@@ -346,11 +349,11 @@ class ProcessHelperClass {
 
     switch (payload) {
       case 0:
-        return 'Success';
+        return 'Exited with code 0 (success)';
       case 1:
-        return 'General error';
+        return 'Exited with code 1 (general error)';
       default:
-        return signal ?? payload.toString();
+        return signal ? `Exited with code ${payload} (signal-derived: ${signal})` : `Exited with code ${payload}`;
     }
   }
 }

@@ -1,5 +1,5 @@
 import { ConsoleHelper } from '@common/helpers/console.helper';
-import { Module, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { LoggerNestService } from '../common/logger-nest.service';
 import { LoggerNodeService } from '../common/logger-node.service';
@@ -18,19 +18,10 @@ import { AppController } from './app.controller';
     },
   ],
 })
-export class AppModule implements OnModuleInit, OnApplicationBootstrap {
+export class AppModule implements OnModuleInit {
   public constructor(private readonly logger: LoggerNodeService) {}
 
   public onModuleInit(): void {
     ConsoleHelper.override(this.logger);
-  }
-
-  public onApplicationBootstrap(): void {
-    setTimeout(() => {
-      // throw new Error('onApplicationBootstrap');
-      // process.kill(process.pid, 'SIGTERM');
-      // process.kill(process.pid, 'SIGINT');
-      // process.kill(process.pid, 'SIGUSR2');
-    }, 100);
   }
 }

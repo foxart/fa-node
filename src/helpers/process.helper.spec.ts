@@ -1,3 +1,4 @@
+import os from 'node:os';
 import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
 import { ProcessHelper, ProcessLoggerInterface } from './process.helper';
 
@@ -29,11 +30,8 @@ describe('ProcessHelper', () => {
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
     ProcessHelper.hook(logger, {
-      exitSignals: ['SIGTERM', 'SIGINT'],
-      logOnlySignals: [],
       handleErrors: false,
       handleExit: false,
-      exitOnSignal: true,
       shutdownHandler,
     });
 
@@ -42,6 +40,31 @@ describe('ProcessHelper', () => {
 
     expect(logger.warn.mock.calls).toContainEqual(['SIGTERM']);
     expect(shutdownHandler).toHaveBeenCalledWith('SIGTERM');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+
+    exitSpy.mockRestore();
+  });
+
+  it('should keep graceful signals and log-only signals enabled by default when shutdown handler exists', async () => {
+    const logger = createLogger();
+    const shutdownHandler = jest.fn(async () => undefined);
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+    ProcessHelper.hook(logger, {
+      handleErrors: false,
+      handleExit: false,
+      shutdownHandler,
+    });
+
+    process.emit('SIGUSR2');
+    await flushPromises();
+    process.emit('SIGINT');
+    await flushPromises();
+
+    expect(logger.warn.mock.calls).toContainEqual(['SIGUSR2']);
+    expect(logger.warn.mock.calls).toContainEqual(['SIGINT']);
+    expect(shutdownHandler).toHaveBeenCalledTimes(1);
+    expect(shutdownHandler).toHaveBeenCalledWith('SIGINT');
     expect(exitSpy).toHaveBeenCalledWith(0);
 
     exitSpy.mockRestore();
@@ -132,5 +155,20 @@ describe('ProcessHelper', () => {
     expect(exitSpy).not.toHaveBeenCalled();
 
     exitSpy.mockRestore();
+  });
+
+  it('should describe exit event as exit code, not as raw signal name', () => {
+    const logger = createLogger();
+
+    ProcessHelper.hook(logger, {
+      handleErrors: false,
+      handleExit: true,
+      exitSignals: [],
+      logOnlySignals: [],
+    });
+
+    process.emit('exit', 128 + os.constants.signals.SIGTERM);
+
+    expect(logger.debug.mock.calls).toContainEqual(['Exited with code 143 (signal-derived: SIGTERM)']);
   });
 });
