@@ -28,8 +28,8 @@ export class AppModule implements OnModuleInit, OnApplicationBootstrap {
 
   public onApplicationBootstrap(): void {
     setTimeout(() => {
-      throw new Error('Method not implemented.');
-      // process.exit(0);
+      // throw new Error('Method not implemented.');
+      process.exit(1);
     }, 500);
   }
 }
