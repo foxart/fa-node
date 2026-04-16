@@ -1,5 +1,4 @@
 import os from 'node:os';
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ProcessHelper } from './process.helper';
 
 describe('ProcessHelper', () => {
@@ -110,7 +109,7 @@ describe('ProcessHelper', () => {
   });
 
   it('should call exit handler with raw exit code', async () => {
-    const exitHandler = jest.fn<(exit: { code: number; message: string; signal?: NodeJS.Signals }) => void>();
+    const exitHandler = jest.fn<void, [{ code: number; message: string; signal?: NodeJS.Signals }]>();
 
     ProcessHelper.hook({
       exitHandler,

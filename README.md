@@ -26,7 +26,7 @@
 
 - src/logger/logger.ts
 - src/logger/logger-node.ts
-- src/logger/logger-nest.ts
+- src/logger/logger-main.ts
 - src/logger/logger.map.ts
 - src/logger/logger-application.service.ts
 - src/config/configuration.ts

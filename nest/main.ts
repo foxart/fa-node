@@ -11,9 +11,9 @@ void (async function bootstrap(): Promise<void> {
     bufferLogs: true,
   });
   const logger = app.get(LoggerNodeService);
+  ProcessHelper.hook(PROCESS_CONFIG(app, logger));
   app.useLogger(logger);
   // app.enableShutdownHooks();
-  ProcessHelper.hook(PROCESS_CONFIG(app, logger));
   /** LISTEN */
   const { protocol, host, port } = environment.app;
   await app.listen(port, host);

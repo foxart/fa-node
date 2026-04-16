@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { DecoratorClass } from './decorator.class';
+import { DecoratorClass, MethodCallbackMetadataInterface, ParameterCallbackMetadataInterface } from './decorator.class';
 
 describe('DecoratorClass', () => {
   const decorator = new DecoratorClass('test-symbol');
@@ -63,13 +63,13 @@ describe('DecoratorClass', () => {
   describe('DecoratorClass callback', () => {
     it('should attach method decorator and call method callback', (): void => {
       const callOrder: number[] = [];
-      const methodBeforeCallback = jest.fn((meta, ...args) => {
+      const methodBeforeCallback = jest.fn((meta: MethodCallbackMetadataInterface, ...args: unknown[]) => {
         callOrder.push(1);
-        return args.map((value: number) => value + 5);
+        return args.map((value) => (value as number) + 5);
       });
-      const methodAfterCallback = jest.fn((meta, result) => {
+      const methodAfterCallback = jest.fn((meta: MethodCallbackMetadataInterface, result: unknown) => {
         callOrder.push(2);
-        return result * 5;
+        return (result as number) * 5;
       });
       class TestClass {
         @decorator.decorateMethod({ methodBeforeCallback, methodAfterCallback })
@@ -89,13 +89,13 @@ describe('DecoratorClass', () => {
     });
     it('should attach parameter decorator and call parameter callback', () => {
       const callOrder: number[] = [];
-      const callback1 = jest.fn((meta, value: number) => {
+      const callback1 = jest.fn((meta: ParameterCallbackMetadataInterface, value: unknown) => {
         callOrder.push(1);
-        return value + 10;
+        return (value as number) + 10;
       });
-      const callback2 = jest.fn((meta, value: number) => {
+      const callback2 = jest.fn((meta: ParameterCallbackMetadataInterface, value: unknown) => {
         callOrder.push(2);
-        return value * 10;
+        return (value as number) * 10;
       });
       class TestClass {
         @decorator.decorateMethod()
@@ -118,21 +118,21 @@ describe('DecoratorClass', () => {
     });
     it('should attach method + parameter decorators and call method + parameter callbacks', () => {
       const callOrder: number[] = [];
-      const methodBeforeCallback = jest.fn((meta, ...args: number[]): number[] => {
+      const methodBeforeCallback = jest.fn((meta: MethodCallbackMetadataInterface, ...args: unknown[]): unknown[] => {
         callOrder.push(1);
-        return args.map((item) => item + 5);
+        return args.map((item) => (item as number) + 5);
       });
-      const callback1 = jest.fn((meta, value: number) => {
+      const callback1 = jest.fn((meta: ParameterCallbackMetadataInterface, value: unknown) => {
         callOrder.push(2);
-        return value + 10;
+        return (value as number) + 10;
       });
-      const callback2 = jest.fn((meta, value: number) => {
+      const callback2 = jest.fn((meta: ParameterCallbackMetadataInterface, value: unknown) => {
         callOrder.push(3);
-        return value * 10;
+        return (value as number) * 10;
       });
-      const methodAfterCallback = jest.fn((meta, res: number) => {
+      const methodAfterCallback = jest.fn((meta: MethodCallbackMetadataInterface, res: unknown) => {
         callOrder.push(4);
-        return res * 5;
+        return (res as number) * 5;
       });
       class TestClass {
         @decorator.decorateMethod({ methodBeforeCallback, methodAfterCallback })
@@ -162,13 +162,13 @@ describe('DecoratorClass', () => {
   describe('DecoratorClass getter and setter', () => {
     it('should correctly handle getter with before/after callbacks', () => {
       const callOrder: number[] = [];
-      const methodBeforeCallback = jest.fn((meta, ...args: number[]) => {
+      const methodBeforeCallback = jest.fn((meta: MethodCallbackMetadataInterface, ...args: unknown[]) => {
         callOrder.push(1);
-        return args.map((value: number) => value + 5);
+        return args.map((value) => (value as number) + 5);
       });
-      const methodAfterCallback = jest.fn((meta, result) => {
+      const methodAfterCallback = jest.fn((meta: MethodCallbackMetadataInterface, result: unknown) => {
         callOrder.push(2);
-        return result * 5;
+        return (result as number) * 5;
       });
       class TestClass {
         private readonly _value = 10;
@@ -187,13 +187,13 @@ describe('DecoratorClass', () => {
     });
     it('should correctly handle setter with before/after callbacks', () => {
       const callOrder: number[] = [];
-      const methodBeforeCallback = jest.fn((meta, ...args: number[]) => {
+      const methodBeforeCallback = jest.fn((meta: MethodCallbackMetadataInterface, ...args: unknown[]) => {
         callOrder.push(1);
-        return args.map((value: number) => value + 5);
+        return args.map((value) => (value as number) + 5);
       });
-      const methodAfterCallback = jest.fn((meta, result: number) => {
+      const methodAfterCallback = jest.fn((meta: MethodCallbackMetadataInterface, result: unknown) => {
         callOrder.push(2);
-        return result * 5;
+        return (result as number) * 5;
       });
       class TestClass {
         private _value = 0;
