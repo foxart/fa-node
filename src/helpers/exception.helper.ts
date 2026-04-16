@@ -1,7 +1,4 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
-import { ApolloError } from 'apollo-server-errors';
-import * as mongoose from 'mongoose';
-import { ErrorClass } from '../classes/error.class';
+import { HttpStatus } from '@nestjs/common';
 import { ConverterHelper } from './converter.helper';
 
 export interface ExceptionInterface {
@@ -32,18 +29,41 @@ export enum ExceptionTypeEnum {
   UNKNOWN = 'Unknown',
 }
 
+interface ApolloLikeError extends Error {
+  name: 'ApolloError';
+  extensions?: {
+    http?: { status?: number };
+    code?: ExceptionCodeEnum;
+  };
+}
+
+interface HttpExceptionLike extends Error {
+  name: 'HttpException';
+  getStatus: () => HttpStatus;
+}
+
+interface MongoLikeError extends Error {
+  name: 'MongoError' | 'MongoServerError';
+  code: number;
+}
+
+interface ErrorClassLike extends Error {
+  messageIsJson: boolean;
+  status: HttpStatus;
+}
+
 class ExceptionHelperClass {
   public castToException(payload: unknown): ExceptionInterface {
     let result: ExceptionInterface;
-    if (payload instanceof HttpException) {
+    if (this.isHttpException(payload)) {
       result = this.castHttpException(payload);
-    } else if (payload instanceof ApolloError) {
+    } else if (this.isApolloError(payload)) {
       result = this.castApolloError(payload);
-    } else if (payload instanceof mongoose.mongo.MongoError) {
+    } else if (this.isMongoError(payload)) {
       result = this.castMongoError(payload);
-    } else if (payload instanceof ErrorClass) {
+    } else if (this.isErrorClass(payload)) {
       result = this.castErrorClass(payload);
-    } else if (payload instanceof Error) {
+    } else if (this.isError(payload)) {
       result = this.castError(payload);
     } else {
       result = this.castUnknown(payload);
@@ -51,7 +71,7 @@ class ExceptionHelperClass {
     return result;
   }
 
-  private castHttpException(exception: HttpException): ExceptionInterface {
+  private castHttpException(exception: HttpExceptionLike): ExceptionInterface {
     return {
       name: exception.name,
       message: exception.message,
@@ -62,11 +82,16 @@ class ExceptionHelperClass {
     };
   }
 
-  private castApolloError(error: ApolloError): ExceptionInterface {
-    const extensions = error.extensions as {
-      http?: { status?: number };
-      code?: ExceptionCodeEnum;
-    };
+  private isHttpException(payload: unknown): payload is HttpExceptionLike {
+    return (
+      this.isError(payload) &&
+      payload.name === ExceptionTypeEnum.HTTP_EXCEPTION &&
+      typeof (payload as { getStatus?: unknown }).getStatus === 'function'
+    );
+  }
+
+  private castApolloError(error: ApolloLikeError): ExceptionInterface {
+    const extensions = error.extensions;
     return {
       name: error.name,
       message: error.message,
@@ -77,7 +102,11 @@ class ExceptionHelperClass {
     };
   }
 
-  private castMongoError(error: mongoose.mongo.MongoError): ExceptionInterface {
+  private isError(payload: unknown): payload is Error {
+    return payload instanceof Error;
+  }
+
+  private castMongoError(error: MongoLikeError): ExceptionInterface {
     let message;
     switch (error.code) {
       case 11000:
@@ -105,7 +134,19 @@ class ExceptionHelperClass {
     };
   }
 
-  private castErrorClass(error: ErrorClass): ExceptionInterface {
+  private isApolloError(payload: unknown): payload is ApolloLikeError {
+    return this.isError(payload) && payload.name === ExceptionTypeEnum.APOLLO_ERROR;
+  }
+
+  private isMongoError(payload: unknown): payload is MongoLikeError {
+    return (
+      this.isError(payload) &&
+      (payload.name === ExceptionTypeEnum.MONGO_ERROR || payload.name === 'MongoServerError') &&
+      typeof (payload as { code?: unknown }).code === 'number'
+    );
+  }
+
+  private castErrorClass(error: ErrorClassLike): ExceptionInterface {
     return {
       name: error.name,
       message: error.message,
@@ -114,6 +155,14 @@ class ExceptionHelperClass {
       type: ExceptionTypeEnum.ERROR_CLASS,
       stack: error.stack,
     };
+  }
+
+  private isErrorClass(payload: unknown): payload is ErrorClassLike {
+    return (
+      this.isError(payload) &&
+      typeof (payload as { status?: unknown }).status === 'number' &&
+      typeof (payload as { messageIsJson?: unknown }).messageIsJson === 'boolean'
+    );
   }
 
   private castError(error: Error): ExceptionInterface {
