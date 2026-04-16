@@ -1,7 +1,7 @@
-import { ErrorClass } from '@common/classes/error.class';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ApolloError } from 'apollo-server-errors';
 import * as mongoose from 'mongoose';
+import { ErrorClass } from '../classes/error.class';
 import { ConverterHelper } from './converter.helper';
 
 export interface ExceptionInterface {

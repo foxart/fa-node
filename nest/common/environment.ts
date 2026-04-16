@@ -1,4 +1,4 @@
-import { ConfigurationClass, ConfigurationType } from '@common/classes/configuration.class';
+import { ConfigurationClass, ConfigurationType } from '../../src';
 
 interface EnvironmentInterface {
   app: {

@@ -1,6 +1,6 @@
-import { ProcessConfigInterface } from '@common/helpers/process.helper';
+import { LoggerNodeService } from '@common/logger-node.service';
 import { INestApplication } from '@nestjs/common';
-import { LoggerNodeService } from '../common/logger-node.service';
+import { ProcessConfigInterface } from '../../src';
 
 export const PROCESS_CONFIG = (app: INestApplication, logger: LoggerNodeService): ProcessConfigInterface => {
   let shutdownPromise: Promise<void> | null = null;

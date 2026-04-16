@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "paths": {
-      "@common/*": ["src/*"]
+      "@common/*": ["nest/common/*"],
+      "@config/*": ["nest/config/*"]
     }
   }
 }

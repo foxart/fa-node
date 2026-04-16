@@ -1,10 +1,10 @@
-import { CodegenHelper } from '@common/helpers/codegen.helper';
-import { ConverterHelper } from '@common/helpers/converter.helper';
-import { DataHelper } from '@common/helpers/data.helper';
-import { IoHelper } from '@common/helpers/io.helper';
 import { MongoClient, WithId } from 'mongodb';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { CodegenHelper } from '../helpers/codegen.helper';
+import { ConverterHelper } from '../helpers/converter.helper';
+import { DataHelper } from '../helpers/data.helper';
+import { IoHelper } from '../helpers/io.helper';
 
 export interface MigrationMongoCliInterface {
   up(db: unknown): Promise<void>;

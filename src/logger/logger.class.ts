@@ -1,3 +1,4 @@
+import * as util from 'node:util';
 import {
   AnsiBackgroundType,
   AnsiColorKeyType,
@@ -6,20 +7,19 @@ import {
   AnsiEffectValueType,
   AnsiForegroundType,
   AnsiHelper,
-} from '@common/helpers/ansi.helper';
-import type { LoggerOriginInterface, StackFrameInterface } from '@common/helpers/stack.helper';
-import { StackHelper } from '@common/helpers/stack.helper';
+} from '../helpers/ansi.helper';
+import type { LoggerOriginInterface, StackFrameInterface } from '../helpers/stack.helper';
+import { StackHelper } from '../helpers/stack.helper';
 import {
   SYMBOL_ARROW,
   SYMBOL_COMMON,
   SYMBOL_STATUS,
   SymbolArrowType,
   SymbolStatusType,
-} from '@common/helpers/symbol.helper';
-import * as util from 'node:util';
+} from '../helpers/symbol.helper';
 import { LOGGER_MAP, LoggerEnum } from './logger.map';
 
-export type { LoggerOriginInterface, StackFrameInterface } from '@common/helpers/stack.helper';
+export type { LoggerOriginInterface, StackFrameInterface } from '../helpers/stack.helper';
 
 function safePush(list: string[], value: string | undefined): void {
   if (value) {

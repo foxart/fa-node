@@ -1,10 +1,10 @@
-import { ProcessHelper } from '@common/helpers/process.helper';
+import { environment } from '@common/environment';
+import { LoggerNodeService } from '@common/logger-node.service';
+import { PROCESS_CONFIG } from '@config/process.config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { ProcessHelper } from '../src';
 import { AppModule } from './app/app.module';
-import { environment } from './common/environment';
-import { LoggerNodeService } from './common/logger-node.service';
-import { PROCESS_CONFIG } from './config/process.config';
 
 void (async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {

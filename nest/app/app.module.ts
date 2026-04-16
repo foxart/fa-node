@@ -1,9 +1,9 @@
-import { ConsoleHelper } from '@common/helpers/console.helper';
+import { LoggerNestService } from '@common/logger-nest.service';
+import { LoggerNodeService } from '@common/logger-node.service';
+import { UnhandledExceptionFilter } from '@common/unhandled-exception.filter';
 import { Module, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
-import { LoggerNestService } from '../common/logger-nest.service';
-import { LoggerNodeService } from '../common/logger-node.service';
-import { UnhandledExceptionFilter } from '../common/unhandled-exception.filter';
+import { ConsoleHelper } from '../../src';
 import { AppController } from './app.controller';
 
 @Module({
