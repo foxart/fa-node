@@ -2,7 +2,8 @@
   "compilerOptions": {
     "paths": {
       "@common/*": ["nest/common/*"],
-      "@config/*": ["nest/config/*"]
+      "@config/*": ["nest/config/*"],
+      "@utils/*": ["nest/utils/*"]
     }
   }
 }
