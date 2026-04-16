@@ -5,32 +5,10 @@ export type ConfigurationType<T> = {
   [K in keyof T]: T[K] extends object ? ConfigurationType<T[K]> : ConfigurationInterface<T[K]> | T[K];
 };
 
-// type ConfigurationInterface<T = string> = DictionaryRequired<T> | DictionaryWithDefault<T> | DictionaryOptional<T>;
-// type DictionaryBase<T> = {
-//   placeholder: string;
-//   transform?: (value: string) => T;
-// };
-// type DictionaryRequired<T> = DictionaryBase<T> & {
-//   required: true;
-//   default?: never;
-// };
-// type DictionaryWithDefault<T> = DictionaryBase<T> & {
-//   default: T;
-//   required?: false;
-// };
-// type DictionaryOptional<T> = DictionaryBase<T> & {
-//   required?: false;
-//   default?: undefined;
-// };
-
 type ConfigurationInterface<T = string> = {
   placeholder: string;
   transform?: (value: string) => T;
-} & (
-  | { required: true; default?: never }
-  | { default: T; required?: false }
-  | { required?: false; default?: undefined }
-);
+} & ({ default: T } | { default?: undefined });
 
 type DictionaryType<T> =
   T extends DictionaryInterface<infer R>
@@ -49,7 +27,6 @@ interface ResultInterface<T> {
 interface DictionaryInterface<T = string> {
   placeholder: string;
   default?: T;
-  required?: boolean;
   transform?: (value: string) => T;
 }
 
@@ -123,7 +100,7 @@ export class ConfigurationClass<T extends object> {
     for (const key in dictionary) {
       const value = dictionary[key];
       if (ConfigurationClass.isReference(value)) {
-        const { placeholder, default: def, required = false, transform } = value;
+        const { placeholder, default: def, transform } = value;
         if (!placeholder) continue;
         const rawValue = process.env[placeholder];
         if (rawValue !== undefined && rawValue !== '') {
@@ -141,7 +118,7 @@ export class ConfigurationClass<T extends object> {
           } catch {
             errors.push(`${placeholder} (default transform failed)`);
           }
-        } else if (required) {
+        } else {
           errors.push(placeholder);
         }
         continue;

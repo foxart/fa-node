@@ -14,8 +14,8 @@ interface EnvironmentInterface {
 const EnvironmentConfig: ConfigurationType<EnvironmentInterface> = {
   app: {
     env: {
-      placeholder: 'ENV',
-      required: true,
+      placeholder: 'ENV1',
+      default: 'development',
     },
     debug: {
       placeholder: 'ENV',
@@ -31,11 +31,9 @@ const EnvironmentConfig: ConfigurationType<EnvironmentInterface> = {
     },
     host: {
       placeholder: 'HOST',
-      required: true,
     },
     port: {
       placeholder: 'PORT',
-      required: true,
       transform: ConfigurationClass.toNumber,
     },
   },
