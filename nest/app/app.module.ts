@@ -21,7 +21,6 @@ import { AppController } from './app.controller';
 export class AppModule implements OnModuleInit, OnApplicationBootstrap {
   public constructor(private readonly loggerNodeService: LoggerNodeService) {}
   public onModuleInit(): void {
-    // ProcessHelper.hook(PROCESS_CONFIG(app, logger));
     ConsoleHelper.override(this.loggerNodeService);
     // console.log('onModuleInit');
   }
@@ -31,7 +30,7 @@ export class AppModule implements OnModuleInit, OnApplicationBootstrap {
       // throw new Error('Method not implemented.');
       // process.exit(0);
       // process.exit(1);
-      process.kill(process.pid, 'SIGTERM');
+      // process.kill(process.pid, 'SIGTERM');
     }, 500);
   }
 }

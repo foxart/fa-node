@@ -1,23 +1,22 @@
-import { LoggerNodeService } from '@common/logger-node.service';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, LoggerService } from '@nestjs/common';
 import { ProcessConfigInterface } from '../../src';
 
-export const PROCESS_CONFIG = (app: INestApplication, logger: LoggerNodeService): ProcessConfigInterface => {
+export const PROCESS_CONFIG = (app: INestApplication, logger: LoggerService): ProcessConfigInterface => {
   let shutdownPromise: Promise<void> | null = null;
 
   return {
     shutdownHandler: async (signal): Promise<void> => {
-      logger.warn(signal);
-      logger.debug('Shutdown started', signal, 'NestProcess');
+      logger.error(signal);
+      logger.warn('Shutdown started', signal, 'NestProcess');
       if (!shutdownPromise) {
         shutdownPromise = app.close();
       }
       await shutdownPromise;
-      logger.debug('Shutdown finished', signal, 'NestProcess');
+      logger.warn('Shutdown finished', signal, 'NestProcess');
       //
     },
     exitHandler: (exit): void => {
-      logger.debug(exit.message);
+      logger.warn(exit.message);
     },
     uncaughtExceptionHandler: (error): void => {
       logger.error(error, 'NestProcess');
