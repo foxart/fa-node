@@ -14,8 +14,7 @@ interface EnvironmentInterface {
 const EnvironmentConfig: ConfigurationType<EnvironmentInterface> = {
   app: {
     env: {
-      placeholder: 'ENV1',
-      default: 'development',
+      placeholder: 'ENV',
     },
     debug: {
       placeholder: 'ENV',

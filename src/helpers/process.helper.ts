@@ -19,8 +19,8 @@ export interface ProcessConfigInterface {
 }
 
 class ProcessHelperClass {
-  private static readonly exitSignals: Signal[] = ['SIGTERM', 'SIGINT'];
-  private static readonly logOnlySignals: Signal[] = ['SIGHUP', 'SIGABRT', 'SIGUSR2'];
+  private static readonly exitSignals: Signal[] = ['SIGTERM', 'SIGINT', 'SIGUSR2'];
+  private static readonly logOnlySignals: Signal[] = ['SIGHUP', 'SIGABRT'];
   private static readonly exitCode = 0;
   private static readonly maxListeners = 10;
   private static readonly exitSignalByCode = new Map<number, Signal>(

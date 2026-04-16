@@ -40,7 +40,7 @@ describe('ProcessHelper', () => {
     expect(process.listeners('unhandledRejection')).toHaveLength(0);
   });
 
-  it('should keep graceful signals and log-only signals enabled by default when shutdown handler exists', async () => {
+  it('should gracefully shutdown on nodemon restart signal and other exit signals', async () => {
     const shutdownHandler = jest.fn(() => Promise.resolve());
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
@@ -53,9 +53,12 @@ describe('ProcessHelper', () => {
     process.emit('SIGINT');
     await flushPromises();
 
-    expect(shutdownHandler).toHaveBeenCalledTimes(1);
-    expect(shutdownHandler).toHaveBeenCalledWith('SIGINT');
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(shutdownHandler).toHaveBeenCalledTimes(2);
+    expect(shutdownHandler).toHaveBeenNthCalledWith(1, 'SIGUSR2');
+    expect(shutdownHandler).toHaveBeenNthCalledWith(2, 'SIGINT');
+    expect(exitSpy).toHaveBeenCalledTimes(2);
+    expect(exitSpy).toHaveBeenNthCalledWith(1, 0);
+    expect(exitSpy).toHaveBeenNthCalledWith(2, 0);
 
     exitSpy.mockRestore();
   });
@@ -119,7 +122,7 @@ describe('ProcessHelper', () => {
     expect(exitHandler).toHaveBeenCalledWith({
       code: 143,
       signal: 'SIGTERM',
-      message: 'Exited with code 143 (signal-derived: SIGTERM)',
+      message: 'Exited with code 143 (signal: SIGTERM)',
     });
   });
 });
