@@ -411,7 +411,7 @@ export class LoggerClass {
       return undefined;
     }
     const datetime = new Date();
-    const parts = [];
+    const parts: string[] = [];
     if (date) {
       const year = this.pad(datetime.getFullYear());
       const month = this.pad(datetime.getMonth() + 1);
