@@ -34,7 +34,7 @@ export enum ExceptionTypeEnum {
 
 class ExceptionHelperClass {
   public castToException(payload: unknown): ExceptionInterface {
-    let result;
+    let result: ExceptionInterface;
     if (payload instanceof HttpException) {
       result = this.castHttpException(payload);
     } else if (payload instanceof ApolloError) {
