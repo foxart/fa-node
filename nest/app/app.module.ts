@@ -1,6 +1,6 @@
-import { LoggerNestService } from '@common/logger-nest.service';
-import { LoggerNodeService } from '@common/logger-node.service';
-import { UnhandledExceptionFilter } from '@common/unhandled-exception.filter';
+import { LoggerNestService } from '@nest/common/logger-nest.service';
+import { LoggerNodeService } from '@nest/common/logger-node.service';
+import { UnhandledExceptionFilter } from '@nest/common/unhandled-exception.filter';
 import { Module, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { ConsoleHelper } from '../../src';

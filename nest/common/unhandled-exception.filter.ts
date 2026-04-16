@@ -1,5 +1,5 @@
+import { isDevMode } from '@nest/common/utils/is-dev-mode';
 import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
-import { isDevMode } from '@utils/is-dev-mode';
 import { ApolloError } from 'apollo-server-errors';
 import { Response } from 'express';
 import { Observable, throwError } from 'rxjs';

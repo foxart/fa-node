@@ -1,6 +1,6 @@
-import { environment } from '@common/environment';
-import { LoggerNodeService } from '@common/logger-node.service';
-import { PROCESS_CONFIG } from '@config/process.config';
+import { environment } from '@nest/common/environment';
+import { LoggerNodeService } from '@nest/common/logger-node.service';
+import { PROCESS_CONFIG } from '@nest/config/process.config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ProcessHelper } from '../src';

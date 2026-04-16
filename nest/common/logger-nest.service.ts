@@ -1,4 +1,4 @@
-import { LOGGER_CONFIG } from '@config/logger.config';
+import { LOGGER_CONFIG } from '@nest/config/logger.config';
 import { Injectable } from '@nestjs/common';
 import { LoggerConfigInterface, LoggerNest } from '../../src';
 
