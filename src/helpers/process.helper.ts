@@ -90,8 +90,8 @@ class ProcessHelperClass {
       const callback = config.uncaughtExceptionHandler;
       handlers.push([
         'uncaughtException',
-        (error: Error): void => {
-          this.runCallback(callback, error);
+        (error: unknown): void => {
+          this.runCallback(callback, error instanceof Error ? error : new Error(String(error)));
         },
       ]);
     }
@@ -113,8 +113,8 @@ class ProcessHelperClass {
       const callback = config.exitHandler;
       handlers.push([
         'exit',
-        (code: number): void => {
-          this.runCallback(callback, this.describeExitCode(code));
+        (code: unknown): void => {
+          this.runCallback(callback, this.describeExitCode(typeof code === 'number' ? code : 1));
         },
       ]);
     }

@@ -34,14 +34,14 @@ interface CollectionInterface {
 }
 
 type CommandBuilderYargs = {
-  positional: (arg0: string, arg1: yargs.Options) => void;
+  positional: (key: string, options: yargs.Options) => void;
 };
 
 interface CommandInterface {
   name: CommandNameEnum;
   desc: string;
   builder?: (yargs: CommandBuilderYargs) => void;
-  handler: (argv: { collection: string }) => void;
+  handler: (argv: yargs.ArgumentsCamelCase<Record<string, unknown>>) => void;
 }
 
 class MigrationMongoCliClass {
@@ -75,11 +75,11 @@ class MigrationMongoCliClass {
         yargsInstance.command(
           command.name,
           command.desc,
-          // (yargsInstance: yargs.Argv) => {
-          //   command.builder?.(yargsInstance as unknown as CommandBuilderYargs);
-          // },
-          command.builder as unknown as { [key: string]: yargs.Options },
-          command.handler as unknown as (args: yargs.ArgumentsCamelCase<{ [key: string]: string }>) => void,
+          (instance) => {
+            command.builder?.(instance as unknown as CommandBuilderYargs);
+            return instance;
+          },
+          command.handler,
         ),
       yargs(hideBin(process.argv)),
     );
@@ -118,7 +118,10 @@ class MigrationMongoCliClass {
             type: 'string',
           });
         },
-        handler: (argv: { collection: string }): void => {
+        handler: (argv): void => {
+          if (typeof argv.collection !== 'string') {
+            throw new Error('Collection argument is required');
+          }
           void this.create(argv.collection);
         },
       },

@@ -138,12 +138,7 @@ export class DecoratorClass {
     };
   }
 
-  private static handleParameters(
-    symbol: symbol,
-    target: ConstructableType,
-    propertyKey: string | symbol,
-    args: unknown[],
-  ): unknown[] {
+  private static handleParameters(symbol: symbol, target: object, propertyKey: string | symbol, args: unknown[]): unknown[] {
     const classMetadata = DecoratorClass.getClassMetadata(symbol, target);
     const methodMetadata = DecoratorClass.getMethodMetadata(symbol, target, propertyKey);
     const parameterMetadata = DecoratorClass.getParameterMetadata(symbol, target, propertyKey);
@@ -176,7 +171,7 @@ export class DecoratorClass {
 
   private static rewriteDescriptor(
     symbol: symbol,
-    target: ConstructableType,
+    target: object,
     propertyKey: string | symbol,
     context: unknown,
     method: FunctionType,
@@ -254,7 +249,7 @@ export class DecoratorClass {
 
   public decorateMethod(data?: MethodDecoratorInterface): MethodDecorator {
     return (
-      target: ConstructableType,
+      target: object,
       propertyKey: string | symbol,
       descriptor: PropertyDescriptor,
     ): PropertyDescriptor => {
@@ -309,7 +304,10 @@ export class DecoratorClass {
   }
 
   public decorateParameter(data?: ParameterDecoratorInterface): ParameterDecorator {
-    return <T>(target: ConstructableType, propertyKey: string | symbol, parameterIndex: number): T | void => {
+    return (target: object, propertyKey: string | symbol | undefined, parameterIndex: number): void => {
+      if (propertyKey === undefined) {
+        return;
+      }
       const designMetadata = DecoratorClass.getDesignMetadata(target, propertyKey);
       const parameterMetadata: ParameterMetadataInterface = data
         ? {

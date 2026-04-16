@@ -22,6 +22,7 @@
     "removeComments": true,
     "skipLibCheck": true,
     //		"sourceMap": true,
+    "strict": true,
     "strictBindCallApply": true,
     "strictNullChecks": true,
     /**/
@@ -38,7 +39,6 @@
     "pretty": true,
     "resolveJsonModule": false,
     "skipDefaultLibCheck": true,
-    //    "strict": true,
     "useUnknownInCatchVariables": true
     //
     //    "sourceMap": true,
