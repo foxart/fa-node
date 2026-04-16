@@ -29,7 +29,9 @@ export class AppModule implements OnModuleInit, OnApplicationBootstrap {
   public onApplicationBootstrap(): void {
     setTimeout(() => {
       // throw new Error('Method not implemented.');
-      process.exit(1);
+      // process.exit(0);
+      // process.exit(1);
+      process.kill(process.pid, 'SIGTERM');
     }, 500);
   }
 }

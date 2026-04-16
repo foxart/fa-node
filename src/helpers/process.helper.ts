@@ -142,18 +142,16 @@ class ProcessHelperClass {
 
   private describeExitCode(code: number): ProcessExitCodeDescriptionInterface {
     const signal = ProcessHelperClass.exitSignalByCode.get(code);
-
     if (code === 0) {
       return { code, message: 'Exited with code 0 (success)' };
     }
     if (code === 1) {
-      return { code, message: 'Exited with code 1 (general error)' };
+      return { code, message: 'Exited with code 1 (error)' };
     }
-
     return {
       code,
       signal,
-      message: signal ? `Exited with code ${code} (signal-derived: ${signal})` : `Exited with code ${code}`,
+      message: signal ? `Exited with code ${code} (signal: ${signal})` : `Exited with code ${code}`,
     };
   }
 }
