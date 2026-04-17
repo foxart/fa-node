@@ -147,3 +147,5 @@ Keep the split clean:
 - subtree-specific rules go into nested `AGENTS.md` only when justified
 
 This keeps the instruction system compact, composable, and maintainable.
+
+надо собрать единый универсальный генератор-шаблон для всех таких AGENTS.md + openai/skills/* наборов
