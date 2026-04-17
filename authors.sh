@@ -6,8 +6,8 @@ set -eo pipefail
 # CONFIG
 # ============================================
 
-SUBJECT_WIDTH="${SUBJECT_WIDTH:-50}"
-BRANCH_WIDTH="${BRANCH_WIDTH:-40}"
+SUBJECT_WIDTH="${SUBJECT_WIDTH:-150}"
+BRANCH_WIDTH="${BRANCH_WIDTH:-50}"
 
 COMMITS_PER_USER="${COMMITS_PER_USER:-5}"
 
@@ -267,20 +267,21 @@ collect_data() {
 
       done < <(
         {
-          # последние
-          git log --use-mailmap --all --author="$author" \
-            -n "$COMMITS_PER_USER" \
-            --date=format-local:'%d %b %Y %H:%M:%S' \
-            --pretty="tformat:%h${sep}%ad${sep}%s"
-
-          echo "SPLIT"
-
-          # первые
+          # первые (старые → новые)
           git log --use-mailmap --all --author="$author" \
             --reverse \
             --date=format-local:'%d %b %Y %H:%M:%S' \
             --pretty="tformat:%h${sep}%ad${sep}%s" |
             awk -v limit="$COMMITS_PER_USER" 'NR <= limit'
+
+          echo "SPLIT"
+
+          # последние (тоже старые → новые)
+          git log --use-mailmap --all --author="$author" \
+            -n "$COMMITS_PER_USER" \
+            --date=format-local:'%d %b %Y %H:%M:%S' \
+            --pretty="tformat:%h${sep}%ad${sep}%s" |
+            awk '{ lines[NR]=$0 } END { for(i=NR;i>=1;i--) print lines[i] }'
         }
       )
 
