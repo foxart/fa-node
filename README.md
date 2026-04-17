@@ -1,5 +1,9 @@
 # FA-NODE
 
+## Docs
+
+- [author.md](docs/author.md)
+
 Если смотреть прагматично, у тебя сейчас смешаны 3 разные категории:
 
 - реальные stateful/service-like классы:
