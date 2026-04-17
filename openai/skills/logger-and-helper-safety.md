@@ -10,7 +10,7 @@ Preserve shared behavior and operational assumptions in logging and helper code.
 
 - Preserve log message timing, severity, and propagation unless task-required.
 - Preserve helper input and output behavior relied on by callers.
-- Keep shared helper changes minimal because blast radius is high.
+- Keep shared helper changes minimal because the blast radius is high.
 - Preserve existing error semantics and avoid empty catches.
 - Do not generalize or centralize behavior unless the task explicitly requires it.
 
@@ -26,5 +26,5 @@ Preserve shared behavior and operational assumptions in logging and helper code.
 
 - broad helper refactors
 - changing log text or structure incidentally
-- making shared helpers more permissive without need
+- making shared helpers more permissive without a need
 - hiding exceptions or changing failure timing

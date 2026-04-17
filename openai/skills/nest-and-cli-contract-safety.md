@@ -12,7 +12,7 @@ Preserve request, response, argument, startup, and exit behavior while making th
 - Preserve CLI flag names, argument parsing, exit semantics, and output format unless required.
 - Preserve startup behavior for `npm start` and `npm run start:nest` unless required.
 - Preserve error propagation and operationally relied-on failures unless the task explicitly changes them.
-- Do not add new async boundaries or reorder side effects without need.
+- Do not add new async boundaries or reorder side effects without a need.
 
 ## Safe Pattern
 
@@ -27,4 +27,4 @@ Preserve request, response, argument, startup, and exit behavior while making th
 - changing CLI help or output incidentally
 - changing Nest handler shapes accidentally
 - hiding errors behind generic catches
-- mixing refactors with contract-sensitive entrypoint edits
+- mixing refactoring with contract-sensitive entrypoint edits

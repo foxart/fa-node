@@ -20,12 +20,12 @@ Preserve repository test conventions and add only the narrowest tests needed.
 1. Determine whether the change is best covered by unit or e2e scope.
 2. Add or update only the narrowest relevant test.
 3. Keep existing naming and placement conventions.
-4. Avoid expanding fixture scope without need.
+4. Avoid expanding the fixture scope without a need.
 5. Run the narrowest relevant validation command.
 
 ## Avoid
 
-- moving tests between unit and e2e layers without need
+- moving tests between unit and e2e layers without a need
 - broad test rewrites
 - changing assertions unrelated to the task
 - adding redundant coverage for unchanged behavior

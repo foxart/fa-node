@@ -4,17 +4,17 @@ Use this as the final self-check before returning code.
 
 ## Review Questions
 
-- Did the change stay local and narrow?
-- Were defaults, fallbacks, side effects, and execution order preserved?
-- Were Nest and CLI input/output contracts preserved?
-- Were logger and helper behaviors preserved?
-- Were file naming conventions and repository layout preserved?
-- Were typing rules followed without using `any`?
-- Was `Partial<T>` avoided unless it was clearly the right fit?
-- Were tests added or updated only where needed?
-- Were no unrelated test, formatting, or architecture changes introduced?
+- Keep the change local and narrow
+- Preserve defaults, fallbacks, side effects, and execution order
+- Preserve Nest and CLI input/output contracts
+- Preserve logger and helper behaviors
+- Preserve file naming conventions and repository layout
+- Follow typing rules without using `any`
+- Avoid `Partial<T>` unless it is the right fit
+- Add or update tests only where needed
+- Avoid unrelated test, formatting, or architecture changes
 
 ## Output Reminder
 
 Return only changed code or a narrow diff.
-Keep explanations short and focused on what changed, why it was needed, and what was preserved.
+Keep explanations short and focused on what changed, why it was necessary, and what was preserved.

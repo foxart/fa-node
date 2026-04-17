@@ -14,14 +14,14 @@ Preserve runtime behavior while maintaining repository typing and style conventi
 - For input configs and DTO-like shapes, prefer one explicit interface with optional fields.
 - Keep the required normalized internal form as a separate internal type alias when needed.
 - Preserve existing runtime coercion, nullability, and normalization behavior unless task-required.
-- Follow repository style: tabs, single quotes, trailing commas.
+- Follow the repository style: tabs, single quotes, trailing commas.
 
 ## Safe Pattern
 
 1. Keep typing local to the changed code.
 2. Preserve current runtime behavior first.
-3. Introduce explicit interfaces when they clarify input shape.
-4. Keep normalized internal state separate from input shape when needed.
+3. Introduce explicit interfaces when they clarify the input shape.
+4. Keep the normalized internal state separate from the input shape when needed.
 5. Avoid broad type churn outside the touched area.
 
 ## Avoid

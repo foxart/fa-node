@@ -35,7 +35,7 @@ Unless explicitly required by the task, do not change:
 
 - defaults, fallbacks, and side effects
 - execution order and async behavior
-- request or response shapes used by Nest or CLI entrypoints
+- request or response shapes used by Nest or CLI entry points
 - logger behavior, emitted messages, or error propagation relied on by tests or operations
 - CLI flags, argument parsing, exit semantics, or output format
 - file naming conventions or repository layout
@@ -57,7 +57,7 @@ Unless explicitly required by the task, do not change:
 
 ## Change Rules
 
-- Keep scope narrow: no unrelated refactors, renames, formatting-only edits, or architecture rewrites.
+- Keep the scope narrow: no unrelated refactors, renames, formatting-only edits, or architecture rewrites.
 - Follow existing local patterns in the touched area.
 - Preserve current Nest, CLI, logger, helper, and class boundaries unless the task requires change.
 - Add tests for new logic.
@@ -83,7 +83,7 @@ Use the narrowest relevant checks available:
 - e2e tests: `npm run test:nest`
 - lint: `npm run lint`
 
-Prefer targeted validation when possible. Do not run broader commands than necessary unless the task requires it.
+Prefer targeted validation when possible. Do not run the broader commands than necessary unless the task requires it.
 
 ## Checks
 
@@ -94,13 +94,13 @@ Before finishing, verify:
 - no file naming or repository layout drift
 - no hidden async or CLI behavior changes
 - no logger or error-handling drift unless task-required
-- new logic has appropriate tests
+- the new logic has appropriate tests
 - no unnecessary weakening of types
 
 ## Output Format
 
 - Return only changed code or a narrow diff.
-- Do not rewrite broadly without direct need.
+- Do not rewrite broadly without a direct need.
 - Keep explanations short.
 - If explanation is included, state:
   - what changed
