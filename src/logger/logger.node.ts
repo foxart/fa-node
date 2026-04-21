@@ -9,7 +9,7 @@ import {
 } from './logger.class';
 import { LoggerEnum } from './logger.map';
 
-export interface LoggerNodeInterface {
+interface LoggerNodeInterface {
   log(message: unknown, ...optionalParams: unknown[]): unknown;
   error(message: unknown, ...optionalParams: unknown[]): unknown;
   warn(message: unknown, ...optionalParams: unknown[]): unknown;
@@ -17,7 +17,7 @@ export interface LoggerNodeInterface {
   info(message: unknown, ...optionalParams: unknown[]): unknown;
 }
 
-export class LoggerNode extends LoggerClass {
+export class LoggerNode extends LoggerClass implements LoggerNodeInterface {
   public constructor(config: LoggerConfigInterface) {
     super(config);
   }

@@ -147,3 +147,7 @@ Keep the split clean:
 - subtree-specific rules go into nested `AGENTS.md` only when justified
 
 This keeps the instruction system compact, composable, and maintainable.
+
+```aiignore
+    оформи папку openai как полноценные skill folders с SKILL.md и metadata.
+```
