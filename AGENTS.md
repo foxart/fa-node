@@ -111,8 +111,8 @@ Before finishing, verify:
 
 Read these only when relevant to the task:
 
-- `openai/skills/typescript-style-and-typing-safety.md`
-- `openai/skills/nest-and-cli-contract-safety.md`
-- `openai/skills/logger-and-helper-safety.md`
-- `openai/skills/test-placement-and-update-rules.md`
-- `openai/skills/final-review-checklist.md`
+- `.codex/guides/typescript-style-and-typing-safety.md`
+- `.codex/guides/nest-and-cli-contract-safety.md`
+- `.codex/guides/logger-and-helper-safety.md`
+- `.codex/guides/test-placement-and-update-rules.md`
+- `.codex/guides/final-review-checklist.md`
