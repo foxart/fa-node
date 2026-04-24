@@ -1,4 +1,5 @@
 const ENV = process.env.NODE_ENV || '';
+
 enum EnvEnum {
   LOCAL = 'local',
   DEVELOPMENT = 'development',
