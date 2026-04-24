@@ -115,7 +115,7 @@ export class LoggerNest extends LoggerClass implements LoggerNestInterface {
   public print(
     level: LoggerLevelType,
     origin: LoggerOriginInterface,
-    message: unknown | unknown[],
+    message: unknown,
     metadataOptions: LoggerMetadataOutputOptionsInterface = {},
   ): void {
     const data = Array.isArray(message) ? message : [message];

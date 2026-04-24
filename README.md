@@ -70,3 +70,10 @@
 - проблема больше архитектурная, чем чисто naming
 - лучше перейти от “папка по конструкции языка” к “папки по ответственности”
 
+```shell
+docker container prune -f
+docker image prune -a -f
+docker network prune -f
+docker builder prune -a -f
+#docker volume prune -f
+```

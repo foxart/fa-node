@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# git/pre-push
+
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+
+main() {
+  skip_if_requested
+  log "running $(path tests)"
+  run npm run test
+  log "running $(path production build)"
+  run npm run build:prod
+}
+
+main "$@"

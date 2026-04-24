@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+# git/post-merge
+
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+
+check_hooks_changed() {
+  git rev-parse --verify ORIG_HEAD >/dev/null 2>&1 || return 1
+  if git diff --quiet ORIG_HEAD HEAD -- "$HOOKS_ROOT"; then
+    return 1
+  fi
+  return 0
+}
+
+main() {
+  skip_if_requested
+  if ! check_hooks_changed; then
+    log "hooks unchanged"
+    return 0
+  fi
+  log "sync hooks"
+  run "$SCRIPT_DIR/init.sh"
+}
+
+main "$@"

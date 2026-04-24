@@ -1,29 +1,48 @@
 ## Purpose
 
-Safe changes in a TypeScript repository with NestJS components, local Jest tests, and e2e coverage.
-
-Goal: preserve current behavior, repository conventions, and test expectations.
+Safe changes in a TypeScript repository with NestJS, CLI, Jest, and e2e tests.  
+Goal: preserve behavior, contracts, repository conventions, and test expectations.
 
 ## Scope
 
 Applies to:
 
 - `src/` application code
-  - `classes/`
-  - `helpers/`
-  - `logger/`
-  - `cli/`
-  - `nest/`
-- colocated unit tests (`*.spec.ts`)
-- e2e tests in `test/*.e2e-spec.ts`
+- Nest entrypoints
+- CLI entrypoints
+- logger / helpers
+- colocated `*.spec.ts`
+- `test/*.e2e-spec.ts`
 
-Ignore generated outputs such as `dist/`, `coverage/`, and `temp/`.
+Do not:
 
-## Core Rules
+- modify generated outputs (`dist/`, `coverage/`, `temp/`)
+- expand scope beyond task
 
-- Treat the codebase as contract-, behavior-, and test-sensitive.
-- Preserve current behavior. Make the smallest local and reversible patch.
-- If priorities conflict, use this order:
+## Source Scope (CRITICAL)
+
+Primary code:
+
+- `src/`
+- `test/`
+
+Rules:
+
+- operate only within these directories unless required
+- treat everything else as out of scope
+- do not explore outside minimal relevant path
+
+## Safety System
+
+Follow:
+
+- `.codex/guides/typescript-repo-safety.md`
+
+Escalate to:
+
+- `.codex/guides/typescript-repo-safety.full.md` when required
+
+## Priorities
 
 1. correctness
 2. production safety
@@ -31,88 +50,37 @@ Ignore generated outputs such as `dist/`, `coverage/`, and `temp/`.
 4. repository consistency
 5. minimal diff
 
-Unless explicitly required by the task, do not change:
+## Invariants (CRITICAL)
 
-- defaults, fallbacks, and side effects
-- execution order and async behavior
-- request or response shapes used by Nest or CLI entry points
-- logger behavior, emitted messages, or error propagation relied on by tests or operations
-- CLI flags, argument parsing, exit semantics, or output format
-- file naming conventions or repository layout
-- test intent, fixture assumptions, or coverage target of existing tests
+Do not change unless required:
 
-## Repository Conventions
-
-- Use TypeScript.
-- Use tabs, single quotes, and trailing commas.
-- Do not use `any`.
-- Prefer explicit types.
-- Use `Partial<T>` sparingly.
-- For config inputs and DTO-like shapes, prefer one explicit interface with optional fields.
-- Keep the required normalized internal form as a separate internal type alias when needed.
-- Follow existing file naming conventions:
-  - `*.class.ts`
-  - `*.helper.ts`
-  - `*.service.ts`
+- public contracts and API behavior
+- test expectations and assertions
+- async behavior and execution order
+- repository structure and conventions
+- naming patterns and file layout
 
 ## Change Rules
 
-- Keep the scope narrow: no unrelated refactors, renames, formatting-only edits, or architecture rewrites.
-- Follow existing local patterns in the touched area.
-- Preserve current Nest, CLI, logger, helper, and class boundaries unless the task requires change.
-- Add tests for new logic.
-- Update only the narrowest tests needed for changed behavior.
+- smallest local change
+- no refactors or rewrites
+- no scope expansion
+- preserve behavior
+- keep changes targeted and reversible
 
-Unless explicitly required, do not change:
+## Domain Rules
 
-- command behavior for `npm start`, `npm run start:nest`, `npm run build`, `npm test`, `npm run test:nest`, or `npm run lint`
-- jest or ts-jest assumptions
-- unit versus e2e test placement conventions
-- public class, service, helper, or CLI entrypoint behavior
-- async boundaries or loop behavior
-- lint-driven style beyond the touched code
+- preserve async behavior
+- follow existing naming and layout
+- add or update tests only when required
 
-## Verification Commands
+## Execution
 
-Use the narrowest relevant checks available:
+- keep changes local
+- do not mix refactor with behavior change
 
-- dev start: `npm start`
-- nest start: `npm run start:nest`
-- build: `npm run build`
-- unit tests: `npm test`
-- e2e tests: `npm run test:nest`
-- lint: `npm run lint`
+## Output
 
-Prefer targeted validation when possible. Do not run the broader commands than necessary unless the task requires it.
-
-## Checks
-
-Before finishing, verify:
-
-- no out-of-scope changes
-- no unintended behavior or contract changes
-- no file naming or repository layout drift
-- no hidden async or CLI behavior changes
-- no logger or error-handling drift unless task-required
-- the new logic has appropriate tests
-- no unnecessary weakening of types
-
-## Output Format
-
-- Return only changed code or a narrow diff.
-- Do not rewrite broadly without a direct need.
-- Keep explanations short.
-- If explanation is included, state:
-  - what changed
-  - why it was necessary
-  - what behavior or conventions were preserved
-
-## Related Guides
-
-Read these only when relevant to the task:
-
-- `.codex/guides/typescript-style-and-typing-safety.md`
-- `.codex/guides/nest-and-cli-contract-safety.md`
-- `.codex/guides/logger-and-helper-safety.md`
-- `.codex/guides/test-placement-and-update-rules.md`
-- `.codex/guides/final-review-checklist.md`
+- minimal diff
+- changed code only
+- short explanation if needed

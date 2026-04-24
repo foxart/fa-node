@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+# git/pre-commit
+
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+
+run_lint() {
+  local input="$1"
+  local files=()
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    files+=("$f")
+  done <<<"$input"
+  [ "${#files[@]}" -eq 0 ] && return 0
+  log "linting $(path staged files) $(meta "${#files[@]}")"
+  run npm run lint -- "${files[@]}"
+}
+
+restage() {
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    git diff --quiet -- "$f" && continue
+    run git add -- "$f"
+  done <<<"$1"
+}
+
+main() {
+  skip_if_requested
+  local all
+  all="$(staged_files)"
+  [ -z "$all" ] && return 0
+  local lint
+  lint="$(printf '%s\n' "$all" | filter_files '\.(ts|js)$')"
+  [ -z "$lint" ] && return 0
+  run_lint "$lint"
+  restage "$lint"
+}
+
+main "$@"

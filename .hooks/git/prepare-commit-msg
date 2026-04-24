@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+# git/prepare-commit-msg
+
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+
+extract_ticket() {
+  local branch="$1"
+  if [[ "$branch" =~ $JIRA_REGEX ]]; then
+    printf '%s' "${BASH_REMATCH[0]}"
+  fi
+}
+
+append_ticket() {
+  local file="$1"
+  local branch
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+  local ticket
+  ticket="$(extract_ticket "$branch")"
+  [ -z "$ticket" ] && return 0
+  grep -qF -- "$ticket" "$file" && return 0
+  printf '\nRefs %s/browse/%s\n' "$JIRA_URL" "$ticket" >> "$file"
+  log "added $(path "$ticket") reference"
+}
+
+main() {
+  skip_if_requested
+  local file="${1:-}"
+  if [ -z "$file" ]; then
+    warn "missing $(path commit message file)"
+    exit 1
+  fi
+  append_ticket "$file"
+}
+
+main "$@"

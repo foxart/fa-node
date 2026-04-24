@@ -85,7 +85,7 @@ class ExceptionHelperClass {
   private isHttpException(payload: unknown): payload is HttpExceptionLike {
     return (
       this.isError(payload) &&
-      payload.name === ExceptionTypeEnum.HTTP_EXCEPTION &&
+      payload.name === String(ExceptionTypeEnum.HTTP_EXCEPTION) &&
       typeof (payload as { getStatus?: unknown }).getStatus === 'function'
     );
   }
@@ -135,13 +135,13 @@ class ExceptionHelperClass {
   }
 
   private isApolloError(payload: unknown): payload is ApolloLikeError {
-    return this.isError(payload) && payload.name === ExceptionTypeEnum.APOLLO_ERROR;
+    return this.isError(payload) && payload.name === String(ExceptionTypeEnum.APOLLO_ERROR);
   }
 
   private isMongoError(payload: unknown): payload is MongoLikeError {
     return (
       this.isError(payload) &&
-      (payload.name === ExceptionTypeEnum.MONGO_ERROR || payload.name === 'MongoServerError') &&
+      (payload.name === String(ExceptionTypeEnum.MONGO_ERROR) || payload.name === 'MongoServerError') &&
       typeof (payload as { code?: unknown }).code === 'number'
     );
   }
