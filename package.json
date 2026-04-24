@@ -17,6 +17,7 @@
     "lint": "eslint -c eslint.config.js \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:nest": "jest --config test/jest-e2e.json",
+    "package": "npm pack --pack-destination .packages --omit=dev",
     "prepack": "npm run build",
     "publish:public": "npm publish --access=public",
     "publish:dry": "npm publish --dry-run"

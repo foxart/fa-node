@@ -70,3 +70,16 @@
 - проблема больше архитектурная, чем чисто naming
 - лучше перейти от “папка по конструкции языка” к “папки по ответственности”
 
+```shell
+docker container prune -f
+docker image prune -a -f
+docker network prune -f
+docker builder prune -a -f
+#docker volume prune -f
+```
+
+```shell
+git clone -c core.sshCommand="ssh -i ~/.ssh/ID_RSA_PUB" git@github.com:USER/REPO.git
+git remote set-url origin git@github.com:USER/REPO.git
+git config core.sshCommand "ssh -i ~/.ssh/ID_RSA_PUB"
+```

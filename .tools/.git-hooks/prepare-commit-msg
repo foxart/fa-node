@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+source "$PARENT_DIR/logger.sh"
+source "$PARENT_DIR/config.sh"
+
+HOOKS_NAME="$(loggerFormat "[HOOKS]")"
+
+skip_if_requested() {
+  if [[ "${SKIP_HOOKS:-}" == "true" ]]; then
+    loggerInfo "$HOOKS_NAME check: $(loggerFormat "SKIP_HOOKS=true") skipped"
+    exit 0
+  fi
+}
+
+extract_ticket() {
+  local branch="$1"
+  if [[ "$branch" =~ $JIRA_REGEX ]]; then
+    printf '%s' "${BASH_REMATCH[0]}"
+  fi
+}
+
+append_ticket() {
+  local file="$1"
+  local branch
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+  local ticket
+  ticket="$(extract_ticket "$branch")"
+  [[ -z "$ticket" ]] && return 0
+  grep -qF -- "$ticket" "$file" && return 0
+  printf '\nRefs %s/browse/%s\n' "$JIRA_URL" "$ticket" >>"$file"
+  loggerLog "$HOOKS_NAME reference: $(loggerFormat "$ticket") added"
+}
+
+main() {
+  skip_if_requested
+  local file="${1:-}"
+  if [[ -z "$file" ]]; then
+    loggerError "$HOOKS_NAME commit message: file missing"
+    exit 1
+  fi
+  append_ticket "$file"
+}
+
+main "$@"

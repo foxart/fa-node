@@ -2,6 +2,6 @@
 /.idea
 /coverage
 /dist
-/packages
+/.packages
 /node_modules
-/temp
+/tmp

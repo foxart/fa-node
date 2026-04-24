@@ -18,8 +18,11 @@ interface LoggerNodeInterface {
 }
 
 export class LoggerNode extends LoggerClass implements LoggerNodeInterface {
-  public constructor(config: LoggerConfigInterface) {
+  private readonly argsMap: (value: unknown[]) => unknown[];
+
+  public constructor(config: LoggerConfigInterface, formatLogString?: (value: unknown[]) => unknown[]) {
     super(config);
+    this.argsMap = formatLogString ?? ((value: unknown[]): unknown[] => value);
   }
 
   protected get origin(): LoggerOriginInterface {
@@ -51,19 +54,18 @@ export class LoggerNode extends LoggerClass implements LoggerNodeInterface {
       this.stdout({
         level,
         metadata: this.buildRenderMetadata(trace),
-        messages: args,
+        messages: this.argsMap(args),
         debugTrace: StackHelper.toTrace(new Error().stack),
         formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
       });
       return;
     }
-
     const traceIndex = this.config.traceIndex ?? 1;
     const origin = StackHelper.resolveOrigin(trace, traceIndex);
     this.stdout({
       level,
       metadata: this.buildRenderMetadata(origin),
-      messages: args,
+      messages: this.argsMap(args),
       debugTrace: StackHelper.toTrace(new Error().stack),
       formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
     });
@@ -78,7 +80,7 @@ export class LoggerNode extends LoggerClass implements LoggerNodeInterface {
     this.stdout({
       level,
       metadata: this.buildRenderMetadata(origin, metadataOptions),
-      messages: args,
+      messages: this.argsMap(args),
       debugTrace: StackHelper.toTrace(new Error().stack),
       formatString: (value) => this.colorizeString(value, LoggerEnum.STRING),
     });
