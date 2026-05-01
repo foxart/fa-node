@@ -56,8 +56,9 @@ export class ValidatorClass {
         result.push({
           property: currentProperty,
           value: error.value,
-          constraints: mapConstraints(error.constraints as Record<string, string>),
+          constraints: mapConstraints(error.constraints),
         });
+        a = 1;
       }
     };
     errorList.forEach((error) => processError(error));

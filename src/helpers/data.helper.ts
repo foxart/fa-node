@@ -311,6 +311,7 @@ class DataHelperClass {
     try {
       return JSON.parse(data) as T;
     } catch (e) {
+      const a = 1;
       return data;
     }
   }

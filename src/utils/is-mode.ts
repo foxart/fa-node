@@ -21,7 +21,7 @@ const envMap: Record<string, EnvEnum> = {
 
 const normalizedEnv = envMap[ENV] || EnvEnum.LOCAL;
 
-export const isDevMode = () => normalizedEnv === EnvEnum.LOCAL || normalizedEnv === EnvEnum.DEVELOPMENT;
-export const isProdMode = () => normalizedEnv === EnvEnum.PRODUCTION;
-export const isStageMode = () => normalizedEnv === EnvEnum.STAGING;
-export const isTestMode = () => normalizedEnv === EnvEnum.TEST;
+export const isDevMode = (): boolean => normalizedEnv === EnvEnum.LOCAL || normalizedEnv === EnvEnum.DEVELOPMENT;
+export const isProdMode = (): boolean => normalizedEnv === EnvEnum.PRODUCTION;
+export const isStageMode = (): boolean => normalizedEnv === EnvEnum.STAGING;
+export const isTestMode = (): boolean => normalizedEnv === EnvEnum.TEST;

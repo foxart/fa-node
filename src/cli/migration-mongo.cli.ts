@@ -76,7 +76,7 @@ class MigrationMongoCliClass {
           command.name,
           command.desc,
           (instance) => {
-            command.builder?.(instance as unknown as CommandBuilderYargs);
+            command.builder?.(instance);
             return instance;
           },
           command.handler,
@@ -178,7 +178,7 @@ class MigrationMongoCliClass {
       const db = client.db(this.configuration.database);
       await db.collections();
     } catch (e) {
-      CodegenHelper.logError(this.check.name, e as Error);
+      CodegenHelper.logError(this.check.name, e);
       process.exit(1);
     }
   }
@@ -304,7 +304,7 @@ class MigrationMongoCliClass {
         .replace(/mongoMigrationField/g, fieldName)
         .replace(/mongo_migration_index/g, indexName);
     } catch (e) {
-      CodegenHelper.logError(className, e as Error);
+      CodegenHelper.logError(className, e);
       process.exit(1);
     }
   }
@@ -323,7 +323,7 @@ class MigrationMongoCliClass {
       const ClassToLoad = module[className] as new () => MigrationMongoCliInterface;
       return new ClassToLoad();
     } catch (e) {
-      CodegenHelper.logError(filePath, e as Error);
+      CodegenHelper.logError(filePath, e);
       process.exit(1);
     }
   }
@@ -341,7 +341,7 @@ class MigrationMongoCliClass {
       });
       CodegenHelper.logSuccess(migration.constructor.name, filePath);
     } catch (e) {
-      CodegenHelper.logError(migration.constructor.name, e as Error);
+      CodegenHelper.logError(migration.constructor.name, e);
       process.exit(1);
     }
   }
@@ -356,7 +356,7 @@ class MigrationMongoCliClass {
       await collection.deleteOne({ _id: log._id });
       CodegenHelper.logSuccess(migration.constructor.name, log.fileName);
     } catch (e) {
-      CodegenHelper.logError(migration.constructor.name, e as Error);
+      CodegenHelper.logError(migration.constructor.name, e);
       process.exit(1);
     }
   }
