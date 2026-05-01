@@ -3,8 +3,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-source "$PARENT_DIR/config.sh"
-source "$PARENT_DIR/logger.sh"
+source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/logger.sh"
 
 HOOKS_NAME="$(loggerFormat "[HOOKS]")"
 
@@ -42,7 +42,7 @@ run_lint() {
   done <<<"$input"
   [[ "${#files[@]}" -eq 0 ]] && return 0
   loggerInfo "$HOOKS_NAME lint: staged files $(loggerFormat "${#files[@]}") started"
-  if run npm run lint -- "${files[@]}"; then
+  if run env ESLINT_USE_FLAT_CONFIG=false npx eslint -c eslint.config.js --fix "${files[@]}"; then
     loggerLog "$HOOKS_NAME lint: staged files $(loggerFormat "${#files[@]}") passed"
   else
     loggerError "$HOOKS_NAME lint: staged files $(loggerFormat "${#files[@]}") failed"
