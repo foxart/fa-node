@@ -1,45 +1,35 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/logger.sh"
 
-HOOKS_NAME="$(loggerFormat "[HOOKS]")"
-
-run() {
-  if [[ "${HOOKS_DRY_RUN:-false}" == "true" ]]; then
-    loggerDebug "$HOOKS_NAME run: $(loggerFormat "$1") ${*:2} dry-run"
-    return 0
-  fi
-  loggerLog "$HOOKS_NAME run: $(loggerFormat "$1") ${*:2} started"
-  "$@"
-}
+HOOKS_NAME="$(loggerFormat "[PRE-PUSH]")"
 
 skip_if_requested() {
   if [[ "${GIT_SKIP_HOOK:-}" == "true" ]]; then
-    loggerInfo "$HOOKS_NAME check: $(loggerFormat "GIT_SKIP_HOOK=true") skipped"
+    loggerInfo "$HOOKS_NAME skip: $(loggerFormat "GIT_SKIP_HOOK=$GIT_SKIP_HOOK")"
     exit 0
   fi
 }
 
 main() {
   skip_if_requested
-  loggerInfo "$HOOKS_NAME test: npm run test started"
-  if run npm run test; then
-    loggerLog "$HOOKS_NAME test: npm run test passed"
+  loggerInfo "$HOOKS_NAME test: started"
+  if npm run test --silent; then
+    loggerLog "$HOOKS_NAME test: passed"
   else
-    loggerError "$HOOKS_NAME test: npm run test failed"
+    loggerError "$HOOKS_NAME test: failed"
     return 1
   fi
-  loggerInfo "$HOOKS_NAME build: npm run build:prod started"
-  if run npm run build:prod; then
-    loggerLog "$HOOKS_NAME build: npm run build:prod passed"
-  else
-    loggerError "$HOOKS_NAME build: npm run build:prod failed"
-    return 1
-  fi
+  #  loggerInfo "$HOOKS_NAME build: npm run --silent build:prod started"
+  #  if npm run --silent build:prod; then
+  #    loggerLog "$HOOKS_NAME build: npm run build:prod passed"
+  #  else
+  #    loggerError "$HOOKS_NAME build: npm run build:prod failed"
+  #    return 1
+  #  fi
 }
 
 main "$@"

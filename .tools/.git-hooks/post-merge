@@ -1,35 +1,17 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/logger.sh"
 
-HOOKS_NAME="$(loggerFormat "[HOOKS]")"
-
-run() {
-  if [[ "${HOOKS_DRY_RUN:-false}" == "true" ]]; then
-    loggerDebug "$HOOKS_NAME run: $(loggerFormat "$1") ${*:2} dry-run"
-    return 0
-  fi
-  loggerLog "$HOOKS_NAME run: $(loggerFormat "$1") ${*:2} started"
-  "$@"
-}
+HOOKS_NAME="$(loggerFormat "[POST-MERGE]")"
 
 skip_if_requested() {
   if [[ "${GIT_SKIP_HOOK:-}" == "true" ]]; then
-    loggerInfo "$HOOKS_NAME check: $(loggerFormat "GIT_SKIP_HOOK=true") skipped"
+    loggerInfo "$HOOKS_NAME skip: $(loggerFormat "GIT_SKIP_HOOK=$GIT_SKIP_HOOK")"
     exit 0
   fi
-}
-
-check_hooks_changed() {
-  git rev-parse --verify ORIG_HEAD >/dev/null 2>&1 || return 1
-  if git diff --quiet ORIG_HEAD HEAD -- .tools/.git-hooks; then
-    return 1
-  fi
-  return 0
 }
 
 cleanup_cache() {
@@ -47,19 +29,27 @@ cleanup_cache() {
   rm -f "$tmp"
 }
 
+sync_hooks() {
+  git rev-parse --verify ORIG_HEAD >/dev/null 2>&1 || {
+    loggerInfo "$HOOKS_NAME sync: hooks skipped"
+    return 0
+  }
+  if git diff --quiet ORIG_HEAD HEAD -- .tools/.git-hooks; then
+    loggerInfo "$HOOKS_NAME sync: hooks skipped"
+    return 0
+  fi
+  loggerInfo "$HOOKS_NAME sync: hooks changed"
+  if "$SCRIPT_DIR/.git-hooks.sh"; then
+    loggerLog "$HOOKS_NAME sync: hooks updated"
+  else
+    loggerError "$HOOKS_NAME sync: hooks failed"
+    return 1
+  fi
+}
+
 main() {
   skip_if_requested
-  if check_hooks_changed; then
-    loggerInfo "$HOOKS_NAME sync: hooks changed"
-    if run "$SCRIPT_DIR/.git-hooks.sh"; then
-      loggerLog "$HOOKS_NAME sync: hooks updated"
-    else
-      loggerError "$HOOKS_NAME sync: hooks failed"
-      return 1
-    fi
-  else
-    loggerInfo "$HOOKS_NAME sync: hooks skipped"
-  fi
+  sync_hooks
   cleanup_cache
 }
 

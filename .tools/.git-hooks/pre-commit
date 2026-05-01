@@ -1,73 +1,53 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/logger.sh"
 
-HOOKS_NAME="$(loggerFormat "[HOOKS]")"
-
-run() {
-  if [[ "${HOOKS_DRY_RUN:-false}" == "true" ]]; then
-    loggerDebug "$HOOKS_NAME run: $(loggerFormat "$1") ${*:2} dry-run"
-    return 0
-  fi
-  loggerLog "$HOOKS_NAME run: $(loggerFormat "$1") ${*:2} started"
-  "$@"
-}
-
-staged_files() {
-  git diff --cached --name-only --diff-filter=ACM
-}
-
-filter_files() {
-  local pattern="$1"
-  grep -E "$pattern" || true
-}
+HOOKS_NAME="$(loggerFormat "[PRE-COMMIT]")"
 
 skip_if_requested() {
   if [[ "${GIT_SKIP_HOOK:-}" == "true" ]]; then
-    loggerInfo "$HOOKS_NAME check: $(loggerFormat "GIT_SKIP_HOOK=true") skipped"
+    loggerInfo "$HOOKS_NAME skip: $(loggerFormat "GIT_SKIP_HOOK=$GIT_SKIP_HOOK")"
     exit 0
   fi
 }
 
 run_lint() {
   local input="$1"
+  shift
   local files=()
   while IFS= read -r f; do
     [[ -z "$f" ]] && continue
+    [[ "$f" =~ \.(ts|js)$ ]] || continue
     files+=("$f")
   done <<<"$input"
   [[ "${#files[@]}" -eq 0 ]] && return 0
-  loggerInfo "$HOOKS_NAME lint: staged files $(loggerFormat "${#files[@]}") started"
-  if run npm run lint -- "${files[@]}"; then
-    loggerLog "$HOOKS_NAME lint: staged files $(loggerFormat "${#files[@]}") passed"
+  loggerInfo "$HOOKS_NAME lint: started $(loggerFormat "${#files[@]}") files"
+  if "$@" "${files[@]}"; then
+    loggerLog "$HOOKS_NAME lint: passed $(loggerFormat "${#files[@]}") files"
   else
-    loggerError "$HOOKS_NAME lint: staged files $(loggerFormat "${#files[@]}") failed"
-    return 1
+    loggerError "$HOOKS_NAME lint: failed $(loggerFormat "${#files[@]}") files"
+    exit 1
   fi
 }
 
-restage() {
+restage_files() {
   while IFS= read -r f; do
     [[ -z "$f" ]] && continue
+    [[ "$f" =~ \.(ts|js)$ ]] || continue
     git diff --quiet -- "$f" && continue
-    run git add -- "$f"
+    git add -- "$f"
   done <<<"$1"
 }
 
 main() {
   skip_if_requested
-  local all
-  all="$(staged_files)"
-  [[ -z "$all" ]] && return 0
-  local lint
-  lint="$(printf '%s\n' "$all" | filter_files '\.(ts|js)$')"
-  [[ -z "$lint" ]] && return 0
-  run_lint "$lint"
-  restage "$lint"
+  local staged
+  staged="$(git diff --cached --name-only --diff-filter=ACM)"
+  run_lint "$staged" npm run --silent lint --
+  restage_files "$staged"
 }
 
 main "$@"

@@ -40,6 +40,28 @@ _color() {
   printf "\033[%sm%s\033[%sm" "$code" "$*" "$RESET"
 }
 
+_symbol() {
+  _color "$COLOR_WHITE" "$1"
+}
+
+_number() {
+  local input="$1"
+  local out=""
+  local i char
+  for ((i = 0; i < ${#input}; i++)); do
+    char="${input:$i:1}"
+    case "$char" in
+    [0-9eE])
+      out+="$(_color "$COLOR_CYAN" "$char")"
+      ;;
+    *)
+      out+="$(_symbol "$char")"
+      ;;
+    esac
+  done
+  printf "%s" "$out"
+}
+
 _meta() {
   local input="$1"
   local out=""
@@ -116,23 +138,27 @@ _meta() {
 
     case "$char" in
     [-0-9])
+      if [[ "$char" == "-" && ! "${input:$((i + 1)):1}" =~ [0-9] ]]; then
+        out+="$(_symbol "$char")"
+        continue
+      fi
       token="$char"
       for ((j = i + 1; j < len; j++)); do
         next="${input:$j:1}"
         [[ "$next" =~ [0-9.] ]] || break
         token+="$next"
       done
-      out+="$(_color "$COLOR_CYAN" "$token")"
+      out+="$(_number "$token")"
       i=$((j - 1))
       ;;
     [\(\)\[\]\{\}])
       out+="$(_color "$COLOR_MAGENTA" "$char")"
       ;;
     [:=])
-      out+="$(_color "$COLOR_YELLOW" "$char")"
+      out+="$(_symbol "$char")"
       ;;
     [/.\-_,])
-      out+="$(_color "$COLOR_GRAY" "$char")"
+      out+="$(_symbol "$char")"
       ;;
     *)
       out+="$(_color "$COLOR_GRAY" "$char")"
@@ -218,20 +244,24 @@ _json() {
 
     case "$char" in
     [-0-9])
+      if [[ "$char" == "-" && ! "${input:$((i + 1)):1}" =~ [0-9] ]]; then
+        out+="$(_symbol "$char")"
+        continue
+      fi
       token="$char"
       for ((j = i + 1; j < len; j++)); do
         next="${input:$j:1}"
         [[ "$next" =~ [0-9.eE+-] ]] || break
         token+="$next"
       done
-      out+="$(_color "$COLOR_CYAN" "$token")"
+      out+="$(_number "$token")"
       i=$((j - 1))
       ;;
     [\{\}\[\]\(\)])
       out+="$(_color "$COLOR_MAGENTA" "$char")"
       ;;
     [:,])
-      out+="$(_color "$COLOR_GRAY" "$char")"
+      out+="$(_symbol "$char")"
       ;;
     [\ ])
       out+="$char"
@@ -273,7 +303,7 @@ _uriToken() {
         [[ "$next" =~ [0-9.] ]] || break
         token+="$next"
       done
-      out+="$(_color "$COLOR_CYAN" "$token")"
+      out+="$(_number "$token")"
       i=$((j - 1))
       ;;
     [a-zA-Z_])
@@ -294,10 +324,10 @@ _uriToken() {
       out+="$(_color "$COLOR_MAGENTA" "$char")"
       ;;
     [%+])
-      out+="$(_color "$COLOR_YELLOW" "$char")"
+      out+="$(_symbol "$char")"
       ;;
     [.\-_,~])
-      out+="$(_color "$COLOR_GRAY" "$char")"
+      out+="$(_symbol "$char")"
       ;;
     *)
       out+="$(_color "$COLOR_GRAY" "$char")"
@@ -359,18 +389,18 @@ _uri() {
   fi
   if [[ -n "$protocol" ]]; then
     out+="$(_color "$COLOR_GRAY" "$protocol")"
-    out+="$(_color "$COLOR_GRAY" "://")"
+    out+="$(_symbol "://")"
   fi
   if [[ -n "$domain" ]]; then
     out+="$(_color "$COLOR_CYAN" "$domain")"
   fi
   if [[ -n "$port" ]]; then
-    out+="$(_color "$COLOR_GRAY" ":")"
-    out+="$(_color "$COLOR_YELLOW" "$port")"
+    out+="$(_symbol ":")"
+    out+="$(_number "$port")"
   fi
   if [[ -n "$path" ]]; then
     if [[ "$path" == /* ]]; then
-      out+="$(_color "$COLOR_GRAY" "/")"
+      out+="$(_symbol "/")"
       path="${path:1}"
     fi
     IFS='/' read -ra parts <<<"$path"
@@ -381,17 +411,17 @@ _uri() {
           name="${BASH_REMATCH[1]}"
           p="${BASH_REMATCH[2]}"
           out+="$(_uriToken "$name" "path")"
-          out+="$(_color "$COLOR_GRAY" ":")"
-          out+="$(_color "$COLOR_YELLOW" "$p")"
+          out+="$(_symbol ":")"
+          out+="$(_number "$p")"
         else
           out+="$(_uriToken "$part" "path")"
         fi
       fi
-      [[ $idx -lt $((${#parts[@]} - 1)) ]] && out+="$(_color "$COLOR_GRAY" "/")"
+      [[ $idx -lt $((${#parts[@]} - 1)) ]] && out+="$(_symbol "/")"
     done
   fi
   if [[ -n "$query" ]]; then
-    out+="$(_color "$COLOR_GRAY" "?")"
+    out+="$(_symbol "?")"
     IFS='&' read -ra pairs <<<"$query"
     for idx in "${!pairs[@]}"; do
       pair="${pairs[$idx]}"
@@ -399,12 +429,12 @@ _uri() {
         key="${BASH_REMATCH[1]}"
         val="${BASH_REMATCH[2]}"
         out+="$(_uriToken "$key" "key")"
-        out+="$(_color "$COLOR_GRAY" "=")"
+        out+="$(_symbol "=")"
         out+="$(_uriToken "$val" "value")"
       else
         out+="$(_uriToken "$pair" "key")"
       fi
-      [[ $idx -lt $((${#pairs[@]} - 1)) ]] && out+="$(_color "$COLOR_GRAY" "&")"
+      [[ $idx -lt $((${#pairs[@]} - 1)) ]] && out+="$(_symbol "&")"
     done
   fi
   printf "%s" "$out"

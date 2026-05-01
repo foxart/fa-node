@@ -95,5 +95,3 @@ export class LoggerNode extends LoggerClass implements LoggerNodeInterface {
     this.print(level, origin, params);
   }
 }
-//
-a = 1;

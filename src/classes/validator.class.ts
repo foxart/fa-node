@@ -58,8 +58,6 @@ export class ValidatorClass {
           value: error.value,
           constraints: mapConstraints(error.constraints),
         });
-        //
-        a = 1;
       }
     };
     errorList.forEach((error) => processError(error));
