@@ -2,16 +2,14 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-# shellcheck source=.tools/config.sh
 source "$SCRIPT_DIR/config.sh"
-# shellcheck source=.tools/logger.sh
 source "$SCRIPT_DIR/logger.sh"
 
-HOOKS_NAME="$(loggerFormat "[PRE-COMMIT]")"
+NAME="$(loggerFormat "[PRE-COMMIT]")"
 
 skip_if_requested() {
-  if [[ "${GIT_SKIP_HOOK:-}" == "true" ]]; then
-    loggerWarn "$HOOKS_NAME skip: $(loggerFormat "GIT_SKIP_HOOK=$GIT_SKIP_HOOK")"
+  if [[ "${GIT_HOOKS_SKIP:-}" == "true" ]]; then
+    loggerWarn "$NAME skip: $(loggerFormat "$GIT_HOOKS_SKIP")"
     exit 0
   fi
 }
@@ -35,11 +33,11 @@ npm_run_lint() {
     files+=("$f")
   done <<<"$input"
   [[ "${#files[@]}" -eq 0 ]] && return 0
-  loggerInfo "$HOOKS_NAME lint: started $(loggerFormat "${#files[@]}") files"
+  loggerInfo "$NAME lint: started $(loggerFormat "${#files[@]}") files"
   if npm run lint --silent -- "${files[@]}"; then
-    loggerLog "$HOOKS_NAME lint: passed $(loggerFormat "${#files[@]}") files"
+    loggerLog "$NAME lint: passed $(loggerFormat "${#files[@]}") files"
   else
-    loggerError "$HOOKS_NAME lint: failed $(loggerFormat "${#files[@]}") files"
+    loggerError "$NAME lint: failed $(loggerFormat "${#files[@]}") files"
     exit 1
   fi
 }
