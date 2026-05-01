@@ -2,7 +2,9 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+# shellcheck source=.tools/logger.sh
 source "$SCRIPT_DIR/logger.sh"
+# shellcheck source=.tools/config.sh
 source "$SCRIPT_DIR/config.sh"
 
 HOOKS_NAME="$(loggerFormat "[HOOKS]")"

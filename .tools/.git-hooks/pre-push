@@ -2,34 +2,44 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+# shellcheck source=.tools/config.sh
 source "$SCRIPT_DIR/config.sh"
+# shellcheck source=.tools/logger.sh
 source "$SCRIPT_DIR/logger.sh"
 
 HOOKS_NAME="$(loggerFormat "[PRE-PUSH]")"
 
 skip_if_requested() {
   if [[ "${GIT_SKIP_HOOK:-}" == "true" ]]; then
-    loggerInfo "$HOOKS_NAME skip: $(loggerFormat "GIT_SKIP_HOOK=$GIT_SKIP_HOOK")"
+    loggerWarn "$HOOKS_NAME skip: $(loggerFormat "GIT_SKIP_HOOK=$GIT_SKIP_HOOK")"
     exit 0
   fi
 }
 
-main() {
-  skip_if_requested
+npm_run_test() {
   loggerInfo "$HOOKS_NAME test: started"
   if npm run test --silent; then
     loggerLog "$HOOKS_NAME test: passed"
   else
     loggerError "$HOOKS_NAME test: failed"
-    return 1
+    exit 1
   fi
-  #  loggerInfo "$HOOKS_NAME build: npm run --silent build:prod started"
-  #  if npm run --silent build:prod; then
-  #    loggerLog "$HOOKS_NAME build: npm run build:prod passed"
-  #  else
-  #    loggerError "$HOOKS_NAME build: npm run build:prod failed"
-  #    return 1
-  #  fi
+}
+
+npm_run_build() {
+  loggerInfo "$HOOKS_NAME build: started"
+  if npm run build >/dev/null 2>&1; then
+    loggerLog "$HOOKS_NAME build: passed"
+  else
+    loggerError "$HOOKS_NAME build: failed"
+    exit 1
+  fi
+}
+
+main() {
+  skip_if_requested
+  npm_run_test
+  npm_run_build
 }
 
 main "$@"

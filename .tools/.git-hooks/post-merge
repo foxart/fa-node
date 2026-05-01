@@ -2,14 +2,16 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+# shellcheck source=.tools/config.sh
 source "$SCRIPT_DIR/config.sh"
+# shellcheck source=.tools/logger.sh
 source "$SCRIPT_DIR/logger.sh"
 
 HOOKS_NAME="$(loggerFormat "[POST-MERGE]")"
 
 skip_if_requested() {
   if [[ "${GIT_SKIP_HOOK:-}" == "true" ]]; then
-    loggerInfo "$HOOKS_NAME skip: $(loggerFormat "GIT_SKIP_HOOK=$GIT_SKIP_HOOK")"
+    loggerWarn "$HOOKS_NAME skip: $(loggerFormat "GIT_SKIP_HOOK=$GIT_SKIP_HOOK")"
     exit 0
   fi
 }
@@ -18,32 +20,32 @@ cleanup_cache() {
   if [[ "${GIT_PRUNE_IGNORED_FROM_INDEX:-false}" != "true" ]]; then
     return
   fi
-  loggerInfo "$HOOKS_NAME cleanup: ignored cache started"
   local tmp
   tmp="$(mktemp)"
   git ls-files --ignored --exclude-standard --cached -z >"$tmp"
   while IFS= read -r -d '' f; do
     [[ -z "$f" ]] && continue
-    git update-index --force-remove -- "$f"
+    loggerInfo "$HOOKS_NAME ignored: $(loggerFormat "$f") pruned"
+    #    git update-index --force-remove -- "$f"
   done <"$tmp"
   rm -f "$tmp"
 }
 
 sync_hooks() {
   git rev-parse --verify ORIG_HEAD >/dev/null 2>&1 || {
-    loggerInfo "$HOOKS_NAME sync: hooks skipped"
+    loggerInfo "$HOOKS_NAME hooks: skipped"
     return 0
   }
   if git diff --quiet ORIG_HEAD HEAD -- .tools/.git-hooks; then
-    loggerInfo "$HOOKS_NAME sync: hooks skipped"
+    loggerInfo "$HOOKS_NAME hooks: skipped"
     return 0
   fi
-  loggerInfo "$HOOKS_NAME sync: hooks changed"
+  loggerInfo "$HOOKS_NAME hooks: changed"
   if "$SCRIPT_DIR/.git-hooks.sh"; then
-    loggerLog "$HOOKS_NAME sync: hooks updated"
+    loggerLog "$HOOKS_NAME hooks: updated"
   else
-    loggerError "$HOOKS_NAME sync: hooks failed"
-    return 1
+    loggerError "$HOOKS_NAME hooks: failed"
+    exit 1
   fi
 }
 
