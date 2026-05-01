@@ -27,8 +27,8 @@ filter_files() {
 }
 
 skip_if_requested() {
-  if [[ "${SKIP_HOOKS:-}" == "true" ]]; then
-    loggerInfo "$HOOKS_NAME check: $(loggerFormat "SKIP_HOOKS=true") skipped"
+  if [[ "${GIT_SKIP_HOOK:-}" == "true" ]]; then
+    loggerInfo "$HOOKS_NAME check: $(loggerFormat "GIT_SKIP_HOOK=true") skipped"
     exit 0
   fi
 }
