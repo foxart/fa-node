@@ -42,7 +42,7 @@ run_lint() {
   done <<<"$input"
   [[ "${#files[@]}" -eq 0 ]] && return 0
   loggerInfo "$HOOKS_NAME lint: staged files $(loggerFormat "${#files[@]}") started"
-  if run env ESLINT_USE_FLAT_CONFIG=false npx eslint -c eslint.config.js --fix "${files[@]}"; then
+  if run npm run lint -- "${files[@]}"; then
     loggerLog "$HOOKS_NAME lint: staged files $(loggerFormat "${#files[@]}") passed"
   else
     loggerError "$HOOKS_NAME lint: staged files $(loggerFormat "${#files[@]}") failed"

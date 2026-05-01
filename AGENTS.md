@@ -16,7 +16,7 @@ Applies to:
 
 Do not:
 
-- modify generated outputs (`dist/`, `coverage/`, `temp/`)
+- modify generated outputs (`dist/`, `coverage/`, `tmp/`)
 - expand scope beyond task
 
 ## Source Scope (CRITICAL)
@@ -59,6 +59,27 @@ Do not change unless required:
 - async behavior and execution order
 - repository structure and conventions
 - naming patterns and file layout
+
+## Edit Permission (CRITICAL)
+
+Do not change files without explicit user approval for the exact action.
+
+Forbidden without explicit approval:
+
+- direct code edits
+- config edits
+- dependency or lockfile changes
+- formatting commands
+- lint/test/build commands with auto-fix, update, write, cache, snapshot, install, generate, migrate, or other side effects
+- package-manager commands that can modify `package.json`, lockfiles, `node_modules`, or generated files
+- any command that can indirectly modify source, tests, config, generated outputs, cache files, or dependencies
+
+Allowed without approval:
+
+- read-only inspection commands
+- read-only lint/test/build commands only when they are known not to write files or caches
+
+If unsure whether a command can write files, ask the user first.
 
 ## Change Rules
 
