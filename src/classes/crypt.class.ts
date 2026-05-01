@@ -28,7 +28,7 @@ export class CryptClass {
   private readonly hmacKey: Buffer;
   private readonly fastMode: boolean;
   private readonly version = 1;
-  private readonly normalizeRegExp = /\p{L}+(?:['’\-]\p{L}+)*\p{N}*|\p{N}+/gu;
+  private readonly normalizeRegExp = /\p{L}+(?:['’-]\p{L}+)*\p{N}*|\p{N}+/gu;
 
   public constructor(options: OptionsInterface = {}) {
     this.encoding = options.encoding ?? 'base64';

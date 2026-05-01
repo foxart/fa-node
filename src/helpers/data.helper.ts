@@ -288,7 +288,7 @@ class DataHelperClass {
       result.push({
         caller,
         method,
-        file: this.isNode ? DataHelper.excludePath(file, process.cwd()) : file,
+        file: this.isNode ? this.excludePath(file, process.cwd()) : file,
       });
     }
     return result;

@@ -109,7 +109,7 @@ class ExceptionHelperClass {
   private castMongoError(error: MongoLikeError): ExceptionInterface {
     let message;
     switch (error.code) {
-      case 11000:
+      case 11000: {
         const errorMessage = error.message.match(/E([0-9]+) (.+) collection: (.+) index: (.+) dup key: ({ .+ })/);
         message = errorMessage
           ? {
@@ -121,6 +121,7 @@ class ExceptionHelperClass {
             }
           : '';
         break;
+      }
       default:
         message = error.message;
     }
