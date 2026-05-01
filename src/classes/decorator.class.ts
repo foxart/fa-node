@@ -138,7 +138,12 @@ export class DecoratorClass {
     };
   }
 
-  private static handleParameters(symbol: symbol, target: object, propertyKey: string | symbol, args: unknown[]): unknown[] {
+  private static handleParameters(
+    symbol: symbol,
+    target: object,
+    propertyKey: string | symbol,
+    args: unknown[],
+  ): unknown[] {
     const classMetadata = DecoratorClass.getClassMetadata(symbol, target);
     const methodMetadata = DecoratorClass.getMethodMetadata(symbol, target, propertyKey);
     const parameterMetadata = DecoratorClass.getParameterMetadata(symbol, target, propertyKey);
@@ -248,11 +253,7 @@ export class DecoratorClass {
   }
 
   public decorateMethod(data?: MethodDecoratorInterface): MethodDecorator {
-    return (
-      target: object,
-      propertyKey: string | symbol,
-      descriptor: PropertyDescriptor,
-    ): PropertyDescriptor => {
+    return (target: object, propertyKey: string | symbol, descriptor: PropertyDescriptor): PropertyDescriptor => {
       const symbol = this.symbol;
       const designMetadata = DecoratorClass.getDesignMetadata(target, propertyKey); // <-- читаем design метаданные
       const methodMetadata: MethodMetadataInterface = {
