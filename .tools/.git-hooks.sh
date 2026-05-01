@@ -5,7 +5,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# shellcheck source=.tools/config.sh
 source "$SCRIPT_DIR/config.sh"
+# shellcheck source=.tools/logger.sh
 source "$SCRIPT_DIR/logger.sh"
 
 HOOKS_NAME="$(loggerFormat "[HOOKS]")"
@@ -27,16 +29,12 @@ EOF
 }
 
 main() {
-  local hook hook_file target shim
+  local hook hook_file shim
   mkdir -p "$PARENT_DIR/$GIT_HOOKS_DIR"
   for hook_file in "$SCRIPT_DIR/$HOOKS_DIR"/*; do
     [[ -f "$hook_file" ]] || continue
     hook="$(basename "$hook_file")"
-    target="$SCRIPT_DIR/$HOOKS_DIR/$hook"
     shim="$PARENT_DIR/$GIT_HOOKS_DIR/$hook"
-    if [[ ! -x "$target" ]] && ! chmod +x "$target" 2>/dev/null; then
-      loggerWarn "$HOOKS_NAME shim: $(loggerFormat "$hook") bash"
-    fi
     if ! write_shim "$shim"; then
       loggerError "$HOOKS_NAME write: $(loggerFormat "$shim") failed"
       return 1
