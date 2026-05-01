@@ -96,5 +96,4 @@ export class LoggerNode extends LoggerClass implements LoggerNodeInterface {
   }
 }
 //
-//
 a = 1;
