@@ -83,3 +83,12 @@ git clone -c core.sshCommand="ssh -i ~/.ssh/ID_RSA_PUB" git@github.com:USER/REPO
 git remote set-url origin git@github.com:USER/REPO.git
 git config core.sshCommand "ssh -i ~/.ssh/ID_RSA_PUB"
 ```
+
+## Find all codex files
+
+```bash
+find . -type f \( -iname "agents.md" -o -iname "base*.md" -o -iname "change*.md" -o -iname "data*.md" -o -iname "skill*.md" \) \
+    -not -path "*/node_modules/*" \
+    -not -path "*/vendor/*" \
+    -exec sh -c 'echo "\n===== FILE: $1 =====\n"; cat "$1"' _ {} \;
+```
