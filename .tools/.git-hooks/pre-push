@@ -14,6 +14,16 @@ skip_if_requested() {
   fi
 }
 
+skip_if_nothing_to_push() {
+  local line
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && return
+  done
+#  loggerInfo "$NAME push: skip"
+  loggerInfo "$NAME skip: $(loggerFormat "$GIT_HOOKS_SKIP")"
+  exit 0
+}
+
 npm_run_test() {
   loggerInfo "$NAME test: started"
   if npm run test --silent; then
@@ -36,6 +46,7 @@ npm_run_build() {
 
 main() {
   skip_if_requested
+  skip_if_nothing_to_push
   npm_run_test
   npm_run_build
 }

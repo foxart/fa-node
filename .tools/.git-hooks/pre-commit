@@ -7,6 +7,9 @@ source "$SCRIPT_DIR/logger.sh"
 
 NAME="$(loggerFormat "[PRE-COMMIT]")"
 
+readonly STAGED_LINT_DIFF_FILTER="ACM"
+readonly -a STAGED_LINT_FILE_PATTERNS=("*.ts" "*.js")
+
 skip_if_requested() {
   if [[ "${GIT_HOOKS_SKIP:-}" == "true" ]]; then
     loggerWarn "$NAME skip: $(loggerFormat "$GIT_HOOKS_SKIP")"
@@ -14,22 +17,23 @@ skip_if_requested() {
   fi
 }
 
-restage_files() {
+get_staged_lint_files() {
+  git diff --cached --name-only --diff-filter="$STAGED_LINT_DIFF_FILTER" -- "${STAGED_LINT_FILE_PATTERNS[@]}"
+}
+
+restage_staged_lint_files() {
   while IFS= read -r f; do
     [[ -z "$f" ]] && continue
-    [[ "$f" =~ \.(ts|js)$ ]] || continue
     git diff --quiet -- "$f" && continue
     git add -- "$f"
   done <<<"$1"
 }
 
-npm_run_lint() {
+lint_staged_lint_files() {
   local input="$1"
-  shift
   local files=()
   while IFS= read -r f; do
     [[ -z "$f" ]] && continue
-    [[ "$f" =~ \.(ts|js)$ ]] || continue
     files+=("$f")
   done <<<"$input"
   [[ "${#files[@]}" -eq 0 ]] && return 0
@@ -45,9 +49,9 @@ npm_run_lint() {
 main() {
   skip_if_requested
   local staged
-  staged="$(git diff --cached --name-only --diff-filter=ACM)"
-  npm_run_lint "$staged"
-  restage_files "$staged"
+  staged="$(get_staged_lint_files)"
+  lint_staged_lint_files "$staged"
+  restage_staged_lint_files "$staged"
 }
 
 main "$@"

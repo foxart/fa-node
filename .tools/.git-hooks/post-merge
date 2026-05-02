@@ -30,11 +30,8 @@ cleanup_cache() {
 }
 
 sync_hooks() {
-  git rev-parse --verify ORIG_HEAD >/dev/null 2>&1 || {
-    loggerInfo "$NAME hooks: skipped"
-    return 0
-  }
-  if git diff --quiet ORIG_HEAD HEAD -- .tools/.git-hooks; then
+  if ! git rev-parse --verify ORIG_HEAD >/dev/null 2>&1 ||
+    git diff --quiet ORIG_HEAD HEAD -- .tools/.git-hooks; then
     loggerInfo "$NAME hooks: skipped"
     return 0
   fi
