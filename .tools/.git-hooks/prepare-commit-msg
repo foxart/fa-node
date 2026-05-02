@@ -2,10 +2,10 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-source "$SCRIPT_DIR/logger.sh"
 source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/logger.sh"
 
-NAME="$(loggerFormat "[HOOKS]")"
+NAME="$(loggerFormat "[PREPARE-COMMIT-MSG]")"
 
 skip_if_requested() {
   if [[ "${GIT_HOOKS_SKIP:-}" == "true" ]]; then
@@ -14,33 +14,23 @@ skip_if_requested() {
   fi
 }
 
-extract_ticket() {
-  local branch="$1"
-  if [[ "$branch" =~ $JIRA_REGEX ]]; then
-    printf '%s' "${BASH_REMATCH[0]}"
-  fi
-}
-
-append_ticket() {
-  local file="$1"
-  local branch
-  branch="$(git rev-parse --abbrev-ref HEAD)"
-  local ticket
-  ticket="$(extract_ticket "$branch")"
-  [[ -z "$ticket" ]] && return 0
-  grep -qF -- "$ticket" "$file" && return 0
-  printf '\nRefs %s/browse/%s\n' "$JIRA_URL" "$ticket" >>"$file"
-  loggerLog "$NAME reference: $(loggerFormat "$ticket") added"
-}
-
 main() {
   skip_if_requested
   local file="${1:-}"
   if [[ -z "$file" ]]; then
-    loggerError "$NAME commit message: file missing"
+    loggerError "$NAME message: missing"
     exit 1
   fi
-  append_ticket "$file"
+  local branch
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+  local ticket=""
+  if [[ "$branch" =~ $JIRA_REGEX ]]; then
+    ticket="${BASH_REMATCH[0]}"
+  fi
+  [[ -z "$ticket" ]] && return 0
+  grep -qF -- "$ticket" "$file" && return 0
+  printf '\nRefs %s/browse/%s\n' "$JIRA_URL" "$ticket" >>"$file"
+  loggerLog "$NAME reference: added $(loggerFormat "$ticket")"
 }
 
 main "$@"
