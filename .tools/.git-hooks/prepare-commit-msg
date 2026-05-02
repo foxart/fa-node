@@ -30,7 +30,6 @@ main() {
   [[ -z "$ticket" ]] && return 0
   grep -qF -- "$ticket" "$file" && return 0
   printf '\nRefs %s/browse/%s\n' "$JIRA_URL" "$ticket" >>"$file"
-  loggerLog "$NAME reference: added $(loggerFormat "$ticket")"
 }
 
 main "$@"
