@@ -1,95 +1,55 @@
-## Purpose
+## Codex Rules
 
-Safe changes in the `fa-node` TypeScript package. Preserve public exports, NestJS helper behavior, CLI behavior, logger behavior, repository conventions, and Jest/e2e test expectations.
+Safe, minimal changes in the single-package `fa-node` TypeScript project.
 
 ## Scope
 
-- Primary source: `src/`
-- Tests: colocated `src/**/*.spec.ts`, `test/*.e2e-spec.ts`
-- Package surface: `src/index.ts`, `package.json` exports/build/test scripts
-- Build assets: `src/cli/migration-mongo.template.ts`
-- Disallow: generated outputs (`dist/`, `coverage/`, `tmp/`, `.packages/`), unrelated package metadata churn, rewrites
+- Work only in `src/`, `test/`, and root package/config files needed for build, test, lint, or package behavior: `package.json`, `tsconfig*`, `jest.config.*`, `eslint.config.*`.
+- Special build asset: `src/cli/migration-mongo.template.ts` is copied by `npm run build`.
+- Do not scan or edit unrelated repo paths.
+- Do not touch `playground/` or `nest/` unless the task explicitly requires it.
+- Never modify generated outputs: `dist/`, `coverage/`, `tmp/`, `.packages/`.
 
-## Source Scope (CRITICAL)
+## Mode
 
-- Operate in `src/` and `test/` by default.
-- Touch root config only when required for build, lint, test, package exports, or task requirements.
-- Treat `playground/`, `nest/`, generated outputs, and local artifacts as out of scope unless the task explicitly targets them.
-- Keep exploration to the minimal relevant path.
+- Analysis-only prompts (`why`, `how`, `what does this do`, `should we`) mean: inspect minimally, do not edit, do not run write-capable commands, explain current behavior, tradeoffs, and risk.
+- Change prompts (`implement`, `fix`, `update`, `refactor`, `change`) mean: make the smallest local change, then run the narrowest useful check.
+- If scope or intent is unclear, ask before changing files.
 
-## Interaction Mode
+## Preserve
 
-- If the user asks a question, requests an explanation, asks "why", "how", "what does this do", or "should we", answer with analysis only.
-- Do not edit files, run write-capable commands, or start implementation for explanation/analysis questions.
-- Suggest code changes only after explaining the current behavior, tradeoffs, and risk.
-- Make changes only when the user explicitly asks to implement, fix, update, refactor, or change files.
+- Public exports and names in `src/index.ts`.
+- Package entrypoints/contracts: `main`, `types`, `exports`, emitted declarations.
+- NestJS helper/integration contracts.
+- Logger browser/node/Nest behavior and environment-specific branches.
+- CLI arguments, output, generated layout, build asset copying, and filesystem side effects.
+- Async behavior, execution order, file layout, and naming patterns.
 
-## Decision
+## Areas
 
-1. determine whether the user asks for explanation/analysis or for code changes
-2. if explanation/analysis only, inspect minimally and answer without edits
-3. identify the affected module: `classes`, `helpers`, `logger`, `cli`, `utils`, package entrypoint, or e2e test
-4. verify whether the change affects exported API through `src/index.ts`
-5. if behavior changes, update or add the closest relevant test
-6. if package/build behavior changes, verify `package.json`, `tsconfig*`, and build assets compatibility
-7. if unclear, ask before expanding scope
-
-## Safety System
-
-- Preserve public contracts and exported names.
-- Preserve async behavior and execution order.
-- Preserve NestJS integration contracts and logger interfaces.
-- Preserve CLI arguments, generated template behavior, and filesystem side effects unless explicitly required.
-- Prefer the smallest local change over refactors.
-
-## Priorities
-
-1. correctness
-2. production/package safety
-3. public contract and test stability
-4. repository consistency
-5. minimal diff
-
-## Invariants (CRITICAL)
-
-Do not change unless required:
-
-- public exports from `src/index.ts`
-- package entrypoints, `main`, `types`, and `exports`
-- test expectations and assertions
-- async behavior and execution order
-- CLI command names, arguments, output, and generated file layout
-- logger levels, formats, targets, and Nest logger compatibility
-- helper/class naming patterns and file layout
-
-## Domain Rules
-
-- `src/classes/`: reusable classes, decorators, validation/transform/middleware/route helpers; maintain NestJS and validation contracts.
-- `src/helpers/`: pure or low-level utility functions; preserve edge-case behavior covered by specs.
-- `src/logger/`: browser/node/Nest logger implementations and maps; keep environment-specific behavior isolated.
-- `src/cli/`: Mongo migration CLI and template asset; keep generated output and template copying compatible with `npm run build`.
-- `src/utils/`: small shared utilities; avoid promoting broad abstractions without need.
-- `test/`: e2e coverage for Nest/package integration; update only for real behavior changes.
-
-## Checks
-
-- Run the narrowest relevant Jest spec for touched code.
-- Run `npm test` when shared helpers, exports, logger behavior, or broad contracts change.
-- Run `npm run test:nest` when Nest integration or e2e behavior changes.
-- Run `npm run build` when exports, CLI assets, types, or package surface change.
-- Run `npm run lint` when edits are broad or style-sensitive.
+- `classes`: NestJS-oriented classes, decorators, validation, transform, middleware, routes.
+- `helpers`: utilities; preserve tested edge cases.
+- `logger`: browser/node/Nest implementations; keep runtime branches isolated.
+- `cli`: Mongo migration CLI and template; generated output must stay build-compatible.
+- `utils`: small shared utilities; avoid broad abstractions.
+- `test`: Jest specs and Nest e2e coverage.
 
 ## Change Rules
 
-- smallest local change
-- no refactors or rewrites mixed with behavior changes
-- no scope expansion
-- preserve behavior by default
-- keep changes targeted and reversible
-- add or update tests only when required
+1. Prefer correctness, package safety, contract stability, test stability, minimal diff, then code quality.
+2. No unrelated refactors, rewrites, metadata churn, broad formatting, dependency changes, lockfile changes, or generated-output edits unless explicitly requested.
+3. Ask before leaving allowed scope, adding dependencies, changing lockfiles, touching generated outputs, or changing unrelated package metadata.
+4. Treat any public export or package entrypoint change as a contract change; verify `src/index.ts`, `package.json`, imports, and declarations.
+5. For behavior changes, validate real call paths and update/run the closest relevant test; do not rely on TypeScript compilation alone.
+6. For CLI/template changes, verify generated file layout and `npm run build` asset copying.
+7. For logger/Nest changes, verify the runtime branch and integration path.
 
-## Output
+## Checks
 
-- minimal diff
-- changed code only
-- short explanation if needed
+- Targeted unit: `npm test -- <target>`
+- All unit: `npm test`
+- Nest/e2e: `npm run test:nest`
+- Build/types/package surface: `npm run build`
+- Lint/style-sensitive changes: `npm run lint`
+
+Run the narrowest useful check and state any skipped check with the reason.
