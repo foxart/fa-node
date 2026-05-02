@@ -20,7 +20,10 @@
     "package": "npm pack --pack-destination .packages --omit=dev",
     "prepack": "npm run build",
     "publish:public": "npm publish --access=public",
-    "publish:dry": "npm publish --dry-run"
+    "publish:dry": "npm publish --dry-run",
+    "docs:build": "md-magic --file docs/**/*.md && md-magic --file README.md && npm run docs:format",
+    "docs:format": "prettier --write \"docs/**/*.md\"",
+    "docs:contributors": ".tools/contributors.sh && prettier --write contributors.md"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -71,6 +74,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-unused-imports": "^4.4.1",
     "jest": "^29.6.4",
+    "markdown-magic": "^4.8.0",
     "nodemon": "^3.1.0",
     "prettier": "^3.2.5",
     "prettier-plugin-multiline-arrays": "^3.0.4",

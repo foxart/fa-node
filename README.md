@@ -92,3 +92,4 @@ find . -type f \( -iname "agents.md" -o -iname "base*.md" -o -iname "change*.md"
     -not -path "*/vendor/*" \
     -exec sh -c 'echo "\n===== FILE: $1 =====\n"; cat "$1"' _ {} \;
 ```
+
