@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/logger.sh"
+source "$SCRIPT_DIR/git-hooks-common.sh"
+
+NAME="$(loggerFormat "[PRE-PUSH]")"
+
+readonly ZERO_SHA="0000000000000000000000000000000000000000"
+
+get_changed() {
+  local _ local_sha remote_sha files
+  while read -r _ local_sha _ remote_sha; do
+    [[ -z "$local_sha" ]] && continue
+    [[ "$local_sha" == "$ZERO_SHA" ]] && continue
+    if [[ "$remote_sha" == "$ZERO_SHA" ]]; then
+      files="$(get_changed_code_files "$local_sha" --not --remotes)"
+    else
+      files="$(get_changed_code_files "$remote_sha..$local_sha")"
+    fi
+    [[ -n "$files" ]] && printf '%s\n' "$files"
+  done
+}
+
+npm_run_test() {
+  local files="$1"
+  if [[ -z "$files" ]]; then
+    loggerInfo "$NAME test: skipped"
+    return 0
+  fi
+  loggerInfo "$NAME test: started"
+  if npm run test --silent; then
+    loggerLog "$NAME test: passed"
+  else
+    loggerError "$NAME test: failed"
+    exit 1
+  fi
+}
+
+npm_run_build() {
+  local files="$1"
+  if [[ -z "$files" ]]; then
+    loggerInfo "$NAME build: skipped"
+    return 0
+  fi
+  loggerInfo "$NAME build: started"
+  if npm run build >/dev/null 2>&1; then
+    loggerLog "$NAME build: passed"
+  else
+    loggerError "$NAME build: failed"
+    exit 1
+  fi
+}
+
+main() {
+  skip_git_hook_if_requested "$NAME"
+  local changed
+  changed="$(get_changed)"
+  npm_run_test "$changed"
+  npm_run_build "$changed"
+}
+
+main "$@"

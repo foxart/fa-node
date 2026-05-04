@@ -4,15 +4,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/logger.sh"
+source "$SCRIPT_DIR/git-hooks-common.sh"
 
 NAME="$(loggerFormat "[POST-MERGE]")"
-
-skip_if_requested() {
-  if [[ "${GIT_HOOKS_SKIP:-}" == "true" ]]; then
-    loggerWarn "$NAME skip: $(loggerFormat "$GIT_HOOKS_SKIP")"
-    exit 0
-  fi
-}
 
 cleanup_cache() {
   if [[ "${GIT_PRUNE_IGNORED_FROM_INDEX:-false}" != "true" ]]; then
@@ -31,12 +25,12 @@ cleanup_cache() {
 
 sync_hooks() {
   if ! git rev-parse --verify ORIG_HEAD >/dev/null 2>&1 ||
-    git diff --quiet ORIG_HEAD HEAD -- .tools/.git-hooks; then
+    git diff --quiet ORIG_HEAD HEAD -- .tools/git-hooks; then
     loggerInfo "$NAME hooks: skipped"
     return 0
   fi
   loggerInfo "$NAME hooks: changed"
-  if "$SCRIPT_DIR/.git-hooks.sh"; then
+  if "$SCRIPT_DIR/git-hooks.sh"; then
     loggerLog "$NAME hooks: updated"
   else
     loggerError "$NAME hooks: failed"
@@ -45,7 +39,7 @@ sync_hooks() {
 }
 
 main() {
-  skip_if_requested
+  skip_git_hook_if_requested "$NAME"
   sync_hooks
   cleanup_cache
 }

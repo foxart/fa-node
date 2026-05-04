@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-.tools/.git-hooks.sh "$@"
+.tools/git-hooks.sh "$@"

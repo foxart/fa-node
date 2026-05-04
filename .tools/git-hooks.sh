@@ -9,7 +9,7 @@ source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/logger.sh"
 
 HOOKS_NAME="$(loggerFormat "[HOOKS]")"
-HOOKS_DIR=".git-hooks"
+HOOKS_DIR="git-hooks"
 
 write_shim() {
   local shim="$1"
@@ -17,7 +17,7 @@ write_shim() {
 #!/usr/bin/env bash
 ROOT_DIR="\$(git rev-parse --show-toplevel)"
 HOOK_NAME="\$(basename "\$0")"
-TARGET="\$ROOT_DIR/.tools/.git-hooks/\$HOOK_NAME"
+TARGET="\$ROOT_DIR/.tools/git-hooks/\$HOOK_NAME"
 if [ -x "\$TARGET" ]; then
   exec "\$TARGET" "\$@"
 else

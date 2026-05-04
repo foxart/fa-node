@@ -4,18 +4,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/logger.sh"
+source "$SCRIPT_DIR/git-hooks-common.sh"
 
 NAME="$(loggerFormat "[PREPARE-COMMIT-MSG]")"
 
-skip_if_requested() {
-  if [[ "${GIT_HOOKS_SKIP:-}" == "true" ]]; then
-    loggerWarn "$NAME skip: $(loggerFormat "$GIT_HOOKS_SKIP")"
-    exit 0
-  fi
-}
-
 main() {
-  skip_if_requested
+  skip_git_hook_if_requested "$NAME"
   local file="${1:-}"
   if [[ -z "$file" ]]; then
     loggerError "$NAME message: missing"

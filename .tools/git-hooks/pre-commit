@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/logger.sh"
+source "$SCRIPT_DIR/git-hooks-common.sh"
+
+NAME="$(loggerFormat "[PRE-COMMIT]")"
+
+get_unstaged() {
+  local input="$1"
+  local files=()
+  local f
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    files+=("$f")
+  done <<<"$input"
+  [[ "${#files[@]}" -eq 0 ]] && return 0
+  git diff --name-only -- "${files[@]}"
+}
+
+restage_staged() {
+  local staged="$1"
+  local unstaged_before="$2"
+  local f
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    git diff --quiet -- "$f" && continue
+    if grep -Fxq -- "$f" <<<"$unstaged_before"; then
+      loggerWarn "$NAME restage: skipped $(loggerFormat "$f") because it had unstaged changes before lint"
+      continue
+    fi
+    git add -- "$f"
+  done <<<"$staged"
+}
+
+lint_staged() {
+  local input="$1"
+  local files=()
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    files+=("$f")
+  done <<<"$input"
+  [[ "${#files[@]}" -eq 0 ]] && return 0
+  loggerInfo "$NAME lint: started $(loggerFormat "${#files[@]}") files"
+  if npm run lint --silent -- "${files[@]}"; then
+    loggerLog "$NAME lint: passed $(loggerFormat "${#files[@]}") files"
+  else
+    loggerError "$NAME lint: failed $(loggerFormat "${#files[@]}") files"
+    exit 1
+  fi
+}
+
+main() {
+  skip_git_hook_if_requested "$NAME"
+  local staged unstaged_before
+  staged="$(get_staged)"
+  unstaged_before="$(get_unstaged "$staged")"
+  lint_staged "$staged"
+  restage_staged "$staged" "$unstaged_before"
+}
+
+main "$@"
