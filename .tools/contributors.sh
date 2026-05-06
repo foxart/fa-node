@@ -1,41 +1,88 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # ============================================
 # CONFIG
 # ============================================
-subject_width="${SUBJECT_WIDTH:-200}"
-branch_width="${BRANCH_WIDTH:-100}"
-commits_per_author="${COMMITS_PER_USER:-5}"
-empty_value="${EMPTY_VALUE:--}"
-output_file="${OUTPUT_FILE:-./contributors.md}"
-report_section_header="${REPORT_SECTION_HEADER:-# Contributors}"
-report_section_title="${REPORT_SECTION_TITLE:-## Summary}"
-detailed_section_title="${DETAILED_SECTION_TITLE:-## Commits}"
-summary_sort_field="${SUMMARY_SORT_FIELD:-lines}"
-summary_sort_order="${SUMMARY_SORT_ORDER:-desc}"
-commits_sort_field="${COMMITS_SORT_FIELD:-last_ts}"
-commits_sort_order="${COMMITS_SORT_ORDER:-desc}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=.tools/config.sh
+source "$script_dir/config.sh"
+
+subject_width="$CONTRIB_SUBJ_W"
+branch_width="$CONTRIB_BRANCH_W"
+commits_per_author="$CONTRIB_LIMIT"
+empty_value="$CONTRIB_EMPTY"
+output_file="$CONTRIB_OUT"
+report_section_header="$CONTRIB_HEADER"
+report_section_title="$CONTRIB_SUMMARY"
+detailed_section_title="$CONTRIB_DETAILS"
+summary_sort_field="$CONTRIB_SUM_SORT"
+summary_sort_order="$CONTRIB_SUM_ORDER"
+commits_sort_field="$CONTRIB_COMMIT_SORT"
+commits_sort_order="$CONTRIB_COMMIT_ORDER"
 
 sep=$'\x1f'
 current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-tmp_report="$(mktemp)"
-tmp_blocks="$(mktemp)"
-tmp_map="$(mktemp)"
-tmp_branch_cache="$(mktemp)"
-report_md="$(mktemp)"
-detailed_md="$(mktemp)"
+tmp_dir="$(mktemp -d)"
+tmp_report="$tmp_dir/report"
+tmp_blocks="$tmp_dir/blocks"
+tmp_map="$tmp_dir/map"
+tmp_branch_cache="$tmp_dir/branch-cache"
+report_md="$tmp_dir/report.md"
+detailed_md="$tmp_dir/detailed.md"
+block_index=0
 
 # ============================================
 # CLEANUP
 # ============================================
 cleanup() {
-  rm -f "$tmp_report" "$tmp_blocks" "$tmp_map" "$tmp_branch_cache" "$report_md" "$detailed_md"
+  rm -rf "$tmp_dir"
 }
 trap cleanup EXIT
 
 # ============================================
 # UTILS
 # ============================================
+die() {
+  printf 'contributors.sh: %s\n' "$*" >&2
+  exit 1
+}
+
+is_non_negative_integer() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+validate_config() {
+  is_non_negative_integer "$subject_width" && [ "$subject_width" -gt 0 ] ||
+    die "CONTRIB_SUBJ_W must be a positive integer"
+  is_non_negative_integer "$branch_width" && [ "$branch_width" -gt 0 ] ||
+    die "CONTRIB_BRANCH_W must be a positive integer"
+  is_non_negative_integer "$commits_per_author" ||
+    die "CONTRIB_LIMIT must be a non-negative integer"
+
+  case "$summary_sort_field" in
+  commits | lines | last) ;;
+  *) die "CONTRIB_SUM_SORT must be one of: commits, lines, last" ;;
+  esac
+  case "$summary_sort_order" in
+  asc | desc) ;;
+  *) die "CONTRIB_SUM_ORDER must be one of: asc, desc" ;;
+  esac
+  case "$commits_sort_field" in
+  name | last_ts) ;;
+  *) die "CONTRIB_COMMIT_SORT must be one of: name, last_ts" ;;
+  esac
+  case "$commits_sort_order" in
+  asc | desc) ;;
+  *) die "CONTRIB_COMMIT_ORDER must be one of: asc, desc" ;;
+  esac
+}
+
+require_git_repository() {
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+    die "run this script from inside a git work tree"
+}
+
 truncate_field() {
   local value="$1"
   local width="$2"
@@ -44,6 +91,15 @@ truncate_field() {
   else
     printf '%s' "$value"
   fi
+}
+
+markdown_cell() {
+  local value="${1:-$empty_value}"
+  value="${value//$'\r'/ }"
+  value="${value//$'\n'/ }"
+  value="${value//\\/\\\\}"
+  value="${value//|/\\|}"
+  printf '%s' "$value"
 }
 
 # ============================================
@@ -110,7 +166,7 @@ build_branch_map() {
 # ============================================
 get_cached_branch() {
   local hash="$1"
-  grep -m1 "^$hash$sep" "$tmp_branch_cache" | cut -d"$sep" -f2
+  grep -m1 "^$hash$sep" "$tmp_branch_cache" | cut -d"$sep" -f2 || true
 }
 
 set_cached_branch() {
@@ -166,9 +222,10 @@ collect_data() {
   : >"$tmp_branch_cache"
   while IFS="$sep" read -r author email; do
     [ -z "$author" ] && continue
+    author_filter="$author <"
     all_emails="$(get_all_emails "$author")"
     stats="$(
-      git log --use-mailmap --all --author="$author" \
+      git log --use-mailmap --all --fixed-strings --author="$author_filter" \
         --date=format-local:'%d %b %Y %H:%M:%S' \
         --pretty="format:%at${sep}%ad" \
         --numstat |
@@ -191,13 +248,14 @@ collect_data() {
     printf "%s${sep}%s${sep}%s${sep}%s${sep}%s${sep}%s${sep}%s${sep}%s${sep}%s\n" \
       "$author" "$email" "$all_emails" "$commits" "$first" "$last" "$add" "$del" "$last_ts" \
       >>"$tmp_report"
-    block_file="$(mktemp)"
+    block_index=$((block_index + 1))
+    block_file="$tmp_dir/block-$block_index.md"
     {
-      echo "### $author"
+      printf '### %s\n' "$(markdown_cell "$author")"
       echo
-      echo "- **Email:** $all_emails"
-      echo "- **First:** ${first:-$empty_value}"
-      echo "- **Last:** ${last:-$empty_value}"
+      printf -- '- **Email:** %s\n' "$(markdown_cell "$all_emails")"
+      printf -- '- **First:** %s\n' "$(markdown_cell "${first:-$empty_value}")"
+      printf -- '- **Last:** %s\n' "$(markdown_cell "${last:-$empty_value}")"
       echo "- **Commits:** $commits"
       echo "- **Lines:** +$add / -$del / =$total"
       echo
@@ -229,18 +287,18 @@ collect_data() {
         row=$((row + 1))
         branch="$(get_branch "$hash" "$subject")"
         printf "| %s | %s | %s | %s | %s |\n" \
-          "$row" "$hash" "$date" \
-          "$(truncate_field "$subject" "$subject_width")" \
-          "$(truncate_field "$branch" "$branch_width")"
+          "$row" "$(markdown_cell "$hash")" "$(markdown_cell "$date")" \
+          "$(markdown_cell "$(truncate_field "$subject" "$subject_width")")" \
+          "$(markdown_cell "$(truncate_field "$branch" "$branch_width")")"
       done < <(
         {
-          git log --use-mailmap --all --author="$author" \
+          git log --use-mailmap --all --fixed-strings --author="$author_filter" \
             --reverse \
             --pretty="tformat:%h${sep}%ad${sep}%s" \
             --date=format-local:'%d %b %Y %H:%M:%S' |
             awk -v l="$commits_per_author" 'NR<=l'
           echo "SPLIT"
-          git log --use-mailmap --all --author="$author" \
+          git log --use-mailmap --all --fixed-strings --author="$author_filter" \
             -n "$commits_per_author" \
             --pretty="tformat:%h${sep}%ad${sep}%s" \
             --date=format-local:'%d %b %Y %H:%M:%S' |
@@ -271,7 +329,7 @@ generate_report_md() {
       while IFS="$sep" read -r n e _ c f l a d _; do
         total=$((a + d))
         printf "| %s | %s | %s | %s | %s | +%s / -%s / =%s |\n" \
-          "$n" "$e" "$f" "$l" "$c" "$a" "$d" "$total"
+          "$(markdown_cell "$n")" "$(markdown_cell "$e")" "$(markdown_cell "$f")" "$(markdown_cell "$l")" "$c" "$a" "$d" "$total"
       done
     echo
   } >"$report_md"
@@ -308,14 +366,22 @@ ensure_output_file() {
 
 update_markdown() {
   ensure_output_file
-  awk -v rt="$report_section_title" -v dt="$detailed_section_title" '
-    BEGIN{r=0;d=0}
-    $0==rt{print;print"";while((getline l<rf)>0)print l;close(rf);r=1;next}
-    $0==dt{print;print"";while((getline l<df)>0)print l;close(df);d=1;next}
+  awk -v rt="$report_section_title" -v dt="$detailed_section_title" -v rf="$report_md" -v df="$detailed_md" '
+    function print_file(path, line) {
+      while ((getline line < path) > 0) print line
+      close(path)
+    }
+    BEGIN{r=0;d=0;seen_r=0;seen_d=0}
+    $0==rt{print;print"";print_file(rf);r=1;seen_r=1;next}
+    $0==dt{print;print"";print_file(df);d=1;seen_d=1;next}
     r&&/^## /{r=0}
     d&&/^## /{d=0}
     !r&&!d{print}
-  ' rf="$report_md" df="$detailed_md" "$output_file" >"$output_file.tmp"
+    END{
+      if (!seen_r) { print ""; print rt; print ""; print_file(rf) }
+      if (!seen_d) { print ""; print dt; print ""; print_file(df) }
+    }
+  ' "$output_file" >"$output_file.tmp"
   mv "$output_file.tmp" "$output_file"
 }
 
@@ -323,6 +389,8 @@ update_markdown() {
 # MAIN
 # ============================================
 main() {
+  validate_config
+  require_git_repository
   build_branch_map
   collect_data
   generate_report_md

@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/prompt.sh"
 
 selectSshKey() {
   local keys=() options=() f
-  for f in "$GIT_SSH_DIR"/*; do
+  for f in "$SSH_DIR"/*; do
     [[ ! -f "$f" || "$f" == *.pub ]] && continue
     grep -q "PRIVATE KEY" "$f" 2>/dev/null && keys+=("$f")
   done
@@ -59,7 +59,7 @@ repositoryClone() {
       loggerError "$NAME clone: $repoLabel → $targetLabel failed"
       continue
     fi
-    loggerWarn "$NAME clone: $repoLabel → $targetLabel trying $(loggerFormat "$GIT_SSH_DIR")"
+    loggerWarn "$NAME clone: $repoLabel → $targetLabel trying $(loggerFormat "$SSH_DIR")"
     local key rc
     key=$(selectSshKey)
     rc=$?
@@ -68,7 +68,7 @@ repositoryClone() {
       continue
     fi
     if ((rc == 1)); then
-      loggerError "$NAME clone: $repoLabel → $targetLabel trying $(loggerFormat "$GIT_SSH_DIR") failed"
+      loggerError "$NAME clone: $repoLabel → $targetLabel trying $(loggerFormat "$SSH_DIR") failed"
       continue
     fi
     loggerWarn "$NAME clone: $repoLabel → $targetLabel trying $(loggerFormat "$key")"

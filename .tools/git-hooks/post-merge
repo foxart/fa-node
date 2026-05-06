@@ -9,7 +9,7 @@ source "$SCRIPT_DIR/git-hooks-common.sh"
 NAME="$(loggerFormat "[POST-MERGE]")"
 
 cleanup_cache() {
-  if [[ "${GIT_PRUNE_IGNORED_FROM_INDEX:-false}" != "true" ]]; then
+  if [[ "${GIT_HOOKS_PRUNE:-false}" != "true" ]]; then
     return
   fi
   local tmp
