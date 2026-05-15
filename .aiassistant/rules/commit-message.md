@@ -19,6 +19,7 @@ Rules:
 - body: omit only for trivial docs/chore; else min 3 `-` bullets
 - each bullet: what changed, where, how it works now
 - write concretely
+- extract full Jira URL from Branch including the complete ticket key and digits, then append \nRefs <full-ticket-url>; do not truncate the URL or use only the ticket key
 Avoid:
 реализовал, добавил поддержку, улучшил, оптимизировал, переработал, обновил сервис, изменил контроллер, исправил баг
 Prefer:
