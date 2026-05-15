@@ -19,7 +19,7 @@ Rules:
 - body: omit only for trivial docs/chore; else min 3 `-` bullets
 - each bullet: what changed, where, how it works now
 - write concretely
-- extract full Jira URL from Branch including the complete ticket key and digits, then append \nRefs <full-ticket-url>; do not truncate the URL or use only the ticket key
+- if Branch contains a Jira/Atlassian URL and a ticket key, append `\nRefs <jira-origin>/browse/<ticket-key>`; use the URL origin only, canonicalize any `/jira/...` URL to `/browse/<ticket-key>`, and do not hardcode project, ticket, or host
 Avoid:
 реализовал, добавил поддержку, улучшил, оптимизировал, переработал, обновил сервис, изменил контроллер, исправил баг
 Prefer:
