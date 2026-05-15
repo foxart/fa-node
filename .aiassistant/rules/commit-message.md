@@ -19,10 +19,15 @@ Rules:
 - body: omit only for trivial docs/chore; else min 3 `-` bullets
 - each bullet: what changed, where, how it works now
 - write concretely
-- if Branch or Changes contains a Jira/Atlassian URL and a ticket key, append `\nRefs <jira-base-url>/browse/<ticket-key>`
-- jira-base-url: use only scheme and host from the Jira/Atlassian URL found in Branch or Changes
-- canonicalize any Jira URL path (`/jira/...`, `/browse/...`, etc.) to `/browse/<ticket-key>`
-- if no Jira/Atlassian URL is present, omit `Refs`; never invent hosts or output placeholder/sample hosts like `example.com`; do not hardcode host, project, or ticket
+- append `\nRefs <jira-base-url>/browse/<ticket-key>` only when Branch or Changes contains both:
+  - a literal Jira/Atlassian URL matching `https?://[^\s)]+`
+  - a ticket key matching `[A-Z]+-\d+` or `[A-Za-z]+-\d+`
+- jira-base-url: derive only from the matched literal URL by taking its scheme and host
+- canonicalize any matched Jira URL path (`/jira/...`, `/browse/...`, etc.) to `/browse/<ticket-key>`
+- if Branch contains only a ticket key like `AD-1243` without a literal URL, omit `Refs`
+- if no literal Jira/Atlassian URL is present in Branch or Changes, omit `Refs`
+- never use Jira hosts from memory, repository history, remote URLs, project context, account context, examples, placeholders, or previous commits
+- never invent hosts or output placeholder/sample hosts like `example.com`; do not hardcode host, project, or ticket
 Avoid:
 реализовал, добавил поддержку, улучшил, оптимизировал, переработал, обновил сервис, изменил контроллер, исправил баг
 Prefer:
