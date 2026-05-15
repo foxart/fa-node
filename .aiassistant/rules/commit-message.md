@@ -25,3 +25,4 @@ Avoid:
 Prefer:
 добавил, вынес, объединил, внедрил, заменил, разделил, синхронизировал, пересчитал, убрал, перевел, собрал, ограничил
 If something does not fit, output the best valid commit anyway.
+
