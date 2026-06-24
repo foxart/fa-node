@@ -12,19 +12,19 @@ cleanup_cache() {
   if [[ "${GIT_HOOKS_PRUNE:-false}" != "true" ]]; then
     return
   fi
-  #  local tmp
-  #  tmp="$(mktemp)"
-  #  git ls-files --ignored --exclude-standard --cached -z >"$tmp"
-  #  while IFS= read -r -d '' f; do
-  #    [[ -z "$f" ]] && continue
-  #    loggerInfo "$NAME ignored: $(loggerFormat "$f") pruned"
-  #    git update-index --force-remove -- "$f"
-  #  done <"$tmp"
-  #  rm -f "$tmp"
+  local tmp
+  tmp="$(mktemp)"
+  git ls-files --ignored --exclude-standard --cached -z >"$tmp"
   while IFS= read -r -d '' f; do
     [[ -z "$f" ]] && continue
     loggerInfo "$NAME ignored: $(loggerFormat "$f") pruned"
-  done < <(git ls-files --ignored --exclude-standard --cached -z)
+    git update-index --force-remove -- "$f"
+  done <"$tmp"
+  rm -f "$tmp"
+  #  while IFS= read -r -d '' f; do
+  #    [[ -z "$f" ]] && continue
+  #    loggerInfo "$NAME ignored: $(loggerFormat "$f") pruned"
+  #  done < <(git ls-files --ignored --exclude-standard --cached -z)
 }
 
 sync_hooks() {
