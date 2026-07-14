@@ -55,7 +55,7 @@ lint_staged() {
 main() {
   skip_git_hook_if_requested "$NAME"
   local staged unstaged_before
-  staged="$(get_staged)"
+  staged="$(get_staged_code_files)"
   unstaged_before="$(get_unstaged "$staged")"
   lint_staged "$staged"
   restage_staged "$staged" "$unstaged_before"
