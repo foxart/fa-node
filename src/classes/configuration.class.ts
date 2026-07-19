@@ -5,29 +5,40 @@ export type ConfigurationType<T> = {
   [K in keyof T]: T[K] extends object ? ConfigurationType<T[K]> : ConfigurationInterface<T[K]> | T[K];
 };
 
-type ConfigurationInterface<T = string> = {
-  placeholder: string;
-  transform?: (value: string) => T;
-} & ({ default: T } | { default?: undefined });
+type ConfigurationInterface<T = string> =
+  | {
+      placeholder: string;
+      transform: (value: string | undefined) => T;
+      default?: never;
+    }
+  | {
+      placeholder: string;
+      transform?: never;
+      default: T;
+    }
+  | (T extends string ? { placeholder: string; transform?: never; default?: never } : never);
 
-type DictionaryType<T> =
-  T extends DictionaryInterface<infer R>
+type DictionaryType<T> = T extends { transform: (...args: never[]) => infer R }
+  ? R
+  : T extends { default: infer R }
     ? R
-    : T extends readonly (infer U)[]
-      ? readonly DictionaryType<U>[]
-      : T extends object
-        ? { readonly [K in keyof T]: DictionaryType<T[K]> }
-        : T;
+    : T extends { placeholder: string }
+      ? string
+      : T extends readonly (infer U)[]
+        ? readonly DictionaryType<U>[]
+        : T extends object
+          ? { readonly [K in keyof T]: DictionaryType<T[K]> }
+          : T;
 
 interface ResultInterface<T> {
   environments: DictionaryType<T>;
   errors: string[];
 }
 
-interface DictionaryInterface<T = string> {
+interface DictionaryInterface {
   placeholder: string;
-  default?: T;
-  transform?: (value: string) => T;
+  default?: unknown;
+  transform?: (value: string | undefined) => unknown;
 }
 
 export class ConfigurationClass<T extends object> {
@@ -56,18 +67,61 @@ export class ConfigurationClass<T extends object> {
     });
   }
 
-  public static toNumber(this: void, value: string): number {
-    const n = Number(value);
-    if (!Number.isFinite(n)) {
-      throw new Error(`Invalid number: ${value}`);
+  public static toFloat(this: void, value?: string): number {
+    if (value === undefined) {
+      throw new Error(`Invalid float: ${value}`);
     }
-    return n;
+    const result = Number(value);
+    if (!Number.isFinite(result)) {
+      throw new Error(`Invalid float: ${value}`);
+    }
+    return result;
   }
 
-  public static toBoolean(this: void, value: string): boolean {
-    const v = value.toLowerCase();
-    if (['true', '1', 'yes', 'on'].includes(v)) return true;
-    if (['false', '0', 'no', 'off'].includes(v)) return false;
+  public static toFloatPositive(this: void, value?: string): number {
+    if (value === undefined) {
+      throw new Error(`Invalid positive float: ${value}`);
+    }
+    const result = ConfigurationClass.toFloat(value);
+    if (result <= 0) {
+      throw new Error(`Invalid positive float: ${value}`);
+    }
+    return result;
+  }
+
+  public static toInt(this: void, value?: string): number {
+    if (value === undefined) {
+      throw new Error(`Invalid integer: ${value}`);
+    }
+    const result = Number(value);
+    if (!Number.isInteger(result)) {
+      throw new Error(`Invalid integer: ${value}`);
+    }
+    return result;
+  }
+
+  public static toIntPositive(this: void, value?: string): number {
+    if (value === undefined) {
+      throw new Error(`Invalid positive integer: ${value}`);
+    }
+    const result = ConfigurationClass.toInt(value);
+    if (result <= 0) {
+      throw new Error(`Invalid positive integer: ${value}`);
+    }
+    return result;
+  }
+
+  public static toBoolean(this: void, value?: string): boolean {
+    if (value === undefined) {
+      throw new Error(`Invalid boolean: ${value}`);
+    }
+    const result = value.toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(result)) {
+      return true;
+    }
+    if (['false', '0', 'no', 'off'].includes(result)) {
+      return false;
+    }
     throw new Error(`Invalid boolean: ${value}`);
   }
 
@@ -103,21 +157,17 @@ export class ConfigurationClass<T extends object> {
         const { placeholder, default: def, transform } = value;
         if (!placeholder) continue;
         const rawValue = process.env[placeholder];
-        if (rawValue !== undefined && rawValue !== '') {
+        const raw = rawValue !== undefined && rawValue !== '' ? String(rawValue).replace(/\r$/, '') : undefined;
+        if (transform) {
           try {
-            // ✅ trim CR just in case env came with \r
-            const raw = String(rawValue).replace(/\r$/, '');
-            result[key] = transform ? transform(raw) : raw;
+            result[key] = transform(raw);
           } catch {
             errors.push(`${placeholder} (transform failed)`);
           }
+        } else if (raw !== undefined) {
+          result[key] = raw;
         } else if (def !== undefined) {
-          // ✅ apply transform to default too (keeps types; avoids mismatch env/default)
-          try {
-            result[key] = transform ? transform(String(def)) : def;
-          } catch {
-            errors.push(`${placeholder} (default transform failed)`);
-          }
+          result[key] = def;
         } else {
           errors.push(placeholder);
         }

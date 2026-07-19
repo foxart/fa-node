@@ -18,7 +18,9 @@ const EnvironmentConfig: ConfigurationType<EnvironmentInterface> = {
     },
     debug: {
       placeholder: 'ENV',
-      transform: (v: string) => v?.toLowerCase() !== 'production',
+      transform: (value) => {
+        return value?.toLowerCase() !== 'production';
+      },
     },
     version: {
       placeholder: 'VERSION',
@@ -33,7 +35,9 @@ const EnvironmentConfig: ConfigurationType<EnvironmentInterface> = {
     },
     port: {
       placeholder: 'PORT',
-      transform: ConfigurationClass.toNumber,
+      transform: (value) => {
+        return value ? ConfigurationClass.toIntPositive(value) : 3000;
+      },
     },
   },
 };
