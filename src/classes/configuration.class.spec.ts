@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { ConfigurationClass, ConfigurationType } from '../index';
+import { ConfigurationClass, ConfigurationType } from './configuration.class';
 
 describe('ConfigurationClass', () => {
   const envBackup = { ...process.env };

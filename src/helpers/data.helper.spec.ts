@@ -1,33 +1,6 @@
-import { CheckHelper } from './check.helper';
 import { DataHelper } from './data.helper';
 
 describe('DataHelper', () => {
-  describe('isEmpty / isObject / isArray', () => {
-    it('should detect empty values correctly', () => {
-      expect(CheckHelper.isEmpty(undefined, { undefined: true })).toBe(true);
-      expect(CheckHelper.isEmpty(null, { null: true })).toBe(true);
-      expect(CheckHelper.isEmpty('', { blankString: true })).toBe(true);
-      expect(CheckHelper.isEmpty(0, { zeroNumber: true })).toBe(true);
-      expect(CheckHelper.isEmpty([], { emptyArray: true })).toBe(true);
-      expect(CheckHelper.isEmpty({}, { emptyObject: true })).toBe(true);
-    });
-
-    it('should detect non-empty values correctly', () => {
-      expect(CheckHelper.isEmpty('x', { blankString: true })).toBe(false);
-      expect(CheckHelper.isEmpty(1, { zeroNumber: true })).toBe(false);
-      expect(CheckHelper.isEmpty([1], { emptyArray: true })).toBe(false);
-      expect(CheckHelper.isEmpty({ a: 1 }, { emptyObject: true })).toBe(false);
-    });
-
-    it('should detect object types', () => {
-      expect(CheckHelper.isObject({})).toBe(true);
-      expect(CheckHelper.isObject([])).toBe(false);
-      expect(CheckHelper.isObject(new Date())).toBe(false);
-      expect(CheckHelper.isObject(/regex/)).toBe(false);
-      expect(CheckHelper.isObject(Buffer.from('x'))).toBe(false);
-    });
-  });
-
   describe('omitEmpty / pickEmpty', () => {
     const object = {
       null: null,

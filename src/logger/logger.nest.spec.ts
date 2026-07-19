@@ -1,5 +1,8 @@
-import { LoggerEnum } from './logger.map';
 import { LoggerNest } from './logger.nest';
+
+enum LoggerEnum {
+  DEFAULT,
+}
 
 function invoke<R>(target: object, method: string, ...args: unknown[]): R {
   const callback = (target as Record<string, (...parameters: unknown[]) => unknown>)[method];

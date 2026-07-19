@@ -1,4 +1,4 @@
-import { PasswordHelper } from '../index';
+import { PasswordHelper } from './password.helper';
 
 describe('PasswordHelper', () => {
   const normalPassword = 'password123';

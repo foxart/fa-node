@@ -1,4 +1,4 @@
-import { CryptClass } from '../index';
+import { CryptClass } from './crypt.class';
 
 describe('CryptClass', () => {
   const crypt = new CryptClass({ kmsSecret: 'kms', hmacSecret: 'hmac' });

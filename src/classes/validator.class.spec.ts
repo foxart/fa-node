@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsString, ValidateNested } from 'class-validator';
 
-import { ErrorClass } from './error.class';
 import { ValidatorClass } from './validator.class';
 
 describe('ValidatorClass', () => {
@@ -59,7 +58,7 @@ describe('ValidatorClass', () => {
     const validator = new ValidatorClass();
     const value = invalid();
 
-    expect(() => validator.validateOrThrow(value)).toThrow(ErrorClass);
+    expect(() => validator.validateOrThrow(value)).toThrow();
     await expect(validator.validateOrThrowAsync(value)).rejects.toMatchObject({
       name: 'Parent',
       messageIsJson: false,

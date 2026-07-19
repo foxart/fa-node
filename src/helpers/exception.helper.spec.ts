@@ -1,5 +1,4 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { ErrorClass } from '../classes/error.class';
 import { ExceptionCodeEnum, ExceptionHelper, ExceptionTypeEnum } from './exception.helper';
 
 describe('ExceptionHelper', () => {
@@ -53,9 +52,9 @@ describe('ExceptionHelper', () => {
   });
 
   it('should cast ErrorClass', () => {
-    const error = new ErrorClass({
+    const error = Object.assign(new Error('boom'), {
       name: 'CustomError',
-      message: 'boom',
+      messageIsJson: true,
       status: HttpStatus.BAD_REQUEST,
     });
 

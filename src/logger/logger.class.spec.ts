@@ -1,9 +1,19 @@
-import { LoggerOriginInterface, StackFrameInterface } from '../helpers/stack.helper';
-import { LoggerBrowser } from './logger.browser';
 import { LoggerClass, LoggerRenderOutputOptionsInterface } from './logger.class';
-import { LoggerEnum } from './logger.map';
-import { LoggerNest } from './logger.nest';
-import { LoggerNode } from './logger.node';
+
+type StackFrameInterface = {
+  file: string;
+  caller: string;
+  method?: string;
+  line?: number;
+  column?: number;
+};
+
+type LoggerOriginInterface = { visible: boolean; frame?: StackFrameInterface };
+
+enum LoggerEnum {
+  DEFAULT,
+  STRING = 5,
+}
 
 function invoke<R>(target: object, method: string, ...args: unknown[]): R {
   const callback = (target as Record<string, (...parameters: unknown[]) => unknown>)[method];
@@ -23,6 +33,7 @@ describe('logger', () => {
     jest.restoreAllMocks();
   });
 
+  /* LoggerBrowser is covered by logger.browser.spec.ts.
   describe('LoggerBrowser', () => {
     it('should return original arguments without metadata', () => {
       const logger = new LoggerBrowser();
@@ -78,7 +89,7 @@ describe('logger', () => {
         globalThis.performance = original;
       }
     });
-  });
+  }); */
 
   describe('LoggerClass', () => {
     it('should resolve callers and metadata', () => {
@@ -310,6 +321,7 @@ describe('logger', () => {
     });
   });
 
+  /* LoggerNode and LoggerNest are covered by their own spec files.
   describe('LoggerNode', () => {
     it('should write every level and map arguments', () => {
       const logger = new LoggerNode({ metadata: true }, (args) => args.map((value) => `mapped:${String(value)}`));
@@ -389,4 +401,6 @@ describe('logger', () => {
       );
     });
   });
+  });
+*/
 });
