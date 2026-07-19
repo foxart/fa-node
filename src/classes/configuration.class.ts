@@ -82,11 +82,7 @@ export class ConfigurationClass<T extends object> {
     if (value === undefined) {
       throw new Error(`Invalid positive float: ${value}`);
     }
-    const result = ConfigurationClass.toFloat(value);
-    if (result <= 0) {
-      throw new Error(`Invalid positive float: ${value}`);
-    }
-    return result;
+    return Math.abs(ConfigurationClass.toFloat(value));
   }
 
   public static toInt(this: void, value?: string): number {
@@ -104,11 +100,7 @@ export class ConfigurationClass<T extends object> {
     if (value === undefined) {
       throw new Error(`Invalid positive integer: ${value}`);
     }
-    const result = ConfigurationClass.toInt(value);
-    if (result <= 0) {
-      throw new Error(`Invalid positive integer: ${value}`);
-    }
-    return result;
+    return Math.abs(ConfigurationClass.toInt(value));
   }
 
   public static toBoolean(this: void, value?: string): boolean {

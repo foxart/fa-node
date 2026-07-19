@@ -79,4 +79,49 @@ describe('ExceptionHelper', () => {
       type: ExceptionTypeEnum.ERROR,
     });
   });
+
+  it('should use defaults for Apollo-like errors', () => {
+    const error = Object.assign(new Error('failure'), { name: 'ApolloError' as const });
+
+    expect(ExceptionHelper.castToException(error)).toMatchObject({
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      code: ExceptionCodeEnum.INTERNAL_SERVER_ERROR,
+      type: ExceptionTypeEnum.APOLLO_ERROR,
+    });
+  });
+
+  it('should cast other Mongo errors and malformed duplicate errors', () => {
+    const generic = Object.assign(new Error('database failure'), {
+      name: 'MongoError' as const,
+      code: 42,
+    });
+    const malformed = Object.assign(new Error('duplicate'), {
+      name: 'MongoServerError' as const,
+      code: 11000,
+    });
+
+    expect(JSON.parse(ExceptionHelper.castToException(generic).message)).toBe('database failure');
+    expect(JSON.parse(ExceptionHelper.castToException(malformed).message)).toBe('');
+  });
+
+  it('should cast unknown object and primitive values', () => {
+    expect(ExceptionHelper.castToException({ value: true })).toMatchObject({
+      message: '{\n  "value": true\n}',
+      code: ExceptionCodeEnum.INTERNAL_SERVER_ERROR,
+      type: ExceptionTypeEnum.UNKNOWN,
+    });
+    expect(ExceptionHelper.castToException('failure')).toMatchObject({
+      message: '',
+      type: ExceptionTypeEnum.UNKNOWN,
+    });
+  });
+
+  it('should map unauthorized and unknown HTTP statuses', () => {
+    expect(ExceptionHelper.castToException(new HttpException('unauthorized', HttpStatus.UNAUTHORIZED))).toMatchObject({
+      code: ExceptionCodeEnum.UNAUTHENTICATED,
+    });
+    expect(ExceptionHelper.castToException(new HttpException('redirect', HttpStatus.FOUND))).toMatchObject({
+      code: ExceptionCodeEnum.UNKNOWN,
+    });
+  });
 });

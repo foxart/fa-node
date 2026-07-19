@@ -310,8 +310,7 @@ class DataHelperClass {
   private jsonParse<T>(data: string): T | string {
     try {
       return JSON.parse(data) as T;
-    } catch (e) {
-      const a = 1;
+    } catch {
       return data;
     }
   }

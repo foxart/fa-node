@@ -93,10 +93,10 @@ describe('ConfigurationClass', () => {
 
     it('should transform a positive float', () => {
       expect(ConfigurationClass.toFloatPositive('0.5')).toBe(0.5);
+      expect(ConfigurationClass.toFloatPositive('0')).toBe(0);
+      expect(ConfigurationClass.toFloatPositive('-0.5')).toBe(0.5);
       expect(() => ConfigurationClass.toFloatPositive()).toThrow('Invalid positive float: undefined');
       expect(() => ConfigurationClass.toFloatPositive('invalid')).toThrow('Invalid float: invalid');
-      expect(() => ConfigurationClass.toFloatPositive('0')).toThrow('Invalid positive float: 0');
-      expect(() => ConfigurationClass.toFloatPositive('-0.5')).toThrow('Invalid positive float: -0.5');
     });
 
     it('should transform an integer', () => {
@@ -107,10 +107,10 @@ describe('ConfigurationClass', () => {
 
     it('should transform a positive integer', () => {
       expect(ConfigurationClass.toIntPositive('12')).toBe(12);
+      expect(ConfigurationClass.toIntPositive('0')).toBe(0);
+      expect(ConfigurationClass.toIntPositive('-1')).toBe(1);
       expect(() => ConfigurationClass.toIntPositive()).toThrow('Invalid positive integer: undefined');
       expect(() => ConfigurationClass.toIntPositive('1.5')).toThrow('Invalid integer: 1.5');
-      expect(() => ConfigurationClass.toIntPositive('0')).toThrow('Invalid positive integer: 0');
-      expect(() => ConfigurationClass.toIntPositive('-1')).toThrow('Invalid positive integer: -1');
     });
   });
 

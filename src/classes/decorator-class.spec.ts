@@ -214,4 +214,98 @@ describe('DecoratorClass', () => {
       expect(instance.value).toBe(15);
     });
   });
+
+  describe('DecoratorClass edge cases', () => {
+    it('should execute callbacks for async methods', async () => {
+      const methodBeforeCallback = jest.fn((_meta: MethodCallbackMetadataInterface, value: unknown) => [
+        (value as number) + 1,
+      ]);
+      const methodAfterCallback = jest.fn((_meta: MethodCallbackMetadataInterface, value: unknown) => {
+        return (value as number) * 2;
+      });
+      class TestClass {
+        @decorator.decorateMethod({ methodBeforeCallback, methodAfterCallback })
+        public async method(value: number): Promise<number> {
+          return await Promise.resolve(value + 1);
+        }
+      }
+
+      await expect(new TestClass().method(1)).resolves.toBe(6);
+      expect(methodBeforeCallback).toHaveBeenCalled();
+      expect(methodAfterCallback).toHaveBeenCalled();
+    });
+
+    it('should execute async methods without callbacks', async () => {
+      class TestClass {
+        @decorator.decorateMethod()
+        public async method(value: number): Promise<number> {
+          return await Promise.resolve(value);
+        }
+      }
+
+      await expect(new TestClass().method(1)).resolves.toBe(1);
+    });
+
+    it('should copy metadata from wrapped functions', () => {
+      class TestClass {
+        public method(): string {
+          return 'value';
+        }
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(TestClass.prototype, 'method') as PropertyDescriptor;
+      Reflect.defineMetadata('custom', 'metadata', descriptor.value as object);
+      Reflect.defineMetadata('design:type', String, descriptor.value as object);
+
+      const updated = decorator.decorateMethod()(TestClass.prototype, 'method', descriptor);
+      Object.defineProperty(TestClass.prototype, 'method', updated as PropertyDescriptor);
+      const wrapped = (Object.getOwnPropertyDescriptor(TestClass.prototype, 'method') as PropertyDescriptor)
+        .value as object;
+
+      expect(Reflect.getMetadata('custom', wrapped)).toBe('metadata');
+      expect(Reflect.getMetadata('design:type', wrapped)).toBe(String);
+      expect(new TestClass().method()).toBe('value');
+    });
+
+    it('should work when metadata reflection helpers are unavailable', () => {
+      const original = Reflect.getMetadataKeys;
+      class TestClass {
+        public method(): string {
+          return 'value';
+        }
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(TestClass.prototype, 'method') as PropertyDescriptor;
+
+      try {
+        (Reflect as unknown as { getMetadataKeys?: typeof Reflect.getMetadataKeys }).getMetadataKeys = undefined;
+        const updated = decorator.decorateMethod()(TestClass.prototype, 'method', descriptor);
+        Object.defineProperty(TestClass.prototype, 'method', updated as PropertyDescriptor);
+      } finally {
+        Reflect.getMetadataKeys = original;
+      }
+
+      expect(new TestClass().method()).toBe('value');
+    });
+
+    it('should ignore constructor parameters and prepend duplicate parameter decorators', () => {
+      class TestClass {
+        @decorator.decorateMethod()
+        public method(
+          @decorator.decorateParameter({ data: 'outer' })
+          @decorator.decorateParameter()
+          value: number,
+        ): number {
+          return value;
+        }
+      }
+
+      decorator.decorateParameter()(TestClass.prototype, undefined, 0);
+      const metadata = Reflect.getOwnMetadata(symbol, TestClass.prototype, 'method') as Map<
+        number,
+        Array<{ data?: unknown }>
+      >;
+      expect(metadata.get(0)).toHaveLength(2);
+      expect(metadata.get(0)?.[0].data).toBe('outer');
+      expect(new TestClass().method(1)).toBe(1);
+    });
+  });
 });

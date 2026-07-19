@@ -117,4 +117,100 @@ describe('CryptClass', () => {
       expect(tokens.length).toBe(new Set(tokens).size);
     });
   });
+
+  describe('constructor options and edge cases', () => {
+    it('should validate required keys', () => {
+      expect(() => new CryptClass()).toThrow('kmsKey or kmsSecret required');
+      expect(() => new CryptClass({ kmsKey: Buffer.alloc(31), hmacSecret: 'hmac' })).toThrow(
+        'kmsKey must be 32 bytes',
+      );
+      expect(() => new CryptClass({ kmsSecret: 'kms' })).toThrow('hmacKey or hmacSecret required');
+    });
+
+    it('should support explicit and derived keys', () => {
+      const explicit = new CryptClass({
+        kmsKey: Buffer.alloc(32, 1),
+        hmacKey: Buffer.alloc(32, 2),
+        encoding: 'hex',
+      });
+      const derived = new CryptClass({
+        kmsSecret: Buffer.from('kms'),
+        kmsSalt: Buffer.from('salt'),
+        kmsIterations: 1,
+        hmacKey: 'hmac' as unknown as Buffer,
+      });
+
+      expect(explicit.decrypt(explicit.encrypt('value'))).toBe('value');
+      expect(derived.hmac('value')).toBeDefined();
+    });
+
+    it('should preserve empty values', () => {
+      expect(crypt.encrypt('')).toBe('');
+      expect(crypt.encrypt(null)).toBeNull();
+      expect(crypt.encrypt(undefined)).toBeUndefined();
+      expect(crypt.decrypt('')).toBe('');
+      expect(crypt.decrypt(null)).toBeNull();
+      expect(crypt.decrypt(undefined)).toBeUndefined();
+    });
+
+    it('should support fast mode', () => {
+      const fast = new CryptClass({ kmsSecret: 'kms', hmacSecret: 'hmac', fastMode: true });
+      const encrypted = fast.encrypt('fast value');
+
+      expect(fast.decrypt(encrypted)).toBe('fast value');
+    });
+
+    it('should preserve input when encryption fails and throws is false', () => {
+      const instance = new CryptClass({ kmsSecret: 'kms', hmacSecret: 'hmac' });
+      const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      jest
+        .spyOn(instance as unknown as { encryptEnvelope: (value: string) => string }, 'encryptEnvelope')
+        .mockImplementation(() => {
+          throw new Error('failure');
+        });
+
+      expect(instance.encrypt('value', false)).toBe('value');
+      expect(error).toHaveBeenCalled();
+      expect(() => instance.encrypt('value', true)).toThrow('failure');
+      error.mockRestore();
+    });
+
+    it('should preserve input for non-Error failures when throws is false', () => {
+      const instance = new CryptClass({ kmsSecret: 'kms', hmacSecret: 'hmac' });
+      const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      jest
+        .spyOn(instance as unknown as { decryptEnvelope: (value: string) => string }, 'decryptEnvelope')
+        .mockImplementation(() => {
+          throw 'failure';
+        });
+
+      expect(instance.decrypt('value', false)).toBe('value');
+      expect(error).not.toHaveBeenCalled();
+      error.mockRestore();
+    });
+
+    it('should reject unsupported envelope versions', () => {
+      const encrypted = crypt.encrypt('value') as string;
+      const payload = Buffer.from(encrypted, 'base64');
+      payload.writeUInt8(2, 0);
+      const unsupported = payload.toString('base64');
+
+      expect(() => crypt.decrypt(unsupported)).toThrow('Unsupported version');
+      expect(() => crypt.unwrapDek(unsupported)).toThrow('Unsupported version');
+    });
+
+    it('should return no n-grams for empty normalized values', () => {
+      expect(crypt.nGramPrefixList(' \u200b ')).toStrictEqual([]);
+      expect(crypt.nGramSlideList(' \u200b ')).toStrictEqual([]);
+    });
+
+    it('should skip empty regexp matches', () => {
+      const instance = new CryptClass({ kmsSecret: 'kms', hmacSecret: 'hmac' });
+      const mutable = instance as unknown as { normalizeRegExp: RegExp };
+      mutable.normalizeRegExp = /(?=a)/gu;
+
+      expect(instance.nGramPrefixList('a')).toStrictEqual([]);
+      expect(instance.nGramSlideList('a')).toStrictEqual([]);
+    });
+  });
 });

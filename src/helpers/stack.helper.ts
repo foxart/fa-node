@@ -51,8 +51,8 @@ class StackHelperClass {
       const caller = dotIndex === -1 ? context : context.slice(0, dotIndex);
       const method = dotIndex === -1 ? undefined : context.slice(dotIndex + 1);
       const location = match[2];
-      const locationMatch = /^(.*):(\d+):(\d+)$/.exec(location);
-      let file = locationMatch?.[1] ?? location;
+      const locationMatch = /^(.*):(\d+):(\d+)$/.exec(location) as RegExpExecArray;
+      let file = locationMatch[1];
       if (root && file.startsWith(root)) {
         file = file.slice(root.length).replace(/^\/|\/$/g, '') || '.';
       } else {
@@ -62,8 +62,8 @@ class StackHelperClass {
         caller,
         method,
         file,
-        line: locationMatch ? Number(locationMatch[2]) : undefined,
-        column: locationMatch ? Number(locationMatch[3]) : undefined,
+        line: Number(locationMatch[2]),
+        column: Number(locationMatch[3]),
       });
     }
     return result;

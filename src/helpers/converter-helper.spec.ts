@@ -131,6 +131,8 @@ describe('ConverterHelper', () => {
       // кириллица
       expect(ConverterHelper.toCamelCase('тест код')).toBe('тестКод');
       expect(ConverterHelper.toCamelCase('тестTest')).toBe('тестTest');
+      expect(ConverterHelper.toCamelCase(' ')).toBe('');
+      expect(ConverterHelper.decapitalize('')).toBe('');
     });
 
     it('separateWords', () => {
@@ -166,6 +168,11 @@ describe('ConverterHelper', () => {
       expect(ConverterHelper.tokenizeWords('XYZdata', ' ')).toBe('XY Zdata');
       // смешанные сценарии с разными разделителями
       expect(ConverterHelper.tokenizeWords('parseXML_HTTP_Data', ' ')).toBe('parse XML_HTTP_Data');
+    });
+
+    it('splitWords', () => {
+      expect(ConverterHelper.splitWords('')).toStrictEqual([]);
+      expect(ConverterHelper.splitWords('helloWorld')).toStrictEqual(['hello', 'World']);
     });
   });
 });

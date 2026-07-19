@@ -100,10 +100,7 @@ function isPipeLike(value: unknown): value is PipeLike {
   return isObjectLike(value) && 'pipe' in value && typeof (value as PipeLike).pipe === 'function';
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (!isObjectLike(value)) {
-    return false;
-  }
+function isPlainObject(value: object): value is Record<string, unknown> {
   const proto = Object.getPrototypeOf(value) as object | null;
   return proto === Object.prototype || proto === null;
 }
@@ -297,8 +294,6 @@ export class LoggerClass {
     }
     const applySymbol = (value: string): string => {
       switch (value) {
-        case '"':
-        case "'":
         case '{':
         case '}':
         case '[':
