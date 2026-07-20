@@ -69,7 +69,7 @@ export class ConfigurationClass<T extends object> {
 
   public static toFloat(this: void, value?: string): number {
     if (value === undefined) {
-      throw new Error(`Invalid float: ${value}`);
+      throw new Error(`Float not set`);
     }
     const result = Number(value);
     if (!Number.isFinite(result)) {
@@ -80,14 +80,14 @@ export class ConfigurationClass<T extends object> {
 
   public static toFloatPositive(this: void, value?: string): number {
     if (value === undefined) {
-      throw new Error(`Invalid positive float: ${value}`);
+      throw new Error(`Positive float not set`);
     }
     return Math.abs(ConfigurationClass.toFloat(value));
   }
 
   public static toInt(this: void, value?: string): number {
     if (value === undefined) {
-      throw new Error(`Invalid integer: ${value}`);
+      throw new Error(`Integer not set`);
     }
     const result = Number(value);
     if (!Number.isInteger(result)) {
@@ -98,14 +98,14 @@ export class ConfigurationClass<T extends object> {
 
   public static toIntPositive(this: void, value?: string): number {
     if (value === undefined) {
-      throw new Error(`Invalid positive integer: ${value}`);
+      throw new Error(`Positive integer not set`);
     }
     return Math.abs(ConfigurationClass.toInt(value));
   }
 
   public static toBoolean(this: void, value?: string): boolean {
     if (value === undefined) {
-      throw new Error(`Invalid boolean: ${value}`);
+      throw new Error(`Boolean not set`);
     }
     const result = value.toLowerCase();
     if (['true', '1', 'yes', 'on'].includes(result)) {

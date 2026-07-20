@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-
 import { ConfigurationClass, ConfigurationType } from './configuration.class';
 
 describe('ConfigurationClass', () => {
@@ -87,7 +86,7 @@ describe('ConfigurationClass', () => {
   describe('numeric transforms', () => {
     it('should transform a finite float', () => {
       expect(ConfigurationClass.toFloat('12.5')).toBe(12.5);
-      expect(() => ConfigurationClass.toFloat()).toThrow('Invalid float: undefined');
+      expect(() => ConfigurationClass.toFloat()).toThrow('Float not set');
       expect(() => ConfigurationClass.toFloat('invalid')).toThrow('Invalid float: invalid');
     });
 
@@ -95,13 +94,13 @@ describe('ConfigurationClass', () => {
       expect(ConfigurationClass.toFloatPositive('0.5')).toBe(0.5);
       expect(ConfigurationClass.toFloatPositive('0')).toBe(0);
       expect(ConfigurationClass.toFloatPositive('-0.5')).toBe(0.5);
-      expect(() => ConfigurationClass.toFloatPositive()).toThrow('Invalid positive float: undefined');
+      expect(() => ConfigurationClass.toFloatPositive()).toThrow('Positive float not set');
       expect(() => ConfigurationClass.toFloatPositive('invalid')).toThrow('Invalid float: invalid');
     });
 
     it('should transform an integer', () => {
       expect(ConfigurationClass.toInt('12')).toBe(12);
-      expect(() => ConfigurationClass.toInt()).toThrow('Invalid integer: undefined');
+      expect(() => ConfigurationClass.toInt()).toThrow('Integer not set');
       expect(() => ConfigurationClass.toInt('12.5')).toThrow('Invalid integer: 12.5');
     });
 
@@ -109,7 +108,7 @@ describe('ConfigurationClass', () => {
       expect(ConfigurationClass.toIntPositive('12')).toBe(12);
       expect(ConfigurationClass.toIntPositive('0')).toBe(0);
       expect(ConfigurationClass.toIntPositive('-1')).toBe(1);
-      expect(() => ConfigurationClass.toIntPositive()).toThrow('Invalid positive integer: undefined');
+      expect(() => ConfigurationClass.toIntPositive()).toThrow('Positive integer not set');
       expect(() => ConfigurationClass.toIntPositive('1.5')).toThrow('Invalid integer: 1.5');
     });
   });
@@ -124,7 +123,7 @@ describe('ConfigurationClass', () => {
     });
 
     it('should reject missing and invalid values', () => {
-      expect(() => ConfigurationClass.toBoolean()).toThrow('Invalid boolean: undefined');
+      expect(() => ConfigurationClass.toBoolean()).toThrow('Boolean not set');
       expect(() => ConfigurationClass.toBoolean('sometimes')).toThrow('Invalid boolean: sometimes');
     });
   });
@@ -225,10 +224,7 @@ describe('ConfigurationClass', () => {
       const result = new ConfigurationClass<typeof configuration>().process(configuration);
 
       expect(result.environments).toStrictEqual({});
-      expect(result.errors).toStrictEqual([
-        'INVALID_INT_KEY (transform failed)',
-        'MISSING_INT_KEY (transform failed)',
-      ]);
+      expect(result.errors).toStrictEqual(['INVALID_INT_KEY (transform failed)', 'MISSING_INT_KEY (transform failed)']);
     });
 
     it('should recursively process nested values and preserve literals and arrays', () => {
