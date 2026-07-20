@@ -1,6 +1,27 @@
 describe('is-mode', () => {
   const originalEnvironment = process.env.NODE_ENV;
 
+  const loadMode = (
+    environment?: string,
+  ): {
+    isDevMode: () => boolean;
+    isProdMode: () => boolean;
+    isStageMode: () => boolean;
+    isTestMode: () => boolean;
+  } => {
+    if (environment === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = environment;
+    }
+
+    let mode!: ReturnType<typeof loadMode>;
+    jest.isolateModules(() => {
+      mode = require('./is-mode') as ReturnType<typeof loadMode>;
+    });
+    return mode;
+  };
+
   afterEach(() => {
     process.env.NODE_ENV = originalEnvironment;
     jest.resetModules();
@@ -15,20 +36,19 @@ describe('is-mode', () => {
     ['staging', [false, false, true, false]],
     ['stage', [false, false, true, false]],
     ['test', [false, false, false, true]],
-    ['unknown', [true, false, false, false]],
   ])('should classify %s mode', (environment, expected) => {
-    process.env.NODE_ENV = environment;
-    jest.resetModules();
-    const mode = jest.requireActual<typeof import('./is-mode')>('./is-mode');
+    const mode = loadMode(environment);
 
     expect([mode.isDevMode(), mode.isProdMode(), mode.isStageMode(), mode.isTestMode()]).toStrictEqual(expected);
   });
 
   it('should default to local mode without NODE_ENV', () => {
-    delete process.env.NODE_ENV;
-    jest.resetModules();
-    const mode = jest.requireActual<typeof import('./is-mode')>('./is-mode');
+    const mode = loadMode();
 
     expect(mode.isDevMode()).toBe(true);
+  });
+
+  it.each(['LOCAL', 'unknown'])('should reject an unknown %s mode', (environment) => {
+    expect(() => loadMode(environment)).toThrow(`Invalid NODE_ENV: ${environment}`);
   });
 });

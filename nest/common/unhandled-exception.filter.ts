@@ -1,9 +1,9 @@
-import { isDevMode } from '@nest/common/utils/is-dev-mode';
 import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
 import { ApolloError } from 'apollo-server-errors';
 import { Response } from 'express';
 import { Observable, throwError } from 'rxjs';
 import { DataHelper, ExceptionHelper } from '../../src';
+import { isDevMode } from '../../src/utils/is-mode';
 import { LoggerNodeService } from './logger-node.service';
 
 type NestContextType = 'http' | 'graphql' | 'rpc' | 'ws';

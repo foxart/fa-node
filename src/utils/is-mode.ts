@@ -1,4 +1,4 @@
-const ENV = process.env.NODE_ENV || '';
+const ENV = (process.env.NODE_ENV || '').toLowerCase();
 
 enum EnvEnum {
   LOCAL = 'local',
@@ -19,7 +19,11 @@ const envMap: Record<string, EnvEnum> = {
   test: EnvEnum.TEST,
 } as const;
 
-const normalizedEnv = envMap[ENV] || EnvEnum.LOCAL;
+const normalizedEnv = ENV ? envMap[ENV] : EnvEnum.LOCAL;
+
+if (!normalizedEnv) {
+  throw new Error(`Invalid NODE_ENV: ${process.env.NODE_ENV}`);
+}
 
 export const isDevMode = (): boolean => normalizedEnv === EnvEnum.LOCAL || normalizedEnv === EnvEnum.DEVELOPMENT;
 export const isProdMode = (): boolean => normalizedEnv === EnvEnum.PRODUCTION;
