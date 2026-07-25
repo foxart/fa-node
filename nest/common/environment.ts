@@ -11,7 +11,7 @@ interface EnvironmentInterface {
   };
 }
 
-const EnvironmentConfig: ConfigurationType<EnvironmentInterface> = {
+const Configurations: ConfigurationType<EnvironmentInterface> = {
   app: {
     env: {
       placeholder: 'ENV',
@@ -42,19 +42,12 @@ const EnvironmentConfig: ConfigurationType<EnvironmentInterface> = {
   },
 };
 
-ConfigurationClass.loadEnv();
+const ConfigurationHelper = new ConfigurationClass();
+const configuration = ConfigurationHelper.apply(Configurations);
 
-const configuration = new ConfigurationClass<typeof EnvironmentConfig>();
-const { environments, errors } = configuration.process(EnvironmentConfig);
-
-if (errors.length) {
-  const message = `Configuration errors:\n${errors.map((e) => `- ${e}`).join('\n')}`;
-  throw new Error(message);
-}
-
-export const environment = environments;
-export const environmentMasked = configuration.mask(
-  environments,
+export const environment = configuration;
+export const environmentMasked = ConfigurationHelper.mask(
+  configuration,
   [
     'host',
     'password',

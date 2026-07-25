@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 import { CodegenHelper } from './codegen.helper';
 
@@ -18,7 +18,7 @@ describe('CodegenHelper', () => {
   let consoleLog: jest.SpyInstance;
 
   beforeEach(() => {
-    temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'fa-node-codegen-'));
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'fa-node-codegen-'));
     consoleLog = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     mockedExec.mockImplementation(
       (_command: string, callback: (error: Error | null, stdout?: string, stderr?: string) => void) => {
@@ -29,7 +29,7 @@ describe('CodegenHelper', () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+    rmSync(temporaryDirectory, { recursive: true, force: true });
     jest.restoreAllMocks();
   });
 
@@ -85,10 +85,10 @@ describe('CodegenHelper', () => {
   });
 
   it('should build GraphQL output and report transformer failures', () => {
-    const file = path.join(temporaryDirectory, 'nested', 'schema.ts');
+    const file = join(temporaryDirectory, 'nested', 'schema.ts');
 
     CodegenHelper.buildGraphql(file, { value: true }, (input) => JSON.stringify(input));
-    expect(fs.readFileSync(file, 'utf8')).toBe('{"value":true}');
+    expect(readFileSync(file, 'utf8')).toBe('{"value":true}');
 
     CodegenHelper.buildGraphql(file, { value: true }, () => {
       throw new Error('transform failure');
@@ -97,7 +97,7 @@ describe('CodegenHelper', () => {
   });
 
   it('should build proto output and enrich command failures', async () => {
-    const destination = path.join(temporaryDirectory, 'proto');
+    const destination = join(temporaryDirectory, 'proto');
 
     await CodegenHelper.buildProto('/source', destination, '/source/value.proto');
     expect(mockedExec).toHaveBeenCalledWith(

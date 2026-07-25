@@ -1,4 +1,4 @@
-import * as util from 'node:util';
+import { inspect } from 'node:util';
 import {
   AnsiBackgroundType,
   AnsiColorKeyType,
@@ -558,7 +558,7 @@ export class LoggerClass {
   }
 
   private utilInspect(data: unknown): string {
-    return util.inspect(this.normalizeForInspect(data), {
+    return inspect(this.normalizeForInspect(data), {
       colors: this.config.color,
       showHidden: this.config.hidden,
       sorted: this.config.sort,

@@ -1,5 +1,3 @@
-const ENV = (process.env.NODE_ENV || '').toLowerCase();
-
 enum EnvEnum {
   LOCAL = 'local',
   DEVELOPMENT = 'development',
@@ -19,13 +17,23 @@ const envMap: Record<string, EnvEnum> = {
   test: EnvEnum.TEST,
 } as const;
 
-const normalizedEnv = ENV ? envMap[ENV] : EnvEnum.LOCAL;
+const getNormalizedEnv = (): EnvEnum => {
+  const environment = process.env.NODE_ENV;
+  if (!environment) {
+    return EnvEnum.LOCAL;
+  }
 
-if (!normalizedEnv) {
-  throw new Error(`Invalid NODE_ENV: ${process.env.NODE_ENV}`);
-}
+  const normalizedEnv = envMap[environment.toLowerCase()];
+  if (!normalizedEnv) {
+    throw new Error(`Invalid NODE_ENV: ${environment}`);
+  }
+  return normalizedEnv;
+};
 
-export const isDevMode = (): boolean => normalizedEnv === EnvEnum.LOCAL || normalizedEnv === EnvEnum.DEVELOPMENT;
-export const isProdMode = (): boolean => normalizedEnv === EnvEnum.PRODUCTION;
-export const isStageMode = (): boolean => normalizedEnv === EnvEnum.STAGING;
-export const isTestMode = (): boolean => normalizedEnv === EnvEnum.TEST;
+export const isDevMode = (): boolean => {
+  const environment = getNormalizedEnv();
+  return environment === EnvEnum.LOCAL || environment === EnvEnum.DEVELOPMENT;
+};
+export const isProdMode = (): boolean => getNormalizedEnv() === EnvEnum.PRODUCTION;
+export const isStageMode = (): boolean => getNormalizedEnv() === EnvEnum.STAGING;
+export const isTestMode = (): boolean => getNormalizedEnv() === EnvEnum.TEST;

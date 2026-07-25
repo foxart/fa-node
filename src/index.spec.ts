@@ -1,20 +1,27 @@
-import * as FaNode from './index';
+import {
+  AnsiHelper,
+  CheckHelper,
+  ConfigurationClass,
+  CryptClass,
+  DecoratorClass,
+  ErrorClass,
+  LoggerClass,
+  LoggerNest,
+  LoggerNode,
+  MigrationMongoCli,
+} from './index';
 
 describe('package entrypoint', () => {
   it('should expose the public package surface', () => {
-    expect(Object.keys(FaNode)).toEqual(
-      expect.arrayContaining([
-        'ConfigurationClass',
-        'CryptClass',
-        'DecoratorClass',
-        'ErrorClass',
-        'MigrationMongoCli',
-        'AnsiHelper',
-        'CheckHelper',
-        'LoggerClass',
-        'LoggerNest',
-        'LoggerNode',
-      ]),
-    );
+    expect(ConfigurationClass).toBeDefined();
+    expect(CryptClass).toBeDefined();
+    expect(DecoratorClass).toBeDefined();
+    expect(ErrorClass).toBeDefined();
+    expect(MigrationMongoCli).toBeDefined();
+    expect(AnsiHelper).toBeDefined();
+    expect(CheckHelper).toBeDefined();
+    expect(LoggerClass).toBeDefined();
+    expect(LoggerNest).toBeDefined();
+    expect(LoggerNode).toBeDefined();
   });
 });

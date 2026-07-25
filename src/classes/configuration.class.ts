@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
 
 export type ConfigurationType<T> = {
   [K in keyof T]: T[K] extends object ? ConfigurationType<T[K]> : ConfigurationInterface<T[K]> | T[K];
@@ -30,41 +30,15 @@ type DictionaryType<T> = T extends { transform: (...args: never[]) => infer R }
           ? { readonly [K in keyof T]: DictionaryType<T[K]> }
           : T;
 
-interface ResultInterface<T> {
-  environments: DictionaryType<T>;
-  errors: string[];
-}
-
 interface DictionaryInterface {
   placeholder: string;
   default?: unknown;
   transform?: (value: string | undefined) => unknown;
 }
 
-export class ConfigurationClass<T extends object> {
-  public static loadEnv(filePath = '.env'): void {
-    const absPath = path.resolve(filePath);
-    if (!fs.existsSync(absPath)) return;
-    const raw = fs.readFileSync(absPath, 'utf8');
-    if (!raw) return;
-    raw.split(/\r?\n/).forEach((line) => {
-      const clean = line.trim();
-      if (!clean || clean.startsWith('#')) return;
-      const eqIndex = clean.indexOf('=');
-      if (eqIndex === -1) return;
-      const key = clean.slice(0, eqIndex).trim();
-      let value = clean.slice(eqIndex + 1).trim();
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1);
-      }
-      value = value.replace(/\r$/, '');
-      value = value.replace(/\$\{([A-Z0-9_]+)}/g, (_: string, envKey: string) => {
-        return process.env[String(envKey)] ?? '';
-      });
-      if (process.env[key] === undefined || process.env[key] === '') {
-        process.env[key] = value;
-      }
-    });
+export class ConfigurationClass<T extends object = object> {
+  public constructor(filePath = '.env') {
+    ConfigurationClass.loadEnv(filePath);
   }
 
   public static toFloat(this: void, value?: string): number {
@@ -117,6 +91,31 @@ export class ConfigurationClass<T extends object> {
     throw new Error(`Invalid boolean: ${value}`);
   }
 
+  private static loadEnv(filePath: string): void {
+    const absPath = resolve(filePath);
+    if (!existsSync(absPath)) return;
+    const raw = readFileSync(absPath, 'utf8');
+    if (!raw) return;
+    raw.split(/\r?\n/).forEach((line) => {
+      const clean = line.trim();
+      if (!clean || clean.startsWith('#')) return;
+      const eqIndex = clean.indexOf('=');
+      if (eqIndex === -1) return;
+      const key = clean.slice(0, eqIndex).trim();
+      let value = clean.slice(eqIndex + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      value = value.replace(/\r$/, '');
+      value = value.replace(/\$\{([A-Z0-9_]+)}/g, (_: string, envKey: string) => {
+        return process.env[String(envKey)] ?? '';
+      });
+      if (process.env[key] === undefined || process.env[key] === '') {
+        process.env[key] = value;
+      }
+    });
+  }
+
   private static isReference(value: unknown): value is DictionaryInterface {
     if (typeof value !== 'object' || value === null) {
       return false;
@@ -125,16 +124,53 @@ export class ConfigurationClass<T extends object> {
     return typeof ref.placeholder === 'string';
   }
 
-  public process(configuration: T): ResultInterface<T> {
+  public apply<TConfiguration extends object>(configuration: TConfiguration): DictionaryType<TConfiguration> {
     const { environments, errors } = this.extractRecursive(configuration as Record<string, unknown>);
-    return {
-      environments: environments as DictionaryType<T>,
-      errors,
-    };
+    if (errors.length) {
+      throw new Error(`Configuration errors:\n${errors.map((error) => `- ${error}`).join('\n')}`);
+    }
+    return environments as DictionaryType<TConfiguration>;
   }
 
   public mask(dictionary: DictionaryType<T>, fullList: string[], partialList: string[]): DictionaryType<T> {
-    return this.maskRecursive(dictionary as Record<string, unknown>, fullList, partialList) as DictionaryType<T>;
+    const result: Record<string, unknown> = {};
+    for (const key in dictionary) {
+      const value = dictionary[key];
+      if (Array.isArray(value)) {
+        result[key] = value;
+        continue;
+      }
+      if (typeof value === 'object' && value !== null) {
+        result[key] = this.mask(value as DictionaryType<T>, fullList, partialList);
+        continue;
+      }
+      const str = value?.toString?.() ?? '';
+      const lowerKey = key.toLowerCase();
+      // FULL MASK
+      if (fullList.some((maskKey) => lowerKey.includes(maskKey))) {
+        result[key] = str.replace(/[A-Za-z0-9]/g, '*');
+        continue;
+      }
+      // PARTIAL MASK
+      if (partialList.some((maskKey) => lowerKey.includes(maskKey))) {
+        const prefixLength = 3;
+        const suffixLength = 3;
+        if (str.length <= prefixLength + suffixLength) {
+          const first = str[0] ?? '';
+          const last = str.length > 1 ? str[str.length - 1] : '';
+          const middle = str.length > 2 ? str.slice(1, -1).replace(/[A-Za-z0-9]/g, '*') : '';
+          result[key] = first + middle + last;
+        } else {
+          const prefix = str.slice(0, prefixLength);
+          const suffix = str.slice(-suffixLength);
+          const middle = str.slice(prefixLength, -suffixLength).replace(/[A-Za-z0-9]/g, '*');
+          result[key] = prefix + middle + suffix;
+        }
+        continue;
+      }
+      result[key] = value;
+    }
+    return result as DictionaryType<T>;
   }
 
   private extractRecursive(dictionary: Record<string, unknown>): {
@@ -174,50 +210,5 @@ export class ConfigurationClass<T extends object> {
       result[key] = value;
     }
     return { environments: result, errors };
-  }
-
-  private maskRecursive(
-    dictionary: Record<string, unknown>,
-    fullList: string[],
-    partialList: string[],
-  ): Record<string, unknown> {
-    const result: Record<string, unknown> = {};
-    for (const key in dictionary) {
-      const value = dictionary[key];
-      if (Array.isArray(value)) {
-        result[key] = value;
-        continue;
-      }
-      if (typeof value === 'object' && value !== null) {
-        result[key] = this.maskRecursive(value as Record<string, unknown>, fullList, partialList);
-        continue;
-      }
-      const str = value?.toString?.() ?? '';
-      const lowerKey = key.toLowerCase();
-      // FULL MASK
-      if (fullList.some((maskKey) => lowerKey.includes(maskKey))) {
-        result[key] = str.replace(/[A-Za-z0-9]/g, '*');
-        continue;
-      }
-      // PARTIAL MASK
-      if (partialList.some((maskKey) => lowerKey.includes(maskKey))) {
-        const prefixLength = 3;
-        const suffixLength = 3;
-        if (str.length <= prefixLength + suffixLength) {
-          const first = str[0] ?? '';
-          const last = str.length > 1 ? str[str.length - 1] : '';
-          const middle = str.length > 2 ? str.slice(1, -1).replace(/[A-Za-z0-9]/g, '*') : '';
-          result[key] = first + middle + last;
-        } else {
-          const prefix = str.slice(0, prefixLength);
-          const suffix = str.slice(-suffixLength);
-          const middle = str.slice(prefixLength, -suffixLength).replace(/[A-Za-z0-9]/g, '*');
-          result[key] = prefix + middle + suffix;
-        }
-        continue;
-      }
-      result[key] = value;
-    }
-    return result;
   }
 }

@@ -1,6 +1,6 @@
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { ConfigurationClass, ConfigurationType } from './configuration.class';
 
 describe('ConfigurationClass', () => {
@@ -14,33 +14,33 @@ describe('ConfigurationClass', () => {
     process.env = envBackup;
   });
 
-  describe('loadEnv', () => {
+  describe('constructor', () => {
     let temporaryDirectory: string;
 
     beforeEach(() => {
-      temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'fa-node-configuration-'));
+      temporaryDirectory = mkdtempSync(join(tmpdir(), 'fa-node-configuration-'));
     });
 
     afterEach(() => {
-      fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+      rmSync(temporaryDirectory, { recursive: true, force: true });
     });
 
     it('should ignore a missing or empty env file', () => {
-      const missingFile = path.join(temporaryDirectory, 'missing.env');
-      const emptyFile = path.join(temporaryDirectory, 'empty.env');
-      fs.writeFileSync(emptyFile, '');
+      const missingFile = join(temporaryDirectory, 'missing.env');
+      const emptyFile = join(temporaryDirectory, 'empty.env');
+      writeFileSync(emptyFile, '');
 
-      expect(() => ConfigurationClass.loadEnv(missingFile)).not.toThrow();
-      expect(() => ConfigurationClass.loadEnv(emptyFile)).not.toThrow();
+      expect(() => new ConfigurationClass(missingFile)).not.toThrow();
+      expect(() => new ConfigurationClass(emptyFile)).not.toThrow();
     });
 
     it('should load .env by default', () => {
       const originalDirectory = process.cwd();
-      fs.writeFileSync(path.join(temporaryDirectory, '.env'), 'DEFAULT_PATH_VALUE=loaded');
+      writeFileSync(join(temporaryDirectory, '.env'), 'DEFAULT_PATH_VALUE=loaded');
 
       try {
         process.chdir(temporaryDirectory);
-        ConfigurationClass.loadEnv();
+        new ConfigurationClass();
       } finally {
         process.chdir(originalDirectory);
       }
@@ -54,8 +54,8 @@ describe('ConfigurationClass', () => {
       process.env.INTERPOLATION_SOURCE = 'source';
       delete process.env.MISSING_INTERPOLATION_SOURCE;
 
-      const file = path.join(temporaryDirectory, 'configuration.env');
-      fs.writeFileSync(
+      const file = join(temporaryDirectory, 'configuration.env');
+      writeFileSync(
         file,
         [
           '',
@@ -71,7 +71,7 @@ describe('ConfigurationClass', () => {
         ].join('\n'),
       );
 
-      ConfigurationClass.loadEnv(file);
+      new ConfigurationClass(file);
 
       expect(process.env.PLAIN_VALUE).toBe('plain');
       expect(process.env.DOUBLE_QUOTED_VALUE).toBe('double quoted');
@@ -129,7 +129,7 @@ describe('ConfigurationClass', () => {
   });
 
   describe('process', () => {
-    it('should report a missing required value', () => {
+    it('should reject a missing required value', () => {
       delete process.env.REQUIRED_KEY;
       const configuration = {
         requiredValue: {
@@ -137,10 +137,7 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ requiredValue: string }>;
 
-      const result = new ConfigurationClass<typeof configuration>().process(configuration);
-
-      expect(result.environments.requiredValue).toBeUndefined();
-      expect(result.errors).toStrictEqual(['REQUIRED_KEY']);
+      expect(() => new ConfigurationClass().apply(configuration)).toThrow('Configuration errors:\n- REQUIRED_KEY');
     });
 
     it('should preserve string and numeric defaults', () => {
@@ -157,13 +154,12 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ stringValue: string; numericValue: number }>;
 
-      const result = new ConfigurationClass<typeof configuration>().process(configuration);
+      const result = new ConfigurationClass().apply(configuration);
 
-      expect(result.environments).toStrictEqual({
+      expect(result).toStrictEqual({
         stringValue: 'fallback',
         numericValue: 3000,
       });
-      expect(result.errors).toStrictEqual([]);
     });
 
     it('should use and normalize a raw env value without a transform', () => {
@@ -174,10 +170,9 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ rawValue: string }>;
 
-      const result = new ConfigurationClass<typeof configuration>().process(configuration);
+      const result = new ConfigurationClass().apply(configuration);
 
-      expect(result.environments.rawValue).toBe('raw-value');
-      expect(result.errors).toStrictEqual([]);
+      expect(result.rawValue).toBe('raw-value');
     });
 
     it('should pass present and missing env values to transforms', () => {
@@ -197,17 +192,16 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ presentValue: number; missingValue: number }>;
 
-      const result = new ConfigurationClass<typeof configuration>().process(configuration);
+      const result = new ConfigurationClass().apply(configuration);
 
-      expect(result.environments).toStrictEqual({
+      expect(result).toStrictEqual({
         presentValue: 12.5,
         missingValue: 42,
       });
-      expect(result.errors).toStrictEqual([]);
       expect(missingTransform).toHaveBeenCalledWith(undefined);
     });
 
-    it('should report transform failures', () => {
+    it('should reject transform failures', () => {
       process.env.INVALID_INT_KEY = '1.5';
       delete process.env.MISSING_INT_KEY;
       const configuration = {
@@ -221,14 +215,13 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ invalidValue: number; missingValue: number }>;
 
-      const result = new ConfigurationClass<typeof configuration>().process(configuration);
-
-      expect(result.environments).toStrictEqual({});
-      expect(result.errors).toStrictEqual(['INVALID_INT_KEY (transform failed)', 'MISSING_INT_KEY (transform failed)']);
+      expect(() => new ConfigurationClass().apply(configuration)).toThrow(
+        'Configuration errors:\n- INVALID_INT_KEY (transform failed)\n- MISSING_INT_KEY (transform failed)',
+      );
     });
 
     it('should recursively process nested values and preserve literals and arrays', () => {
-      delete process.env.NESTED_REQUIRED_KEY;
+      process.env.NESTED_REQUIRED_KEY = 'nested-value';
       const values = ['first', 'second'];
       const configuration = {
         nested: {
@@ -247,10 +240,11 @@ describe('ConfigurationClass', () => {
         nullValue: null,
       };
 
-      const result = new ConfigurationClass<typeof configuration>().process(configuration);
+      const result = new ConfigurationClass().apply(configuration);
 
-      expect(result.environments).toStrictEqual({
+      expect(result).toStrictEqual({
         nested: {
+          requiredValue: 'nested-value',
           literalValue: 10,
         },
         values,
@@ -259,8 +253,7 @@ describe('ConfigurationClass', () => {
         },
         nullValue: null,
       });
-      expect(result.environments.values).toBe(values);
-      expect(result.errors).toStrictEqual(['NESTED_REQUIRED_KEY']);
+      expect(result.values).toBe(values);
     });
   });
 

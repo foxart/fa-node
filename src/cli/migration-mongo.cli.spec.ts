@@ -1,6 +1,6 @@
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { MongoClient } from 'mongodb';
 import yargs from 'yargs';
 
@@ -67,7 +67,7 @@ describe('MigrationMongoCli', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
-    temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'fa-node-migration-'));
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'fa-node-migration-'));
     exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     consoleLog = jest.spyOn(console, 'log').mockImplementation(() => undefined);
 
@@ -120,7 +120,7 @@ describe('MigrationMongoCli', () => {
   afterEach(() => {
     jest.clearAllTimers();
     jest.useRealTimers();
-    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+    rmSync(temporaryDirectory, { recursive: true, force: true });
     jest.restoreAllMocks();
     mockedMongoClient.mockReset();
     mockedYargs.mockReset();
@@ -261,8 +261,8 @@ describe('MigrationMongoCli', () => {
   });
 
   it('should create migration files from custom and bundled templates', async () => {
-    const customTemplate = path.join(temporaryDirectory, 'template.ts');
-    fs.writeFileSync(
+    const customTemplate = join(temporaryDirectory, 'template.ts');
+    writeFileSync(
       customTemplate,
       'class MongoMigrationClass { mongoMigrationCollection mongoMigrationField mongo_migration_index }',
     );
@@ -278,8 +278,8 @@ describe('MigrationMongoCli', () => {
     jest.spyOn(Date.prototype, 'getTime').mockReturnValue(123);
 
     await invoke<Promise<void>>('create', 'User Profile');
-    const file = path.join(temporaryDirectory, '123_user-profile.js');
-    expect(fs.readFileSync(file, 'utf8')).toContain('UserProfile_123');
+    const file = join(temporaryDirectory, '123_user-profile.js');
+    expect(readFileSync(file, 'utf8')).toContain('UserProfile_123');
 
     assign({
       configuration: {
@@ -296,7 +296,7 @@ describe('MigrationMongoCli', () => {
     assign({
       configuration: {
         path: temporaryDirectory,
-        template: path.join(temporaryDirectory, 'missing.ts'),
+        template: join(temporaryDirectory, 'missing.ts'),
       },
     });
 
@@ -307,8 +307,8 @@ describe('MigrationMongoCli', () => {
 
   it('should apply pending migrations and report when none exist', async () => {
     assign({ client, clientIsConnected: true });
-    fs.writeFileSync(path.join(temporaryDirectory, '1_first.js'), 'module.exports = {}');
-    fs.writeFileSync(path.join(temporaryDirectory, '2_second.js'), 'module.exports = {}');
+    writeFileSync(join(temporaryDirectory, '1_first.js'), 'module.exports = {}');
+    writeFileSync(join(temporaryDirectory, '2_second.js'), 'module.exports = {}');
     collection.find.mockReturnValueOnce({
       toArray: jest.fn().mockResolvedValue([{ fileName: '1_first.ts' }]),
     });
@@ -349,8 +349,8 @@ describe('MigrationMongoCli', () => {
     await invoke<Promise<void>>('status');
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migration files found.'));
 
-    fs.writeFileSync(path.join(temporaryDirectory, '1_first.js'), '');
-    fs.writeFileSync(path.join(temporaryDirectory, '2_second.js'), '');
+    writeFileSync(join(temporaryDirectory, '1_first.js'), '');
+    writeFileSync(join(temporaryDirectory, '2_second.js'), '');
     collection.find.mockReturnValueOnce({
       toArray: jest.fn().mockResolvedValue([{ fileName: '1_first.ts' }]),
     });
@@ -360,8 +360,8 @@ describe('MigrationMongoCli', () => {
   });
 
   it('should load valid migration modules and report invalid modules', async () => {
-    const moduleDirectory = path.join(temporaryDirectory, 'node_modules', 'migrations');
-    fs.mkdirSync(moduleDirectory, { recursive: true });
+    const moduleDirectory = join(temporaryDirectory, 'node_modules', 'migrations');
+    mkdirSync(moduleDirectory, { recursive: true });
     assign({
       configuration: {
         uri: 'uri',
@@ -370,13 +370,13 @@ describe('MigrationMongoCli', () => {
         path: moduleDirectory,
       },
     });
-    const valid = path.join(moduleDirectory, 'valid.js');
-    const invalid = path.join(moduleDirectory, 'invalid.js');
-    fs.writeFileSync(
+    const valid = join(moduleDirectory, 'valid.js');
+    const invalid = join(moduleDirectory, 'invalid.js');
+    writeFileSync(
       valid,
       'module.exports.ValidMigration = class ValidMigration { async up() {} async down() {} };',
     );
-    fs.writeFileSync(invalid, 'module.exports.value = true;');
+    writeFileSync(invalid, 'module.exports.value = true;');
 
     const migration = await invoke<Promise<MigrationMongoCliInterface>>('getMigration', 'valid.js');
     expect(migration.constructor.name).toBe('ValidMigration');
