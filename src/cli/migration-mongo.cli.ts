@@ -15,10 +15,10 @@ export interface MigrationMongoCliInterface {
 }
 
 interface ConfigurationInterface {
+  pathMigration: string;
   uri: string;
   database: string;
   collection: string;
-  path: string;
   template?: string;
 }
 
@@ -201,9 +201,9 @@ class MigrationMongoCliClass {
     const timestamp = new Date().getTime();
     const migrationName = ConverterHelper.tokenizeWords(migration.replace(/[^a-zA-Z0-9]/g, '-'), '-').toLowerCase();
     const fileName = `${timestamp}_${migrationName}`;
-    const filePath = `${this.configuration.path}/${fileName}${this.getMigrationExtension()}`;
+    const filePath = `${this.configuration.pathMigration}/${fileName}${this.getMigrationExtension()}`;
     IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
-    CodegenHelper.logSuccess(`${fileName}`, DataHelper.excludePath(filePath, this.configuration.path));
+    CodegenHelper.logSuccess(`${fileName}`, DataHelper.excludePath(filePath, this.configuration.pathMigration));
     process.exit(0);
   }
 
@@ -307,7 +307,7 @@ class MigrationMongoCliClass {
 
   private getMigration(filePath: string): MigrationMongoCliInterface | undefined {
     try {
-      const module = loadModule(`${this.configuration.path}/${this.getMigrationFileName(filePath)}`) as Record<
+      const module = loadModule(`${this.configuration.pathMigration}/${this.getMigrationFileName(filePath)}`) as Record<
         string,
         unknown
       >;
@@ -381,8 +381,8 @@ class MigrationMongoCliClass {
   }
 
   private scanMigrationFiles(): string[] {
-    return IoHelper.scanFilesSync(this.configuration.path, { filter: this.getMigrationFileFilter() }).map((filePath) =>
-      DataHelper.excludePath(filePath, this.configuration.path),
+    return IoHelper.scanFilesSync(this.configuration.pathMigration, { filter: this.getMigrationFileFilter() }).map(
+      (filePath) => DataHelper.excludePath(filePath, this.configuration.pathMigration),
     );
   }
 

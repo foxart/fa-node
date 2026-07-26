@@ -1,13 +1,15 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
 import { MongoClient } from 'mongodb';
+import { createRequire } from 'node:module';
 import yargs from 'yargs';
-
+import { IoHelper } from '../helpers/io.helper';
 import { MigrationMongoCli, MigrationMongoCliInterface } from './migration-mongo.cli';
 
 jest.mock('mongodb', () => ({
   MongoClient: jest.fn(),
+}));
+
+jest.mock('node:module', () => ({
+  createRequire: jest.fn(() => jest.fn()),
 }));
 
 jest.mock('yargs', () => ({
@@ -19,62 +21,76 @@ jest.mock('yargs/helpers', () => ({
   hideBin: jest.fn((value: string[]) => value.slice(2)),
 }));
 
-function invoke<R>(method: string, ...args: unknown[]): R {
-  const callback = (
-    MigrationMongoCli as unknown as Record<string, (...parameters: unknown[]) => unknown>
-  )[method];
-  return callback.apply(MigrationMongoCli, args) as R;
+const MIGRATION_PATH = '/virtual/mongo-migrations';
+const MONGO_TEMPLATE =
+  'class MongoMigrationClass { mongoMigrationCollection mongoMigrationField mongo_migration_index }';
+
+function getCliTarget(): Record<string, (...parameters: unknown[]) => unknown> {
+  return MigrationMongoCli as unknown as Record<string, (...parameters: unknown[]) => unknown>;
 }
 
-function assign(values: Record<string, unknown>): void {
+function callCliMethod<R>(method: string, ...parameters: unknown[]): R {
+  return getCliTarget()[method].apply(MigrationMongoCli, parameters) as R;
+}
+
+function setCliState(values: Record<string, unknown>): void {
   Object.assign(MigrationMongoCli as unknown as Record<string, unknown>, values);
 }
 
-function mockAsyncMethod(method: string, value?: unknown): jest.SpyInstance {
+function mockCliMethod(method: string, value?: unknown): jest.SpyInstance {
+  return jest.spyOn(getCliTarget(), method).mockReturnValue(value);
+}
+
+function mockAsyncCliMethod(method: string, value?: unknown): jest.SpyInstance {
   const target = MigrationMongoCli as unknown as Record<string, (...parameters: unknown[]) => Promise<unknown>>;
   return jest.spyOn(target, method).mockResolvedValue(value);
 }
 
-function mockMethod(method: string, value?: unknown): jest.SpyInstance {
-  const target = MigrationMongoCli as unknown as Record<string, (...parameters: unknown[]) => unknown>;
-  return jest.spyOn(target, method).mockReturnValue(value);
-}
-
 describe('MigrationMongoCli', () => {
+  const configuration = {
+    pathMigration: MIGRATION_PATH,
+    uri: 'mongodb://localhost/test',
+    database: 'database',
+    collection: 'migrations',
+  };
+  const mockedCreateRequire = createRequire as jest.Mock;
+  const mockedLoadModule = mockedCreateRequire.mock.results[0].value as jest.Mock;
   const mockedMongoClient = MongoClient as unknown as jest.Mock;
   const mockedYargs = yargs as unknown as jest.Mock;
-  let temporaryDirectory: string;
-  let exit: jest.SpyInstance;
+  let client: {
+    connect: jest.Mock;
+    db: jest.Mock;
+  };
   let collection: {
     find: jest.Mock;
     findOne: jest.Mock;
     insertOne: jest.Mock;
     deleteOne: jest.Mock;
   };
+  let consoleLog: jest.SpyInstance;
   let db: {
     collections: jest.Mock;
     collection: jest.Mock;
   };
-  let client: {
-    connect: jest.Mock;
-    db: jest.Mock;
-  };
+  let exit: jest.SpyInstance;
+  let migrationExtension: jest.SpyInstance;
+  let scanFiles: jest.SpyInstance;
   let yargsInstance: {
     command: jest.Mock;
     demandCommand: jest.Mock;
     strictCommands: jest.Mock;
     fail: jest.Mock;
     help: jest.Mock;
-    showHelp: jest.Mock;
     argv: unknown;
   };
-  let consoleLog: jest.SpyInstance;
 
   beforeEach(() => {
     jest.useFakeTimers();
-    temporaryDirectory = mkdtempSync(join(tmpdir(), 'fa-node-migration-'));
     exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     consoleLog = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    jest.spyOn(IoHelper, 'createFileSync').mockImplementation(() => undefined);
+    jest.spyOn(IoHelper, 'readFileSync').mockReturnValue(MONGO_TEMPLATE);
+    scanFiles = jest.spyOn(IoHelper, 'scanFilesSync').mockReturnValue([]);
 
     collection = {
       find: jest.fn(() => ({ toArray: jest.fn().mockResolvedValue([]) })),
@@ -90,7 +106,7 @@ describe('MigrationMongoCli', () => {
       connect: jest.fn().mockResolvedValue(undefined),
       db: jest.fn(() => db),
     };
-    mockedMongoClient.mockImplementation(() => client);
+    mockedMongoClient.mockReset().mockImplementation(() => client);
 
     yargsInstance = {
       command: jest.fn(),
@@ -98,7 +114,6 @@ describe('MigrationMongoCli', () => {
       strictCommands: jest.fn(),
       fail: jest.fn(),
       help: jest.fn(),
-      showHelp: jest.fn(),
       argv: {},
     };
     yargsInstance.command.mockReturnValue(yargsInstance);
@@ -106,50 +121,39 @@ describe('MigrationMongoCli', () => {
     yargsInstance.strictCommands.mockReturnValue(yargsInstance);
     yargsInstance.fail.mockReturnValue(yargsInstance);
     yargsInstance.help.mockReturnValue(yargsInstance);
-    mockedYargs.mockReturnValue(yargsInstance);
+    mockedYargs.mockReset().mockReturnValue(yargsInstance);
     (mockedYargs as jest.Mock & { showHelp: jest.Mock }).showHelp = jest.fn();
+    mockedLoadModule.mockReset();
 
-    assign({
+    setCliState({
       client: undefined,
       clientIsConnected: false,
-      commandList: invoke('getCommandList'),
-      configuration: {
-        uri: 'mongodb://localhost/test',
-        database: 'database',
-        collection: 'migrations',
-        path: temporaryDirectory,
-      },
+      commandList: callCliMethod('getCommandList'),
+      configuration: { ...configuration },
     });
+    migrationExtension = mockCliMethod('getMigrationExtension', '.js');
   });
 
   afterEach(() => {
     jest.clearAllTimers();
     jest.useRealTimers();
-    rmSync(temporaryDirectory, { recursive: true, force: true });
     jest.restoreAllMocks();
-    mockedMongoClient.mockReset();
-    mockedYargs.mockReset();
   });
 
-  it('should register every CLI command', async () => {
-    mockAsyncMethod('check');
+  it('registers all commands and yargs validation', async () => {
+    mockAsyncCliMethod('check');
 
-    await MigrationMongoCli.migrate({
-      uri: 'mongodb://localhost/test',
-      database: 'database',
-      collection: 'migrations',
-      path: temporaryDirectory,
-    });
+    await MigrationMongoCli.migrate(configuration);
 
     expect(yargsInstance.command).toHaveBeenCalledTimes(6);
-    expect(yargsInstance.demandCommand).toHaveBeenCalled();
+    expect(yargsInstance.demandCommand).toHaveBeenCalledWith(1, 'Use --help to view available commands.');
     expect(yargsInstance.strictCommands).toHaveBeenCalledWith(true);
     expect(yargsInstance.help).toHaveBeenCalled();
   });
 
-  it('should register commands without builders', async () => {
-    mockAsyncMethod('check');
-    assign({
+  it('supports commands without builders', async () => {
+    mockAsyncCliMethod('check');
+    setCliState({
       commandList: [
         {
           name: 'status',
@@ -159,21 +163,16 @@ describe('MigrationMongoCli', () => {
       ],
     });
 
-    await MigrationMongoCli.migrate({
-      uri: 'mongodb://localhost/test',
-      database: 'database',
-      collection: 'migrations',
-      path: temporaryDirectory,
-    });
-    const commandCalls = yargsInstance.command.mock.calls as unknown[][];
-    const builder = commandCalls[0][2] as (value: object) => object;
+    await MigrationMongoCli.migrate(configuration);
+    const commandCalls = yargsInstance.command.mock.calls as unknown as [unknown, unknown, (value: object) => object][];
+    const builder = commandCalls[0][2];
     const instance = {};
 
     expect(builder(instance)).toBe(instance);
   });
 
-  it('should configure and dispatch command handlers', async () => {
-    const commandList = invoke<
+  it('configures and dispatches command handlers', async () => {
+    const commandList = callCliMethod<
       Array<{
         name: string;
         builder?: (value: { positional: jest.Mock }) => void;
@@ -182,7 +181,7 @@ describe('MigrationMongoCli', () => {
     >('getCommandList');
     const positional = jest.fn();
     const operationList = ['drop', 'create', 'up', 'down', 'reset', 'status'];
-    const spies = operationList.map((name) => mockAsyncMethod(name));
+    const operationSpyList = operationList.map((operation) => mockAsyncCliMethod(operation));
 
     for (const command of commandList) {
       command.builder?.({ positional });
@@ -196,23 +195,18 @@ describe('MigrationMongoCli', () => {
     await Promise.resolve();
 
     expect(positional).toHaveBeenCalledWith('collection', expect.any(Object));
-    for (const spy of spies) {
-      expect(spy).toHaveBeenCalled();
+    for (const operationSpy of operationSpyList) {
+      expect(operationSpy).toHaveBeenCalled();
     }
   });
 
-  it('should invoke yargs failure handlers', async () => {
-    mockAsyncMethod('check');
+  it('reports yargs failures and displays help', async () => {
+    mockAsyncCliMethod('check');
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    await MigrationMongoCli.migrate({
-      uri: 'mongodb://localhost/test',
-      database: 'database',
-      collection: 'migrations',
-      path: temporaryDirectory,
-    });
-    const failCalls = yargsInstance.fail.mock.calls as unknown[][];
-    const fail = failCalls[0][0] as (message: string, error?: Error) => void;
+    await MigrationMongoCli.migrate(configuration);
+    const failCalls = yargsInstance.fail.mock.calls as unknown as [(message: string, error?: Error) => void][];
+    const fail = failCalls[0][0];
     fail('bad command');
     fail('bad command', new Error('failure'));
 
@@ -221,9 +215,9 @@ describe('MigrationMongoCli', () => {
     expect(exit).toHaveBeenCalledWith(1);
   });
 
-  it('should create, connect, and reuse a Mongo client', async () => {
-    const first = await invoke<Promise<typeof client>>('getMongoClient');
-    const second = await invoke<Promise<typeof client>>('getMongoClient');
+  it('creates, connects, and reuses one Mongo client', async () => {
+    const first = await callCliMethod<Promise<typeof client>>('getMongoClient');
+    const second = await callCliMethod<Promise<typeof client>>('getMongoClient');
 
     expect(first).toBe(client);
     expect(second).toBe(client);
@@ -231,181 +225,180 @@ describe('MigrationMongoCli', () => {
     expect(client.connect).toHaveBeenCalledTimes(1);
   });
 
-  it('should reject a Mongo connection timeout', async () => {
+  it('rejects a Mongo connection timeout', async () => {
     client.connect.mockReturnValueOnce(new Promise(() => undefined));
-    const promise = invoke<Promise<typeof client>>('getMongoClient');
-    const rejection = expect(promise).rejects.toThrow('Connection timeout');
+    const connection = callCliMethod<Promise<typeof client>>('getMongoClient');
+    const rejection = expect(connection).rejects.toThrow('Connection timeout');
 
     await jest.advanceTimersByTimeAsync(5000);
 
     await rejection;
   });
 
-  it('should check the configured database and report failures', async () => {
-    await invoke<Promise<void>>('check');
+  it('checks the configured database and reports connection failures', async () => {
+    await callCliMethod<Promise<void>>('check');
     expect(db.collections).toHaveBeenCalled();
 
-    assign({ client: undefined, clientIsConnected: false });
+    setCliState({ client: undefined, clientIsConnected: false });
     client.connect.mockRejectedValueOnce(new Error('connection failure'));
-    await invoke<Promise<void>>('check');
-    expect(consoleLog).toHaveBeenCalled();
+    await callCliMethod<Promise<void>>('check');
+
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('connection failure'));
     expect(exit).toHaveBeenCalledWith(1);
   });
 
-  it('should drop empty and populated databases', async () => {
-    assign({ client, clientIsConnected: true });
-    await invoke<Promise<void>>('drop');
+  it('drops empty and populated databases', async () => {
+    setCliState({ client, clientIsConnected: true });
+    await callCliMethod<Promise<void>>('drop');
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No collections to drop'));
 
     const first = { collectionName: 'first', drop: jest.fn().mockResolvedValue(undefined) };
     const second = { collectionName: 'second', drop: jest.fn().mockResolvedValue(undefined) };
     db.collections.mockResolvedValueOnce([first, second]);
-    await invoke<Promise<void>>('drop');
+    await callCliMethod<Promise<void>>('drop');
+
     expect(first.drop).toHaveBeenCalled();
     expect(second.drop).toHaveBeenCalled();
   });
 
-  it('should create migration files from custom and bundled templates', async () => {
-    const customTemplate = join(temporaryDirectory, 'template.ts');
-    writeFileSync(
-      customTemplate,
-      'class MongoMigrationClass { mongoMigrationCollection mongoMigrationField mongo_migration_index }',
-    );
-    assign({
+  it('creates migrations from custom and bundled templates through IoHelper', () => {
+    const readFile = jest.spyOn(IoHelper, 'readFileSync');
+    const createFile = jest.spyOn(IoHelper, 'createFileSync');
+    const customTemplate = '/virtual/templates/mongo.ts';
+    setCliState({
       configuration: {
-        uri: 'uri',
-        database: 'database',
-        collection: 'migrations',
-        path: temporaryDirectory,
+        ...configuration,
         template: customTemplate,
       },
     });
     jest.spyOn(Date.prototype, 'getTime').mockReturnValue(123);
 
-    await invoke<Promise<void>>('create', 'User Profile');
-    const file = join(temporaryDirectory, '123_user-profile.js');
-    expect(readFileSync(file, 'utf8')).toContain('UserProfile_123');
+    callCliMethod<void>('create', 'User Profile');
 
-    assign({
-      configuration: {
-        uri: 'uri',
-        database: 'database',
-        collection: 'migrations',
-        path: temporaryDirectory,
-      },
-    });
-    expect(invoke<string>('getTemplate', 1, 'sample-name')).toContain('SampleName_1');
+    expect(readFile).toHaveBeenCalledWith(customTemplate);
+    expect(createFile).toHaveBeenCalledWith(
+      `${MIGRATION_PATH}/123_user-profile.js`,
+      expect.stringContaining('UserProfile_123'),
+    );
+
+    setCliState({ configuration: { ...configuration } });
+    expect(callCliMethod<string>('getTemplate', 1, 'sample-name')).toContain('SampleName_1');
+    expect(readFile).toHaveBeenLastCalledWith(expect.stringContaining('migration-mongo.template.ts'));
   });
 
-  it('should report template read failures', () => {
-    assign({
-      configuration: {
-        path: temporaryDirectory,
-        template: join(temporaryDirectory, 'missing.ts'),
-      },
+  it('reports template read failures', () => {
+    jest.spyOn(IoHelper, 'readFileSync').mockImplementationOnce(() => {
+      throw new Error('template missing');
     });
 
-    expect(invoke('getTemplate', 1, 'sample')).toBeUndefined();
-    expect(consoleLog).toHaveBeenCalled();
+    expect(callCliMethod('getTemplate', 1, 'sample')).toBeUndefined();
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('template missing'));
     expect(exit).toHaveBeenCalledWith(1);
   });
 
-  it('should apply pending migrations and report when none exist', async () => {
-    assign({ client, clientIsConnected: true });
-    writeFileSync(join(temporaryDirectory, '1_first.js'), 'module.exports = {}');
-    writeFileSync(join(temporaryDirectory, '2_second.js'), 'module.exports = {}');
+  it('applies only pending migrations and reports an empty queue', async () => {
+    setCliState({ client, clientIsConnected: true });
+    scanFiles.mockReturnValue([
+      `${MIGRATION_PATH}/1_first.js`,
+      `${MIGRATION_PATH}/2_second.js`,
+    ]);
     collection.find.mockReturnValueOnce({
       toArray: jest.fn().mockResolvedValue([{ fileName: '1_first.ts' }]),
     });
-    const execute = mockAsyncMethod('executeMigrationUp');
+    const executeMigration = mockAsyncCliMethod('executeMigrationUp');
 
-    await invoke<Promise<void>>('up');
-    expect(execute).toHaveBeenCalledWith('2_second.js');
+    await callCliMethod<Promise<void>>('up');
+    expect(executeMigration).toHaveBeenCalledWith('2_second.js');
 
     collection.find.mockReturnValueOnce({
       toArray: jest.fn().mockResolvedValue([{ fileName: '1_first' }, { fileName: '2_second' }]),
     });
-    await invoke<Promise<void>>('up');
+    await callCliMethod<Promise<void>>('up');
+
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migrations to up'));
   });
 
-  it('should revoke the latest or all migrations', async () => {
-    assign({ client, clientIsConnected: true });
-    const log = { _id: 'id', fileName: '1_first' };
-    const execute = mockAsyncMethod('executeMigrationDown');
+  it('revokes the latest migration and resets all migrations', async () => {
+    setCliState({ client, clientIsConnected: true });
+    const migrationLog = { _id: 'id', fileName: '1_first' };
+    const executeMigration = mockAsyncCliMethod('executeMigrationDown');
 
-    collection.findOne.mockResolvedValueOnce(log);
-    await invoke<Promise<void>>('down');
-    expect(execute).toHaveBeenCalledWith(log);
+    collection.findOne.mockResolvedValueOnce(migrationLog);
+    await callCliMethod<Promise<void>>('down');
+    expect(executeMigration).toHaveBeenCalledWith(migrationLog);
 
     collection.findOne.mockResolvedValueOnce(null);
-    await invoke<Promise<void>>('down');
+    await callCliMethod<Promise<void>>('down');
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migrations to down'));
 
-    collection.find.mockReturnValueOnce({ toArray: jest.fn().mockResolvedValue([log]) });
-    await invoke<Promise<void>>('reset');
+    collection.find.mockReturnValueOnce({ toArray: jest.fn().mockResolvedValue([migrationLog]) });
+    await callCliMethod<Promise<void>>('reset');
     collection.find.mockReturnValueOnce({ toArray: jest.fn().mockResolvedValue([]) });
-    await invoke<Promise<void>>('reset');
+    await callCliMethod<Promise<void>>('reset');
+
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migrations to reset'));
   });
 
-  it('should display empty, applied, and pending migration status', async () => {
-    assign({ client, clientIsConnected: true });
-    await invoke<Promise<void>>('status');
+  it('reports empty, applied, and pending migration status', async () => {
+    setCliState({ client, clientIsConnected: true });
+    await callCliMethod<Promise<void>>('status');
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migration files found.'));
 
-    writeFileSync(join(temporaryDirectory, '1_first.js'), '');
-    writeFileSync(join(temporaryDirectory, '2_second.js'), '');
+    scanFiles.mockReturnValue([
+      `${MIGRATION_PATH}/1_first.js`,
+      `${MIGRATION_PATH}/2_second.js`,
+    ]);
     collection.find.mockReturnValueOnce({
       toArray: jest.fn().mockResolvedValue([{ fileName: '1_first.ts' }]),
     });
-    await invoke<Promise<void>>('status');
+    await callCliMethod<Promise<void>>('status');
+
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('APPLIED'));
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('PENDING'));
   });
 
-  it('should load valid migration modules and report invalid modules', () => {
-    const moduleDirectory = join(temporaryDirectory, 'node_modules', 'migrations');
-    mkdirSync(moduleDirectory, { recursive: true });
-    assign({
-      configuration: {
-        uri: 'uri',
-        database: 'database',
-        collection: 'migrations',
-        path: moduleDirectory,
-      },
-    });
-    const valid = join(moduleDirectory, 'valid.js');
-    const invalid = join(moduleDirectory, 'invalid.js');
-    writeFileSync(
-      valid,
-      'module.exports.ValidMigration = class ValidMigration { async up() {} async down() {} };',
-    );
-    writeFileSync(invalid, 'module.exports.value = true;');
+  it('loads valid migration modules and reports invalid modules', () => {
+    class ValidMigration implements MigrationMongoCliInterface {
+      public up(): Promise<void> {
+        return Promise.resolve();
+      }
 
-    const migration = invoke<MigrationMongoCliInterface>('getMigration', 'valid.js');
-    expect(migration.constructor.name).toBe('ValidMigration');
+      public down(): Promise<void> {
+        return Promise.resolve();
+      }
+    }
+    mockedLoadModule
+      .mockReturnValueOnce({ ValidMigration })
+      .mockReturnValueOnce({ value: true })
+      .mockImplementationOnce(() => {
+        throw new Error('module missing');
+      });
 
-    invoke<MigrationMongoCliInterface>('getMigration', 'invalid.js');
-    invoke<MigrationMongoCliInterface>('getMigration', 'missing.js');
-    expect(consoleLog).toHaveBeenCalled();
+    const migration = callCliMethod<MigrationMongoCliInterface>('getMigration', 'valid.js');
+    expect(migration).toBeInstanceOf(ValidMigration);
+    expect(mockedLoadModule).toHaveBeenNthCalledWith(1, `${MIGRATION_PATH}/valid.js`);
+
+    expect(callCliMethod('getMigration', 'invalid.js')).toBeUndefined();
+    expect(callCliMethod('getMigration', 'missing.js')).toBeUndefined();
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No valid constructor'));
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('module missing'));
     expect(exit).toHaveBeenCalledWith(1);
   });
 
-  it('should execute migrations in both directions and report failures', async () => {
-    assign({ client, clientIsConnected: true });
+  it('executes migrations in both directions and reports failures', async () => {
+    setCliState({ client, clientIsConnected: true });
     const migration = {
       up: jest.fn().mockResolvedValue(undefined),
       down: jest.fn().mockResolvedValue(undefined),
     };
-    const getMigration = mockMethod('getMigration', migration);
+    const getMigration = mockCliMethod('getMigration', migration);
 
-    await invoke<Promise<void>>('executeMigrationUp', '1_first.js');
+    await callCliMethod<Promise<void>>('executeMigrationUp', '1_first.js');
     expect(migration.up).toHaveBeenCalledWith(db);
     expect(collection.insertOne).toHaveBeenCalled();
 
-    const log = { _id: 'id', fileName: '1_first.js' };
-    await invoke<Promise<void>>('executeMigrationDown', log);
+    const migrationLog = { _id: 'id', fileName: '1_first.js' };
+    await callCliMethod<Promise<void>>('executeMigrationDown', migrationLog);
     expect(migration.down).toHaveBeenCalledWith(db);
     expect(collection.deleteOne).toHaveBeenCalledWith({ _id: 'id' });
 
@@ -413,16 +406,20 @@ describe('MigrationMongoCli', () => {
       up: jest.fn().mockRejectedValue(new Error('up failure')),
       down: jest.fn(),
     });
-    await invoke<Promise<void>>('executeMigrationUp', '2_second.js');
+    await callCliMethod<Promise<void>>('executeMigrationUp', '2_second.js');
     getMigration.mockReturnValueOnce({
       up: jest.fn(),
       down: jest.fn().mockRejectedValue(new Error('down failure')),
     });
-    await invoke<Promise<void>>('executeMigrationDown', log);
-    expect(consoleLog).toHaveBeenCalled();
+    await callCliMethod<Promise<void>>('executeMigrationDown', migrationLog);
+
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('up failure'));
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('down failure'));
+    expect(exit).toHaveBeenCalledWith(1);
   });
 
-  it('should select extensions, filters, and normalized file names', () => {
+  it('selects runtime extensions and normalizes migration names', () => {
+    migrationExtension.mockRestore();
     const originalArgv = process.argv;
     const originalExecArgv = process.execArgv;
     const symbol = Symbol.for('ts-node.register.instance');
@@ -431,22 +428,22 @@ describe('MigrationMongoCli', () => {
       process.argv = ['node', 'script'];
       process.execArgv = [];
       delete (process as NodeJS.Process & { [key: symbol]: unknown })[symbol];
-      expect(invoke('getMigrationExtension')).toBe('.js');
-      expect(String(invoke<RegExp[]>('getMigrationFileFilter')[0])).toContain('js');
-      expect(invoke('getMigrationFileName', '1_first.ts')).toBe('1_first.js');
+      expect(callCliMethod('getMigrationExtension')).toBe('.js');
+      expect(String(callCliMethod<RegExp[]>('getMigrationFileFilter')[0])).toContain('js');
+      expect(callCliMethod('getMigrationFileName', '1_first.ts')).toBe('1_first.js');
 
       process.argv = ['node', 'ts-node'];
-      expect(invoke('getMigrationExtension')).toBe('.ts');
-      expect(String(invoke<RegExp[]>('getMigrationFileFilter')[0])).toContain('ts');
+      expect(callCliMethod('getMigrationExtension')).toBe('.ts');
+      expect(String(callCliMethod<RegExp[]>('getMigrationFileFilter')[0])).toContain('ts');
 
       process.argv = ['node'];
       process.execArgv = ['ts-node/register'];
-      expect(invoke('isTypeScriptExecution')).toBe(true);
+      expect(callCliMethod('isTypeScriptExecution')).toBe(true);
 
       process.execArgv = [];
       (process as NodeJS.Process & { [key: symbol]: unknown })[symbol] = {};
-      expect(invoke('isTypeScriptExecution')).toBe(true);
-      expect(invoke('normalizeMigrationFileName', '1_first.ts')).toBe('1_first');
+      expect(callCliMethod('isTypeScriptExecution')).toBe(true);
+      expect(callCliMethod('normalizeMigrationFileName', '1_first.ts')).toBe('1_first');
     } finally {
       process.argv = originalArgv;
       process.execArgv = originalExecArgv;

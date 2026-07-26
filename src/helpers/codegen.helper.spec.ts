@@ -2,7 +2,6 @@ import { exec } from 'child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-
 import { CodegenHelper } from './codegen.helper';
 
 jest.mock('child_process', () => ({
@@ -109,9 +108,7 @@ describe('CodegenHelper', () => {
     mockedExec.mockImplementationOnce(
       (
         _command: string,
-        callback: (
-          error: Error & { code?: number; cmd?: string; stdout?: string; stderr?: string },
-        ) => void,
+        callback: (error: Error & { code?: number; cmd?: string; stdout?: string; stderr?: string }) => void,
       ) => {
         callback(
           Object.assign(new Error('protoc failure'), {
@@ -129,6 +126,19 @@ describe('CodegenHelper', () => {
 
   it('should format Error metadata and non-Error values', () => {
     const nested = new Error('nested');
+    const grouped = Object.assign(new Error(), {
+      errors: [
+        Object.assign(new Error('IPv6 refused'), { address: '::1', code: 'ECONNREFUSED' }),
+        Object.assign(new Error('IPv4 refused'), { address: '127.0.0.1', code: 'ECONNREFUSED' }),
+      ],
+      fatal: true,
+    });
+    const duplicatedMessage = 'IPv6 refused, IPv4 refused';
+    const wrapped = Object.assign(new Error(duplicatedMessage), {
+      cause: Object.assign(new Error(duplicatedMessage), {
+        errors: grouped.errors,
+      }),
+    });
     const circular: { self?: unknown } = {};
     circular.self = circular;
     const rich = Object.assign(new Error('failure'), {
@@ -139,11 +149,18 @@ describe('CodegenHelper', () => {
     });
 
     CodegenHelper.logError('context', rich);
+    CodegenHelper.logError('context', grouped);
+    CodegenHelper.logError('context', wrapped);
     CodegenHelper.logError('context', { value: true });
     CodegenHelper.logError('context', circular);
 
     const output = consoleLog.mock.calls.map(([message]) => String(message)).join('\n');
     expect(output).toContain('nested');
+    expect(output).toContain('errors: [0] name: Error');
+    expect(output).toContain('message: IPv6 refused');
+    expect(output).toContain('message: IPv4 refused');
+    const loggedMessages = consoleLog.mock.calls as unknown as [unknown][];
+    expect(String(loggedMessages.at(2)?.[0])).not.toContain('cause:');
     expect(output).toContain('[object Object]');
     expect(output).toContain('{"value":true}');
   });

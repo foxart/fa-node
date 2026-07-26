@@ -1,6 +1,6 @@
 // GENERATED CODE -- EDIT BEFORE APPLYING!
 import type { Connection } from 'mysql2/promise';
-import type { MigrationMysqlCliInterface } from '../cli/migration-mysql.cli';
+import type { MigrationMysqlCliInterface } from './migration-mysql.cli';
 
 const TABLE = 'mysqlMigrationTable';
 const RENAMED_TABLE = 'mysqlMigrationRenamedTable';
@@ -14,8 +14,9 @@ const FOREIGN_COLUMN = 'mysqlMigrationForeignColumn';
 export class MysqlMigrationClassCreateTable implements MigrationMysqlCliInterface {
   public async up(connection: Connection): Promise<void> {
     await connection.query(`
-      CREATE TABLE ${TABLE} (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      CREATE TABLE ${TABLE}
+      (
+        id        BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
         ${COLUMN} VARCHAR(255) NOT NULL,
         PRIMARY KEY (id)
       ) ENGINE=InnoDB
@@ -120,9 +121,9 @@ export class MysqlMigrationClassAddForeignKey implements MigrationMysqlCliInterf
   public async up(connection: Connection): Promise<void> {
     await connection.query(`
       ALTER TABLE ${TABLE}
-      ADD CONSTRAINT ${INDEX}
-      FOREIGN KEY (${FOREIGN_COLUMN}) REFERENCES ${FOREIGN_TABLE} (id)
-      ON DELETE CASCADE
+        ADD CONSTRAINT ${INDEX}
+          FOREIGN KEY (${FOREIGN_COLUMN}) REFERENCES ${FOREIGN_TABLE} (id)
+            ON DELETE CASCADE
     `);
   }
 

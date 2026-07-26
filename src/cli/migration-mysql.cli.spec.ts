@@ -1,12 +1,15 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createConnection } from 'mysql2/promise';
+import { createConnection, type Connection } from 'mysql2/promise';
+import { createRequire } from 'node:module';
 import yargs from 'yargs';
-import { MigrationMysqlCli } from './migration-mysql.cli';
+import { IoHelper } from '../helpers/io.helper';
+import { MigrationMysqlCli, MigrationMysqlCliInterface } from './migration-mysql.cli';
 
 jest.mock('mysql2/promise', () => ({
   createConnection: jest.fn(),
+}));
+
+jest.mock('node:module', () => ({
+  createRequire: jest.fn(() => jest.fn()),
 }));
 
 jest.mock('yargs', () => ({
@@ -18,47 +21,73 @@ jest.mock('yargs/helpers', () => ({
   hideBin: jest.fn((value: string[]) => value.slice(2)),
 }));
 
-function invoke<R>(method: string, ...args: unknown[]): R {
-  const callback = (MigrationMysqlCli as unknown as Record<string, (...parameters: unknown[]) => unknown>)[method];
-  return callback.apply(MigrationMysqlCli, args) as R;
+const MIGRATION_PATH = '/virtual/mysql-migrations';
+const MYSQL_TEMPLATE = [
+  'export class MysqlMigrationClassCreateTable {',
+  '  public async up(connection: Connection) { mysqlMigrationTable mysqlMigrationColumn mysql_migration_index }',
+  '  public async down(connection: Connection) { mysqlMigrationRenamedTable mysqlMigrationRenamedColumn }',
+  '  mysqlMigrationForeignTable mysqlMigrationForeignColumn',
+  '}',
+].join('\n');
+
+function getCliTarget(): Record<string, (...parameters: unknown[]) => unknown> {
+  return MigrationMysqlCli as unknown as Record<string, (...parameters: unknown[]) => unknown>;
 }
 
-function writeMigration(directory: string, fileName: string, upSql: string, downSql: string): string {
-  const source = `exports.Migration = class {
-    async up(connection) { await connection.query(${JSON.stringify(upSql)}); }
-    async down(connection) { await connection.query(${JSON.stringify(downSql)}); }
-  };`;
-  writeFileSync(join(directory, `${fileName}.js`), source);
-  return source;
+function callCliMethod<R>(method: string, ...parameters: unknown[]): R {
+  return getCliTarget()[method].apply(MigrationMysqlCli, parameters) as R;
+}
+
+function setCliState(values: Record<string, unknown>): void {
+  Object.assign(MigrationMysqlCli as unknown as Record<string, unknown>, values);
+}
+
+function mockCliMethod(method: string, value?: unknown): jest.SpyInstance {
+  return jest.spyOn(getCliTarget(), method).mockReturnValue(value);
+}
+
+function mockAsyncCliMethod(method: string, value?: unknown): jest.SpyInstance {
+  const target = MigrationMysqlCli as unknown as Record<string, (...parameters: unknown[]) => Promise<unknown>>;
+  return jest.spyOn(target, method).mockResolvedValue(value);
 }
 
 describe('MigrationMysqlCli', () => {
-  const mockedCreateConnection = createConnection as jest.Mock;
-  const mockedYargs = yargs as unknown as jest.Mock;
   const configuration = {
-    database: 'dashboard',
-    path: '',
-    table: 'app_migrations',
+    pathMigration: MIGRATION_PATH,
     uri: 'mysql://user:password@localhost:3306/dashboard',
+    database: 'dashboard',
+    table: 'app_migration',
   };
-  let temporaryDirectory: string;
-  let query: jest.Mock;
+  const mockedCreateConnection = createConnection as jest.Mock;
+  const mockedCreateRequire = createRequire as jest.Mock;
+  const mockedLoadModule = mockedCreateRequire.mock.results[0].value as jest.Mock;
+  const mockedYargs = yargs as unknown as jest.Mock;
+  let connection: {
+    query: jest.Mock;
+    execute: jest.Mock;
+  };
+  let consoleLog: jest.SpyInstance;
   let execute: jest.Mock;
-  let end: jest.Mock;
+  let exit: jest.SpyInstance;
+  let migrationExtension: jest.SpyInstance;
+  let query: jest.Mock;
+  let scanFiles: jest.SpyInstance;
   let yargsInstance: {
-    argv: unknown;
     command: jest.Mock;
     demandCommand: jest.Mock;
     fail: jest.Mock;
     help: jest.Mock;
-    showHelp: jest.Mock;
     strictCommands: jest.Mock;
+    argv: unknown;
   };
 
   beforeEach(() => {
-    mockedCreateConnection.mockReset();
-    temporaryDirectory = mkdtempSync(join(tmpdir(), 'mysql-migration-'));
-    configuration.path = temporaryDirectory;
+    exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    consoleLog = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    jest.spyOn(IoHelper, 'createFileSync').mockImplementation(() => undefined);
+    jest.spyOn(IoHelper, 'readFileSync').mockReturnValue(MYSQL_TEMPLATE);
+    scanFiles = jest.spyOn(IoHelper, 'scanFilesSync').mockReturnValue([]);
+
     query = jest.fn().mockResolvedValue([[]]);
     execute = jest.fn((sql: string) => {
       if (sql.includes('GET_LOCK')) {
@@ -66,191 +95,146 @@ describe('MigrationMysqlCli', () => {
       }
       return Promise.resolve([[]]);
     });
-    end = jest.fn().mockResolvedValue(undefined);
-    mockedCreateConnection.mockResolvedValue({ query, execute, end });
+    connection = { query, execute };
+    mockedCreateConnection.mockReset().mockResolvedValue(connection);
+
     yargsInstance = {
-      argv: {},
       command: jest.fn(),
       demandCommand: jest.fn(),
       fail: jest.fn(),
       help: jest.fn(),
-      showHelp: jest.fn(),
       strictCommands: jest.fn(),
+      argv: {},
     };
     yargsInstance.command.mockReturnValue(yargsInstance);
     yargsInstance.demandCommand.mockReturnValue(yargsInstance);
     yargsInstance.fail.mockReturnValue(yargsInstance);
     yargsInstance.help.mockReturnValue(yargsInstance);
     yargsInstance.strictCommands.mockReturnValue(yargsInstance);
-    mockedYargs.mockReturnValue(yargsInstance);
+    mockedYargs.mockReset().mockReturnValue(yargsInstance);
     (mockedYargs as jest.Mock & { showHelp: jest.Mock }).showHelp = jest.fn();
+    mockedLoadModule.mockReset();
+
+    setCliState({
+      commandList: callCliMethod('getCommandList'),
+      configuration: { ...configuration },
+      connection: undefined,
+    });
+    migrationExtension = mockCliMethod('getMigrationExtension', '.js');
   });
 
   afterEach(() => {
-    rmSync(temporaryDirectory, { recursive: true, force: true });
     jest.restoreAllMocks();
-    mockedYargs.mockReset();
   });
 
-  it('should register the same six commands as the Mongo CLI', async () => {
+  it('registers all commands and yargs validation', async () => {
+    mockAsyncCliMethod('check');
+
     await MigrationMysqlCli.migrate(configuration);
 
     expect(yargsInstance.command).toHaveBeenCalledTimes(6);
-    expect(yargsInstance.demandCommand).toHaveBeenCalled();
+    expect(yargsInstance.demandCommand).toHaveBeenCalledWith(1, 'Use --help to view available commands.');
     expect(yargsInstance.strictCommands).toHaveBeenCalledWith(true);
     expect(yargsInstance.help).toHaveBeenCalled();
   });
 
-  it('should log command and migration results through CodegenHelper', async () => {
-    writeMigration(temporaryDirectory, '001_first', 'SELECT 1;', 'SELECT -1;');
-    Object.assign(MigrationMysqlCli as unknown as Record<string, unknown>, {
-      configuration,
+  it('supports commands without builders', async () => {
+    mockAsyncCliMethod('check');
+    setCliState({
+      commandList: [
+        {
+          name: 'status',
+          desc: 'status',
+          handler: jest.fn(),
+        },
+      ],
     });
-    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => undefined);
 
-    await invoke<Promise<void>>('executeUp');
+    await MigrationMysqlCli.migrate(configuration);
+    const commandCalls = yargsInstance.command.mock.calls as unknown as [unknown, unknown, (value: object) => object][];
+    const builder = commandCalls[0][2];
+    const instance = {};
 
-    const output = consoleLog.mock.calls.flat().join('\n');
-    expect(output).toContain('MIGRATION');
-    expect(output).toContain('up');
-    expect(output).toContain('001_first.js');
-    expect(output).not.toContain('MySQL migrations up:');
+    expect(builder(instance)).toBe(instance);
   });
 
-  it('should apply pending TypeScript migrations in file-name order', async () => {
-    writeMigration(temporaryDirectory, '001_first', 'CREATE TABLE first_table (id INT);', 'DROP TABLE first_table;');
-    writeMigration(temporaryDirectory, '002_second', 'CREATE TABLE second_table (id INT);', 'DROP TABLE second_table;');
-    writeFileSync(join(temporaryDirectory, 'README.md'), 'ignored');
-    query.mockImplementation((sql: string) => {
-      if (sql.includes('SELECT id')) {
-        return Promise.resolve([
-          [
-            {
-              appliedAt: new Date('2026-07-26T00:00:00.000Z'),
-              fileName: '001_first',
-              id: 1,
-            },
-          ],
-        ]);
+  it('configures and dispatches command handlers', async () => {
+    const commandList = callCliMethod<
+      Array<{
+        name: string;
+        builder?: (value: { positional: jest.Mock }) => void;
+        handler: (value: Record<string, unknown>) => void;
+      }>
+    >('getCommandList');
+    const positional = jest.fn();
+    const operationList = ['drop', 'create', 'up', 'down', 'reset', 'status'];
+    const operationSpyList = operationList.map((operation) => mockAsyncCliMethod(operation));
+
+    for (const command of commandList) {
+      command.builder?.({ positional });
+      if (command.name.startsWith('create')) {
+        expect(() => command.handler({})).toThrow('Migration argument is required');
+        command.handler({ migration: 'users' });
+      } else {
+        command.handler({});
       }
-      return Promise.resolve([[]]);
+    }
+    await Promise.resolve();
+
+    expect(positional).toHaveBeenCalledWith('migration', expect.any(Object));
+    for (const operationSpy of operationSpyList) {
+      expect(operationSpy).toHaveBeenCalled();
+    }
+  });
+
+  it('reports yargs failures and displays help', async () => {
+    mockAsyncCliMethod('check');
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await MigrationMysqlCli.migrate(configuration);
+    const failCalls = yargsInstance.fail.mock.calls as unknown as [(message: string, error?: Error) => void][];
+    const fail = failCalls[0][0];
+    fail('bad command');
+    fail('bad command', new Error('failure'));
+
+    expect(consoleError).toHaveBeenCalledTimes(2);
+    expect((mockedYargs as jest.Mock & { showHelp: jest.Mock }).showHelp).toHaveBeenCalledTimes(2);
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it('creates and reuses one MySQL connection', async () => {
+    const first = await callCliMethod<Promise<typeof connection>>('getMysqlConnection');
+    const second = await callCliMethod<Promise<typeof connection>>('getMysqlConnection');
+
+    expect(first).toBe(connection);
+    expect(second).toBe(connection);
+    expect(mockedCreateConnection).toHaveBeenCalledTimes(1);
+    expect(mockedCreateConnection).toHaveBeenCalledWith({
+      database: 'dashboard',
+      connectTimeout: 5000,
+      multipleStatements: true,
+      timezone: 'Z',
+      uri: configuration.uri,
     });
-
-    await expect(MigrationMysqlCli.up(configuration)).resolves.toEqual(['002_second.js']);
-
-    expect(mockedCreateConnection).toHaveBeenCalledWith(
-      expect.objectContaining({
-        database: 'dashboard',
-        multipleStatements: true,
-        timezone: 'Z',
-      }),
-    );
-    const createTableQuery = query.mock.calls
-      .map(([sql]) => sql as string)
-      .find((sql) => sql.includes('CREATE TABLE IF NOT EXISTS `app_migrations`'));
-    expect(createTableQuery).toContain('id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT');
-    expect(createTableQuery).toContain('applied_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)');
-    expect(createTableQuery).toContain('filename VARCHAR(255) NOT NULL');
-    expect(createTableQuery).not.toContain('version');
-    expect(createTableQuery).not.toContain('checksum');
-    expect(query).toHaveBeenCalledWith('CREATE TABLE second_table (id INT);');
-    expect(execute).toHaveBeenCalledWith('INSERT INTO `app_migrations` (filename) VALUES (?)', ['002_second']);
-    expect(execute).toHaveBeenLastCalledWith('SELECT RELEASE_LOCK(?)', ['dashboard:app_migrations']);
-    expect(end).toHaveBeenCalled();
   });
 
-  it('should create a TypeScript migration with up and down methods from the bundled template', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(123);
+  it('checks the configured database and reports connection failures', async () => {
+    await callCliMethod<Promise<void>>('check');
+    expect(query).toHaveBeenCalledWith('SELECT 1');
 
-    await expect(MigrationMysqlCli.create(configuration, 'User Profile')).resolves.toBe(
-      join(temporaryDirectory, '123_user-profile.ts'),
-    );
+    setCliState({ connection: undefined });
+    mockedCreateConnection.mockRejectedValueOnce(new Error('connection failure'));
+    await callCliMethod<Promise<void>>('check');
 
-    const source = readFileSync(join(temporaryDirectory, '123_user-profile.ts'), 'utf8');
-    expect(source).toContain('export class UserProfile_123CreateTable');
-    expect(source).toContain('public async up(connection: Connection)');
-    expect(source).toContain('public async down(connection: Connection)');
-    expect(mockedCreateConnection).not.toHaveBeenCalled();
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('connection failure'));
+    expect(exit).toHaveBeenCalledWith(1);
   });
 
-  it('should roll back the latest applied migration', async () => {
-    const downSql = 'DROP TABLE users;';
-    writeMigration(temporaryDirectory, '001_users', 'CREATE TABLE users (id INT);', downSql);
-    query.mockImplementation((sql: string) => {
-      if (sql.includes('SELECT id')) {
-        return Promise.resolve([
-          [
-            {
-              appliedAt: new Date('2026-07-26T00:00:00.000Z'),
-              fileName: '001_users',
-              id: 7,
-            },
-          ],
-        ]);
-      }
-      return Promise.resolve([[]]);
-    });
+  it('drops empty and populated databases', async () => {
+    await callCliMethod<Promise<void>>('drop');
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No tables to drop'));
+    expect(query).not.toHaveBeenCalledWith(expect.stringContaining('CREATE TABLE IF NOT EXISTS'));
 
-    await expect(MigrationMysqlCli.down(configuration)).resolves.toEqual(['001_users.js']);
-
-    expect(query).toHaveBeenCalledWith(downSql);
-    expect(execute).toHaveBeenCalledWith('DELETE FROM `app_migrations` WHERE id = ?', [7]);
-  });
-
-  it('should reset applied migrations in reverse order', async () => {
-    writeMigration(temporaryDirectory, '001_first', 'SELECT 1;', 'SELECT -1;');
-    writeMigration(temporaryDirectory, '002_second', 'SELECT 2;', 'SELECT -2;');
-    query.mockImplementation((sql: string) => {
-      if (sql.includes('SELECT id')) {
-        return Promise.resolve([
-          [
-            {
-              appliedAt: new Date('2026-07-26T00:00:01.000Z'),
-              fileName: '002_second',
-              id: 2,
-            },
-            {
-              appliedAt: new Date('2026-07-26T00:00:00.000Z'),
-              fileName: '001_first',
-              id: 1,
-            },
-          ],
-        ]);
-      }
-      return Promise.resolve([[]]);
-    });
-
-    await expect(MigrationMysqlCli.reset(configuration)).resolves.toEqual(['002_second.js', '001_first.js']);
-
-    const rollbackQueries = query.mock.calls.map(([sql]) => sql as string).filter((sql) => /^SELECT -/.test(sql));
-    expect(rollbackQueries).toEqual(['SELECT -2;', 'SELECT -1;']);
-  });
-
-  it('should report applied and pending migration status', async () => {
-    writeMigration(temporaryDirectory, '001_first', 'SELECT 1;', 'SELECT -1;');
-    writeMigration(temporaryDirectory, '002_second', 'SELECT 2;', 'SELECT -2;');
-    query.mockImplementation((sql: string) => {
-      if (sql.includes('SELECT id')) {
-        return Promise.resolve([
-          [
-            {
-              appliedAt: new Date('2026-07-26T00:00:00.000Z'),
-              fileName: '001_first',
-              id: 1,
-            },
-          ],
-        ]);
-      }
-      return Promise.resolve([[]]);
-    });
-
-    await expect(MigrationMysqlCli.status(configuration)).resolves.toEqual([
-      { fileName: '001_first.js', status: 'APPLIED' },
-      { fileName: '002_second.js', status: 'PENDING' },
-    ]);
-  });
-
-  it('should drop all database tables with foreign-key checks disabled', async () => {
     execute.mockImplementation((sql: string) => {
       if (sql.includes('GET_LOCK')) {
         return Promise.resolve([[{ acquired: 1 }]]);
@@ -260,8 +244,7 @@ describe('MigrationMysqlCli', () => {
       }
       return Promise.resolve([[]]);
     });
-
-    await expect(MigrationMysqlCli.drop(configuration)).resolves.toEqual(['auth_sessions', 'users']);
+    await callCliMethod<Promise<void>>('drop');
 
     expect(query).toHaveBeenCalledWith('SET FOREIGN_KEY_CHECKS = 0');
     expect(query).toHaveBeenCalledWith('DROP TABLE IF EXISTS `auth_sessions`');
@@ -269,35 +252,245 @@ describe('MigrationMysqlCli', () => {
     expect(query).toHaveBeenCalledWith('SET FOREIGN_KEY_CHECKS = 1');
   });
 
-  it('should reject a migration class without up and down methods', async () => {
-    const source = 'module.exports = class {};';
-    writeFileSync(join(temporaryDirectory, '001_invalid.js'), source);
+  it('creates migrations from custom and bundled templates through IoHelper', () => {
+    const readFile = jest.spyOn(IoHelper, 'readFileSync');
+    const createFile = jest.spyOn(IoHelper, 'createFileSync');
+    const customTemplate = '/virtual/templates/mysql.ts';
+    setCliState({
+      configuration: {
+        ...configuration,
+        template: customTemplate,
+      },
+    });
+    jest.spyOn(Date.prototype, 'getTime').mockReturnValue(123);
+
+    callCliMethod<void>('create', 'User Profile');
+
+    expect(readFile).toHaveBeenCalledWith(customTemplate);
+    expect(createFile).toHaveBeenCalledWith(
+      `${MIGRATION_PATH}/123_user-profile.js`,
+      expect.stringContaining('UserProfile_123'),
+    );
+    expect(createFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('user_profile_123'),
+    );
+
+    setCliState({ configuration: { ...configuration } });
+    expect(callCliMethod<string>('getTemplate', 1, 'sample-name')).toContain('SampleName_1');
+    expect(readFile).toHaveBeenLastCalledWith(expect.stringContaining('migration-mysql.template.ts'));
+  });
+
+  it('reports template read failures', () => {
+    jest.spyOn(IoHelper, 'readFileSync').mockImplementationOnce(() => {
+      throw new Error('template missing');
+    });
+
+    expect(callCliMethod('getTemplate', 1, 'sample')).toBeUndefined();
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('template missing'));
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it('applies only pending migrations and reports an empty queue', async () => {
+    const firstMigration = {
+      up: jest.fn().mockResolvedValue(undefined),
+      down: jest.fn(),
+    };
+    const secondMigration = {
+      up: jest.fn().mockResolvedValue(undefined),
+      down: jest.fn(),
+    };
+    mockCliMethod('getMigration').mockImplementation((fileName: string) =>
+      fileName.startsWith('1_') ? firstMigration : secondMigration,
+    );
+    scanFiles.mockReturnValue([
+      `${MIGRATION_PATH}/1_first.js`,
+      `${MIGRATION_PATH}/2_second.js`,
+    ]);
+    query.mockImplementation((sql: string) => {
+      if (sql.includes('SELECT id')) {
+        return Promise.resolve([[{ appliedAt: new Date(), fileName: '1_first', id: 1 }]]);
+      }
+      return Promise.resolve([[]]);
+    });
+
+    await callCliMethod<Promise<void>>('up');
+
+    expect(firstMigration.up).not.toHaveBeenCalled();
+    expect(secondMigration.up).toHaveBeenCalledWith(connection);
+    expect(secondMigration.up).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledWith('INSERT INTO `app_migration` (filename) VALUES (?)', ['2_second']);
+    expect(scanFiles).toHaveBeenCalledWith(MIGRATION_PATH, { filter: [expect.any(RegExp)] });
+
     query.mockImplementation((sql: string) => {
       if (sql.includes('SELECT id')) {
         return Promise.resolve([
           [
-            {
-              appliedAt: new Date('2026-07-26T00:00:00.000Z'),
-              fileName: '001_invalid',
-              id: 1,
-            },
+            { appliedAt: new Date(), fileName: '1_first', id: 1 },
+            { appliedAt: new Date(), fileName: '2_second', id: 2 },
           ],
         ]);
       }
       return Promise.resolve([[]]);
     });
+    await callCliMethod<Promise<void>>('up');
 
-    await expect(MigrationMysqlCli.down(configuration)).rejects.toThrow('No valid constructor in: 001_invalid.js');
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migrations to up'));
   });
 
-  it('should validate migration names and identifiers', async () => {
-    await expect(MigrationMysqlCli.create(configuration, '---')).rejects.toThrow('Migration name is required');
-    await expect(
-      MigrationMysqlCli.up({
-        ...configuration,
-        table: 'app-migrations',
-      }),
-    ).rejects.toThrow('Invalid MySQL identifier: app-migrations');
-    expect(mockedCreateConnection).not.toHaveBeenCalled();
+  it('revokes the latest migration and resets all migrations', async () => {
+    const down = jest.fn().mockResolvedValue(undefined);
+    mockCliMethod('getMigration', { up: jest.fn(), down });
+    let migrationList = [{ appliedAt: new Date(), fileName: '2_second', id: 2 }];
+    query.mockImplementation((sql: string) => {
+      if (sql.includes('SELECT id')) {
+        return Promise.resolve([migrationList]);
+      }
+      return Promise.resolve([[]]);
+    });
+
+    await callCliMethod<Promise<void>>('down');
+    expect(down).toHaveBeenCalledWith(connection);
+    expect(execute).toHaveBeenCalledWith('DELETE FROM `app_migration` WHERE id = ?', [2]);
+
+    migrationList = [];
+    await callCliMethod<Promise<void>>('down');
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migrations to down'));
+
+    migrationList = [
+      { appliedAt: new Date(), fileName: '2_second', id: 2 },
+      { appliedAt: new Date(), fileName: '1_first', id: 1 },
+    ];
+    await callCliMethod<Promise<void>>('reset');
+    migrationList = [];
+    await callCliMethod<Promise<void>>('reset');
+
+    expect(execute).toHaveBeenCalledWith('DELETE FROM `app_migration` WHERE id = ?', [1]);
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migrations to reset'));
+  });
+
+  it('reports empty, applied, and pending migration status', async () => {
+    await callCliMethod<Promise<void>>('status');
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migration files found.'));
+
+    scanFiles.mockReturnValue([
+      `${MIGRATION_PATH}/1_first.js`,
+      `${MIGRATION_PATH}/2_second.js`,
+    ]);
+    query.mockImplementation((sql: string) => {
+      if (sql.includes('SELECT id')) {
+        return Promise.resolve([[{ appliedAt: new Date(), fileName: '1_first', id: 1 }]]);
+      }
+      return Promise.resolve([[]]);
+    });
+    await callCliMethod<Promise<void>>('status');
+
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('APPLIED'));
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('PENDING'));
+  });
+
+  it('loads valid migration modules and reports invalid modules', () => {
+    class ValidMigration implements MigrationMysqlCliInterface {
+      public up(_connection: Connection): Promise<void> {
+        return Promise.resolve();
+      }
+
+      public down(_connection: Connection): Promise<void> {
+        return Promise.resolve();
+      }
+    }
+    mockedLoadModule
+      .mockReturnValueOnce({ ValidMigration })
+      .mockReturnValueOnce({ value: true })
+      .mockImplementationOnce(() => {
+        throw new Error('module missing');
+      });
+
+    const migration = callCliMethod<MigrationMysqlCliInterface>('getMigration', 'valid.js');
+    expect(migration).toBeInstanceOf(ValidMigration);
+    expect(mockedLoadModule).toHaveBeenNthCalledWith(1, `${MIGRATION_PATH}/valid.js`);
+
+    expect(callCliMethod('getMigration', 'invalid.js')).toBeUndefined();
+    expect(callCliMethod('getMigration', 'missing.js')).toBeUndefined();
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No valid constructor'));
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('module missing'));
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it('executes migrations in both directions and reports failures', async () => {
+    const migration = {
+      up: jest.fn().mockResolvedValue(undefined),
+      down: jest.fn().mockResolvedValue(undefined),
+    };
+    const getMigration = mockCliMethod('getMigration', migration);
+
+    await callCliMethod<Promise<void>>('executeMigrationUp', connection, '`app_migration`', '1_first.js');
+    expect(migration.up).toHaveBeenCalledWith(connection);
+    expect(execute).toHaveBeenCalledWith('INSERT INTO `app_migration` (filename) VALUES (?)', ['1_first']);
+
+    const migrationLog = { appliedAt: new Date(), fileName: '1_first', id: 1 };
+    await callCliMethod<Promise<void>>('executeMigrationDown', connection, '`app_migration`', migrationLog);
+    expect(migration.down).toHaveBeenCalledWith(connection);
+    expect(execute).toHaveBeenCalledWith('DELETE FROM `app_migration` WHERE id = ?', [1]);
+
+    getMigration.mockReturnValueOnce({
+      up: jest.fn().mockRejectedValue(new Error('up failure')),
+      down: jest.fn(),
+    });
+    await callCliMethod<Promise<void>>('executeMigrationUp', connection, '`app_migration`', '2_second.js');
+    getMigration.mockReturnValueOnce({
+      up: jest.fn(),
+      down: jest.fn().mockRejectedValue(new Error('down failure')),
+    });
+    await callCliMethod<Promise<void>>('executeMigrationDown', connection, '`app_migration`', migrationLog);
+
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('up failure'));
+    expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('down failure'));
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it('validates identifiers and migration locks', async () => {
+    expect(callCliMethod('quoteIdentifier', 'app_migration')).toBe('`app_migration`');
+    expect(() => callCliMethod('quoteIdentifier', 'app-migration')).toThrow(
+      'Invalid MySQL identifier: app-migration',
+    );
+
+    execute.mockResolvedValueOnce([[{ acquired: 0 }]]);
+    await expect(callCliMethod<Promise<string>>('acquireLock', connection)).rejects.toThrow(
+      'Timed out waiting for migration lock dashboard:app_migration',
+    );
+  });
+
+  it('selects runtime extensions and normalizes migration names', () => {
+    migrationExtension.mockRestore();
+    const originalArgv = process.argv;
+    const originalExecArgv = process.execArgv;
+    const symbol = Symbol.for('ts-node.register.instance');
+
+    try {
+      process.argv = ['node', 'script'];
+      process.execArgv = [];
+      delete (process as NodeJS.Process & { [key: symbol]: unknown })[symbol];
+      expect(callCliMethod('getMigrationExtension')).toBe('.js');
+      expect(String(callCliMethod<RegExp[]>('getMigrationFileFilter')[0])).toContain('js');
+      expect(callCliMethod('getMigrationFileName', '1_first.ts')).toBe('1_first.js');
+
+      process.argv = ['node', 'ts-node'];
+      expect(callCliMethod('getMigrationExtension')).toBe('.ts');
+      expect(String(callCliMethod<RegExp[]>('getMigrationFileFilter')[0])).toContain('ts');
+
+      process.argv = ['node'];
+      process.execArgv = ['ts-node/register'];
+      expect(callCliMethod('isTypeScriptExecution')).toBe(true);
+
+      process.execArgv = [];
+      (process as NodeJS.Process & { [key: symbol]: unknown })[symbol] = {};
+      expect(callCliMethod('isTypeScriptExecution')).toBe(true);
+      expect(callCliMethod('normalizeMigrationFileName', '1_first.ts')).toBe('1_first');
+    } finally {
+      process.argv = originalArgv;
+      process.execArgv = originalExecArgv;
+      delete (process as NodeJS.Process & { [key: symbol]: unknown })[symbol];
+    }
   });
 });

@@ -142,13 +142,13 @@ class CodegenHelperClass {
 
   private formatError(error: unknown): string {
     if (error instanceof Error) {
-      const source = error as Error & {
-        code?: string | number;
-        status?: string | number;
-        method?: string;
-        url?: string;
-      };
-
+      const source = error as Error &
+        Record<string, unknown> & {
+          code?: string | number;
+          status?: string | number;
+          method?: string;
+          url?: string;
+        };
       const entries: Array<[string, unknown]> = [
         ['name', source.name],
         ['message', source.message],
@@ -157,12 +157,32 @@ class CodegenHelperClass {
         ['method', source.method],
         ['url', source.url],
       ];
+      const includedPropertySet = new Set(entries.map(([property]) => property));
+      for (const property of Object.getOwnPropertyNames(source)) {
+        const value = source[property];
+        const nestedErrorList = value instanceof Error ? [value] : Array.isArray(value) ? value : [];
+        if (
+          property !== 'stack' &&
+          !includedPropertySet.has(property) &&
+          nestedErrorList.some(
+            (nestedError) =>
+              nestedError instanceof Error && (!nestedError.message || !source.message.includes(nestedError.message)),
+          )
+        ) {
+          entries.push([property, value]);
+        }
+      }
 
       return entries
         .filter(([, value]) => value !== undefined && value !== null && value !== '')
         .map(([label, value]) => {
           if (value instanceof Error) {
             return `${label}: ${this.formatError(value)}`;
+          }
+          if (Array.isArray(value)) {
+            return `${label}: ${value
+              .map((item, index) => `[${index}] ${item instanceof Error ? this.formatError(item) : String(item)}`)
+              .join('\n')}`;
           }
           if (typeof value === 'string') {
             return `${label}: ${value}`;

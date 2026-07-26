@@ -9,8 +9,6 @@
   "scripts": {
     "start": "nodemon -e ts --watch src --watch playground -x ts-node playground/index.ts",
     "start:nest": "nodemon -e ts --watch src --watch nest --ignore dist -x ts-node --swc -r tsconfig-paths/register -P tsconfig.nest.json nest/main.ts",
-    "migrator": "nodemon -e ts --watch src --watch playground --ignore node_modules -x ts-node playground/index.ts new my-test",
-    "migrator-help": "ts-node playground/index.ts new --help",
     "prebuild": "rimraf dist",
     "build": "tsc -p tsconfig.build.json && npm run build:assets",
     "build:assets": "cp src/cli/migration-mongo.template.ts dist/cli/migration-mongo.template.ts",
