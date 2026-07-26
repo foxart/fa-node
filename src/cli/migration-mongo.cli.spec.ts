@@ -22,6 +22,7 @@ jest.mock('yargs/helpers', () => ({
 }));
 
 const MIGRATION_PATH = '/virtual/mongo-migrations';
+const SEEDER_PATH = '/virtual/mongo-seeders';
 const MONGO_TEMPLATE =
   'class MongoMigrationClass { mongoMigrationCollection mongoMigrationField mongo_migration_index }';
 
@@ -49,9 +50,11 @@ function mockAsyncCliMethod(method: string, value?: unknown): jest.SpyInstance {
 describe('MigrationMongoCli', () => {
   const configuration = {
     pathMigration: MIGRATION_PATH,
+    pathSeeder: SEEDER_PATH,
     uri: 'mongodb://localhost/database',
     database: 'database',
     collectionMigration: 'collectionMigration',
+    collectionSeeder: 'collectionSeeder',
   };
   const mockedCreateRequire = createRequire as jest.Mock;
   const mockedLoadModule = mockedCreateRequire.mock.results[0].value as jest.Mock;
@@ -81,6 +84,8 @@ describe('MigrationMongoCli', () => {
     strictCommands: jest.Mock;
     fail: jest.Mock;
     help: jest.Mock;
+    showHelp: jest.Mock;
+    wrap: jest.Mock;
     argv: unknown;
   };
 
@@ -114,6 +119,8 @@ describe('MigrationMongoCli', () => {
       strictCommands: jest.fn(),
       fail: jest.fn(),
       help: jest.fn(),
+      showHelp: jest.fn(),
+      wrap: jest.fn(),
       argv: {},
     };
     yargsInstance.command.mockReturnValue(yargsInstance);
@@ -121,8 +128,8 @@ describe('MigrationMongoCli', () => {
     yargsInstance.strictCommands.mockReturnValue(yargsInstance);
     yargsInstance.fail.mockReturnValue(yargsInstance);
     yargsInstance.help.mockReturnValue(yargsInstance);
+    yargsInstance.wrap.mockReturnValue(yargsInstance);
     mockedYargs.mockReset().mockReturnValue(yargsInstance);
-    (mockedYargs as jest.Mock & { showHelp: jest.Mock }).showHelp = jest.fn();
     mockedLoadModule.mockReset();
 
     setCliState({
@@ -145,9 +152,10 @@ describe('MigrationMongoCli', () => {
 
     await MigrationMongoCli.migrate(configuration);
 
-    expect(yargsInstance.command).toHaveBeenCalledTimes(6);
+    expect(yargsInstance.command).toHaveBeenCalledTimes(11);
     expect(yargsInstance.demandCommand).toHaveBeenCalledWith(1, 'Use --help to view available commands.');
     expect(yargsInstance.strictCommands).toHaveBeenCalledWith(true);
+    expect(yargsInstance.wrap).toHaveBeenCalledWith(100);
     expect(yargsInstance.help).toHaveBeenCalled();
   });
 
@@ -180,12 +188,24 @@ describe('MigrationMongoCli', () => {
       }>
     >('getCommandList');
     const positional = jest.fn();
-    const operationList = ['drop', 'create', 'up', 'down', 'reset', 'status'];
+    const operationList = [
+      'drop',
+      'create',
+      'up',
+      'down',
+      'reset',
+      'status',
+      'seederCreate',
+      'seederUp',
+      'seederDown',
+      'seederReset',
+      'seederStatus',
+    ];
     const operationSpyList = operationList.map((operation) => mockAsyncCliMethod(operation));
 
     for (const command of commandList) {
       command.builder?.({ positional });
-      if (command.name.startsWith('create')) {
+      if (command.name.endsWith('<collection>')) {
         expect(() => command.handler({})).toThrow('Collection argument is required');
         command.handler({ collection: 'users' });
       } else {
@@ -195,9 +215,36 @@ describe('MigrationMongoCli', () => {
     await Promise.resolve();
 
     expect(positional).toHaveBeenCalledWith('collection', expect.any(Object));
+    expect(positional).toHaveBeenCalledTimes(2);
     for (const operationSpy of operationSpyList) {
       expect(operationSpy).toHaveBeenCalled();
     }
+  });
+
+  it('delegates seeder commands with the seeder path and collection', async () => {
+    const create = mockAsyncCliMethod('create');
+    const up = mockAsyncCliMethod('up');
+    const down = mockAsyncCliMethod('down');
+    const reset = mockAsyncCliMethod('reset');
+    const status = mockAsyncCliMethod('status');
+
+    await callCliMethod<Promise<void>>('seederCreate', 'users');
+    await callCliMethod<Promise<void>>('seederUp');
+    await callCliMethod<Promise<void>>('seederDown');
+    await callCliMethod<Promise<void>>('seederReset');
+    await callCliMethod<Promise<void>>('seederStatus');
+
+    expect(create).toHaveBeenCalledWith('users');
+    expect(up).toHaveBeenCalledTimes(1);
+    expect(down).toHaveBeenCalledTimes(1);
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(status).toHaveBeenCalledTimes(1);
+    expect(MigrationMongoCli).toMatchObject({
+      configuration: {
+        pathMigration: SEEDER_PATH,
+        collectionMigration: 'collectionSeeder',
+      },
+    });
   });
 
   it('reports yargs failures and displays help', async () => {
@@ -211,7 +258,7 @@ describe('MigrationMongoCli', () => {
     fail('bad command', new Error('failure'));
 
     expect(consoleError).toHaveBeenCalledTimes(2);
-    expect((mockedYargs as jest.Mock & { showHelp: jest.Mock }).showHelp).toHaveBeenCalledTimes(2);
+    expect(yargsInstance.showHelp).toHaveBeenCalledTimes(2);
     expect(exit).toHaveBeenCalledWith(1);
   });
 

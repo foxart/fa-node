@@ -22,6 +22,7 @@ jest.mock('yargs/helpers', () => ({
 }));
 
 const MIGRATION_PATH = '/virtual/mysql-migrations';
+const SEEDER_PATH = '/virtual/mysql-seeders';
 const MYSQL_TEMPLATE = [
   'export class MysqlMigrationClassCreateTable {',
   '  public async up(connection: Connection) { mysqlMigrationTable mysqlMigrationColumn mysql_migration_index }',
@@ -54,9 +55,11 @@ function mockAsyncCliMethod(method: string, value?: unknown): jest.SpyInstance {
 describe('MigrationMysqlCli', () => {
   const configuration = {
     pathMigration: MIGRATION_PATH,
+    pathSeeder: SEEDER_PATH,
     uri: 'mysql://user:password@localhost:3306/database',
     database: 'database',
     tableMigration: 'tableMigration',
+    tableSeeder: 'tableSeeder',
   };
   const mockedCreateConnection = createConnection as jest.Mock;
   const mockedCreateRequire = createRequire as jest.Mock;
@@ -77,7 +80,9 @@ describe('MigrationMysqlCli', () => {
     demandCommand: jest.Mock;
     fail: jest.Mock;
     help: jest.Mock;
+    showHelp: jest.Mock;
     strictCommands: jest.Mock;
+    wrap: jest.Mock;
     argv: unknown;
   };
 
@@ -103,7 +108,9 @@ describe('MigrationMysqlCli', () => {
       demandCommand: jest.fn(),
       fail: jest.fn(),
       help: jest.fn(),
+      showHelp: jest.fn(),
       strictCommands: jest.fn(),
+      wrap: jest.fn(),
       argv: {},
     };
     yargsInstance.command.mockReturnValue(yargsInstance);
@@ -111,8 +118,8 @@ describe('MigrationMysqlCli', () => {
     yargsInstance.fail.mockReturnValue(yargsInstance);
     yargsInstance.help.mockReturnValue(yargsInstance);
     yargsInstance.strictCommands.mockReturnValue(yargsInstance);
+    yargsInstance.wrap.mockReturnValue(yargsInstance);
     mockedYargs.mockReset().mockReturnValue(yargsInstance);
-    (mockedYargs as jest.Mock & { showHelp: jest.Mock }).showHelp = jest.fn();
     mockedLoadModule.mockReset();
 
     setCliState({
@@ -132,9 +139,10 @@ describe('MigrationMysqlCli', () => {
 
     await MigrationMysqlCli.migrate(configuration);
 
-    expect(yargsInstance.command).toHaveBeenCalledTimes(6);
+    expect(yargsInstance.command).toHaveBeenCalledTimes(11);
     expect(yargsInstance.demandCommand).toHaveBeenCalledWith(1, 'Use --help to view available commands.');
     expect(yargsInstance.strictCommands).toHaveBeenCalledWith(true);
+    expect(yargsInstance.wrap).toHaveBeenCalledWith(100);
     expect(yargsInstance.help).toHaveBeenCalled();
   });
 
@@ -167,12 +175,24 @@ describe('MigrationMysqlCli', () => {
       }>
     >('getCommandList');
     const positional = jest.fn();
-    const operationList = ['drop', 'create', 'up', 'down', 'reset', 'status'];
+    const operationList = [
+      'drop',
+      'create',
+      'up',
+      'down',
+      'reset',
+      'status',
+      'seederCreate',
+      'seederUp',
+      'seederDown',
+      'seederReset',
+      'seederStatus',
+    ];
     const operationSpyList = operationList.map((operation) => mockAsyncCliMethod(operation));
 
     for (const command of commandList) {
       command.builder?.({ positional });
-      if (command.name.startsWith('create')) {
+      if (command.name.endsWith('<migration>')) {
         expect(() => command.handler({})).toThrow('Migration argument is required');
         command.handler({ migration: 'users' });
       } else {
@@ -182,9 +202,36 @@ describe('MigrationMysqlCli', () => {
     await Promise.resolve();
 
     expect(positional).toHaveBeenCalledWith('migration', expect.any(Object));
+    expect(positional).toHaveBeenCalledTimes(2);
     for (const operationSpy of operationSpyList) {
       expect(operationSpy).toHaveBeenCalled();
     }
+  });
+
+  it('delegates seeder commands with the seeder path and table', async () => {
+    const create = mockAsyncCliMethod('create');
+    const up = mockAsyncCliMethod('up');
+    const down = mockAsyncCliMethod('down');
+    const reset = mockAsyncCliMethod('reset');
+    const status = mockAsyncCliMethod('status');
+
+    await callCliMethod<Promise<void>>('seederCreate', 'users');
+    await callCliMethod<Promise<void>>('seederUp');
+    await callCliMethod<Promise<void>>('seederDown');
+    await callCliMethod<Promise<void>>('seederReset');
+    await callCliMethod<Promise<void>>('seederStatus');
+
+    expect(create).toHaveBeenCalledWith('users');
+    expect(up).toHaveBeenCalledTimes(1);
+    expect(down).toHaveBeenCalledTimes(1);
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(status).toHaveBeenCalledTimes(1);
+    expect(MigrationMysqlCli).toMatchObject({
+      configuration: {
+        pathMigration: SEEDER_PATH,
+        tableMigration: 'tableSeeder',
+      },
+    });
   });
 
   it('reports yargs failures and displays help', async () => {
@@ -198,7 +245,7 @@ describe('MigrationMysqlCli', () => {
     fail('bad command', new Error('failure'));
 
     expect(consoleError).toHaveBeenCalledTimes(2);
-    expect((mockedYargs as jest.Mock & { showHelp: jest.Mock }).showHelp).toHaveBeenCalledTimes(2);
+    expect(yargsInstance.showHelp).toHaveBeenCalledTimes(2);
     expect(exit).toHaveBeenCalledWith(1);
   });
 

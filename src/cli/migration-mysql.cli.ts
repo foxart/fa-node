@@ -17,9 +17,11 @@ export interface MigrationMysqlCliInterface {
 
 interface ConfigurationInterface {
   pathMigration: string;
+  pathSeeder: string;
   uri: string;
   database: string;
   tableMigration: string;
+  tableSeeder: string;
   template?: string;
 }
 
@@ -30,6 +32,11 @@ enum CommandNameEnum {
   DOWN = 'down',
   RESET = 'reset',
   STATUS = 'status',
+  SEEDER_CREATE = 'seederCreate <migration>',
+  SEEDER_UP = 'seederUp',
+  SEEDER_DOWN = 'seederDown',
+  SEEDER_RESET = 'seederReset',
+  SEEDER_STATUS = 'seederStatus',
 }
 
 interface MigrationLockRow extends RowDataPacket {
@@ -95,9 +102,10 @@ class MigrationMysqlCliClass {
         } else {
           console.error('Invalid command:', msg);
         }
-        yargs.showHelp();
+        yargsInstance.showHelp();
         process.exit(1);
       })
+      .wrap(100)
       .help().argv;
   }
 
@@ -108,7 +116,7 @@ class MigrationMysqlCliClass {
     return [
       {
         name: CommandNameEnum.DROP,
-        desc: 'Drops all tables in the database',
+        desc: 'Drops ALL tables in the database',
         builder: emptyBuilder,
         handler: (): void => void this.drop(),
       },
@@ -142,17 +150,90 @@ class MigrationMysqlCliClass {
       },
       {
         name: CommandNameEnum.RESET,
-        desc: 'Revokes migration',
+        desc: 'Revokes ALL migrations',
         builder: emptyBuilder,
         handler: (): void => void this.reset(),
       },
       {
         name: CommandNameEnum.STATUS,
-        desc: 'Lists all migrations',
+        desc: 'Lists ALL migrations',
         builder: emptyBuilder,
         handler: (): void => void this.status(),
       },
+      {
+        name: CommandNameEnum.SEEDER_CREATE,
+        desc: 'Creates seeder',
+        builder: (yargs: CommandBuilderYargs): void => {
+          yargs.positional('migration', {
+            describe: 'The seeder name',
+            type: 'string',
+          });
+        },
+        handler: (argv): void => {
+          if (typeof argv.migration !== 'string') {
+            throw new Error('Migration argument is required');
+          }
+          void this.seederCreate(argv.migration);
+        },
+      },
+      {
+        name: CommandNameEnum.SEEDER_UP,
+        desc: 'Applies seeder',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederUp(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_DOWN,
+        desc: 'Revokes seeder',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederDown(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_RESET,
+        desc: 'Revokes ALL seeders',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederReset(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_STATUS,
+        desc: 'Lists ALL seeders',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederStatus(),
+      },
     ];
+  }
+
+  private useSeederConfiguration(): void {
+    this.configuration = {
+      ...this.configuration,
+      pathMigration: this.configuration.pathSeeder,
+      tableMigration: this.configuration.tableSeeder,
+    };
+  }
+
+  private seederCreate(seeder: string): Promise<void> {
+    this.useSeederConfiguration();
+    return this.create(seeder);
+  }
+
+  private async seederUp(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.up();
+  }
+
+  private async seederDown(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.down();
+  }
+
+  private async seederReset(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.reset();
+  }
+
+  private async seederStatus(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.status();
   }
 
   private async getMysqlConnection(): Promise<Connection> {

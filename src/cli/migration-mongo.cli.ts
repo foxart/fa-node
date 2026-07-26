@@ -16,9 +16,11 @@ export interface MigrationMongoCliInterface {
 
 interface ConfigurationInterface {
   pathMigration: string;
+  pathSeeder: string;
   uri: string;
   database: string;
   collectionMigration: string;
+  collectionSeeder: string;
   template?: string;
 }
 
@@ -29,6 +31,11 @@ enum CommandNameEnum {
   DOWN = 'down',
   RESET = 'reset',
   STATUS = 'status',
+  SEEDER_CREATE = 'seederCreate <collection>',
+  SEEDER_UP = 'seederUp',
+  SEEDER_DOWN = 'seederDown',
+  SEEDER_RESET = 'seederReset',
+  SEEDER_STATUS = 'seederStatus',
 }
 
 interface CollectionInterface {
@@ -88,9 +95,10 @@ class MigrationMongoCliClass {
         } else {
           console.error('Invalid command:', msg);
         }
-        yargs.showHelp();
+        yargsInstance.showHelp();
         process.exit(1);
       })
+      .wrap(100)
       .help().argv;
   }
 
@@ -101,7 +109,7 @@ class MigrationMongoCliClass {
     return [
       {
         name: CommandNameEnum.DROP,
-        desc: 'Drops all collections in the database',
+        desc: 'Drops ALL collections in the database',
         builder: emptyBuilder,
         handler: (): void => void this.drop(),
       },
@@ -135,17 +143,90 @@ class MigrationMongoCliClass {
       },
       {
         name: CommandNameEnum.RESET,
-        desc: 'Revokes migration',
+        desc: 'Revokes ALL migrations',
         builder: emptyBuilder,
         handler: (): void => void this.reset(),
       },
       {
         name: CommandNameEnum.STATUS,
-        desc: 'Lists all migrations',
+        desc: 'Lists ALL migrations',
         builder: emptyBuilder,
         handler: (): void => void this.status(),
       },
+      {
+        name: CommandNameEnum.SEEDER_CREATE,
+        desc: 'Creates seeder',
+        builder: (yargs: CommandBuilderYargs): void => {
+          yargs.positional('collection', {
+            describe: 'The collection name for the seeder',
+            type: 'string',
+          });
+        },
+        handler: (argv): void => {
+          if (typeof argv.collection !== 'string') {
+            throw new Error('Collection argument is required');
+          }
+          void this.seederCreate(argv.collection);
+        },
+      },
+      {
+        name: CommandNameEnum.SEEDER_UP,
+        desc: 'Applies seeder',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederUp(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_DOWN,
+        desc: 'Revokes seeder',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederDown(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_RESET,
+        desc: 'Revokes ALL seeders',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederReset(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_STATUS,
+        desc: 'Lists ALL seeders',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederStatus(),
+      },
     ];
+  }
+
+  private useSeederConfiguration(): void {
+    this.configuration = {
+      ...this.configuration,
+      pathMigration: this.configuration.pathSeeder,
+      collectionMigration: this.configuration.collectionSeeder,
+    };
+  }
+
+  private seederCreate(seeder: string): Promise<void> {
+    this.useSeederConfiguration();
+    return this.create(seeder);
+  }
+
+  private async seederUp(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.up();
+  }
+
+  private async seederDown(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.down();
+  }
+
+  private async seederReset(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.reset();
+  }
+
+  private async seederStatus(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.status();
   }
 
   private async getMongoClient(): Promise<MongoClient> {
