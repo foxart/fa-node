@@ -46,7 +46,7 @@ npm_run_build() {
     return 0
   fi
   loggerInfo "$NAME build: started"
-  if npm run build >/dev/null 2>&1; then
+  if npm run build; then
     loggerLog "$NAME build: passed"
   else
     loggerError "$NAME build: failed"

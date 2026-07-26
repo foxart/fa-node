@@ -22,6 +22,7 @@ jest.mock('yargs/helpers', () => ({
 }));
 
 const MIGRATION_PATH = '/virtual/mongo-migrations';
+const SEEDER_PATH = '/virtual/mongo-seeders';
 const MONGO_TEMPLATE =
   'class MongoMigrationClass { mongoMigrationCollection mongoMigrationField mongo_migration_index }';
 
@@ -49,9 +50,11 @@ function mockAsyncCliMethod(method: string, value?: unknown): jest.SpyInstance {
 describe('MigrationMongoCli', () => {
   const configuration = {
     pathMigration: MIGRATION_PATH,
+    pathSeeder: SEEDER_PATH,
     uri: 'mongodb://localhost/database',
     database: 'database',
     collectionMigration: 'collectionMigration',
+    collectionSeeder: 'collectionSeeder',
   };
   const mockedCreateRequire = createRequire as jest.Mock;
   const mockedLoadModule = mockedCreateRequire.mock.results[0].value as jest.Mock;
@@ -73,7 +76,6 @@ describe('MigrationMongoCli', () => {
     collection: jest.Mock;
   };
   let exit: jest.SpyInstance;
-  let migrationExtension: jest.SpyInstance;
   let scanFiles: jest.SpyInstance;
   let yargsInstance: {
     command: jest.Mock;
@@ -81,6 +83,8 @@ describe('MigrationMongoCli', () => {
     strictCommands: jest.Mock;
     fail: jest.Mock;
     help: jest.Mock;
+    showHelp: jest.Mock;
+    wrap: jest.Mock;
     argv: unknown;
   };
 
@@ -114,6 +118,8 @@ describe('MigrationMongoCli', () => {
       strictCommands: jest.fn(),
       fail: jest.fn(),
       help: jest.fn(),
+      showHelp: jest.fn(),
+      wrap: jest.fn(),
       argv: {},
     };
     yargsInstance.command.mockReturnValue(yargsInstance);
@@ -121,8 +127,8 @@ describe('MigrationMongoCli', () => {
     yargsInstance.strictCommands.mockReturnValue(yargsInstance);
     yargsInstance.fail.mockReturnValue(yargsInstance);
     yargsInstance.help.mockReturnValue(yargsInstance);
+    yargsInstance.wrap.mockReturnValue(yargsInstance);
     mockedYargs.mockReset().mockReturnValue(yargsInstance);
-    (mockedYargs as jest.Mock & { showHelp: jest.Mock }).showHelp = jest.fn();
     mockedLoadModule.mockReset();
 
     setCliState({
@@ -131,7 +137,6 @@ describe('MigrationMongoCli', () => {
       commandList: callCliMethod('getCommandList'),
       configuration: { ...configuration },
     });
-    migrationExtension = mockCliMethod('getMigrationExtension', '.js');
   });
 
   afterEach(() => {
@@ -145,30 +150,11 @@ describe('MigrationMongoCli', () => {
 
     await MigrationMongoCli.migrate(configuration);
 
-    expect(yargsInstance.command).toHaveBeenCalledTimes(6);
+    expect(yargsInstance.command).toHaveBeenCalledTimes(11);
     expect(yargsInstance.demandCommand).toHaveBeenCalledWith(1, 'Use --help to view available commands.');
     expect(yargsInstance.strictCommands).toHaveBeenCalledWith(true);
+    expect(yargsInstance.wrap).toHaveBeenCalledWith(100);
     expect(yargsInstance.help).toHaveBeenCalled();
-  });
-
-  it('supports commands without builders', async () => {
-    mockAsyncCliMethod('check');
-    setCliState({
-      commandList: [
-        {
-          name: 'status',
-          desc: 'status',
-          handler: jest.fn(),
-        },
-      ],
-    });
-
-    await MigrationMongoCli.migrate(configuration);
-    const commandCalls = yargsInstance.command.mock.calls as unknown as [unknown, unknown, (value: object) => object][];
-    const builder = commandCalls[0][2];
-    const instance = {};
-
-    expect(builder(instance)).toBe(instance);
   });
 
   it('configures and dispatches command handlers', async () => {
@@ -180,12 +166,24 @@ describe('MigrationMongoCli', () => {
       }>
     >('getCommandList');
     const positional = jest.fn();
-    const operationList = ['drop', 'create', 'up', 'down', 'reset', 'status'];
+    const operationList = [
+      'drop',
+      'create',
+      'up',
+      'down',
+      'reset',
+      'status',
+      'seederCreate',
+      'seederUp',
+      'seederDown',
+      'seederReset',
+      'seederStatus',
+    ];
     const operationSpyList = operationList.map((operation) => mockAsyncCliMethod(operation));
 
     for (const command of commandList) {
       command.builder?.({ positional });
-      if (command.name.startsWith('create')) {
+      if (command.name.endsWith('<collection>')) {
         expect(() => command.handler({})).toThrow('Collection argument is required');
         command.handler({ collection: 'users' });
       } else {
@@ -195,24 +193,36 @@ describe('MigrationMongoCli', () => {
     await Promise.resolve();
 
     expect(positional).toHaveBeenCalledWith('collection', expect.any(Object));
+    expect(positional).toHaveBeenCalledTimes(2);
     for (const operationSpy of operationSpyList) {
       expect(operationSpy).toHaveBeenCalled();
     }
   });
 
-  it('reports yargs failures and displays help', async () => {
-    mockAsyncCliMethod('check');
-    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  it('delegates seeder commands with the seeder path and collection', async () => {
+    const create = mockAsyncCliMethod('create');
+    const up = mockAsyncCliMethod('up');
+    const down = mockAsyncCliMethod('down');
+    const reset = mockAsyncCliMethod('reset');
+    const status = mockAsyncCliMethod('status');
 
-    await MigrationMongoCli.migrate(configuration);
-    const failCalls = yargsInstance.fail.mock.calls as unknown as [(message: string, error?: Error) => void][];
-    const fail = failCalls[0][0];
-    fail('bad command');
-    fail('bad command', new Error('failure'));
+    await callCliMethod<Promise<void>>('seederCreate', 'users');
+    await callCliMethod<Promise<void>>('seederUp');
+    await callCliMethod<Promise<void>>('seederDown');
+    await callCliMethod<Promise<void>>('seederReset');
+    await callCliMethod<Promise<void>>('seederStatus');
 
-    expect(consoleError).toHaveBeenCalledTimes(2);
-    expect((mockedYargs as jest.Mock & { showHelp: jest.Mock }).showHelp).toHaveBeenCalledTimes(2);
-    expect(exit).toHaveBeenCalledWith(1);
+    expect(create).toHaveBeenCalledWith('users');
+    expect(up).toHaveBeenCalledTimes(1);
+    expect(down).toHaveBeenCalledTimes(1);
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(status).toHaveBeenCalledTimes(1);
+    expect(MigrationMongoCli).toMatchObject({
+      configuration: {
+        pathMigration: SEEDER_PATH,
+        collectionMigration: 'collectionSeeder',
+      },
+    });
   });
 
   it('creates, connects, and reuses one Mongo client', async () => {
@@ -362,7 +372,7 @@ describe('MigrationMongoCli', () => {
       }
     }
     mockedLoadModule
-      .mockReturnValueOnce({ ValidMigration })
+      .mockReturnValueOnce({ default: { ValidMigration } })
       .mockReturnValueOnce({ value: true })
       .mockImplementationOnce(() => {
         throw new Error('module missing');
@@ -409,39 +419,13 @@ describe('MigrationMongoCli', () => {
 
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('up failure'));
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('down failure'));
+
+    getMigration.mockReturnValueOnce(undefined);
+    await callCliMethod<Promise<void>>('executeMigrationUp', '3_missing.js');
+    getMigration.mockReturnValueOnce(undefined);
+    await callCliMethod<Promise<void>>('executeMigrationDown', migrationLog);
+
     expect(exit).toHaveBeenCalledWith(1);
   });
 
-  it('selects runtime extensions and normalizes migration names', () => {
-    migrationExtension.mockRestore();
-    const originalArgv = process.argv;
-    const originalExecArgv = process.execArgv;
-    const symbol = Symbol.for('ts-node.register.instance');
-
-    try {
-      process.argv = ['node', 'script'];
-      process.execArgv = [];
-      delete (process as NodeJS.Process & { [key: symbol]: unknown })[symbol];
-      expect(callCliMethod('getMigrationExtension')).toBe('.js');
-      expect(String(callCliMethod<RegExp[]>('getMigrationFileFilter')[0])).toContain('js');
-      expect(callCliMethod('getMigrationFileName', '1_first.ts')).toBe('1_first.js');
-
-      process.argv = ['node', 'ts-node'];
-      expect(callCliMethod('getMigrationExtension')).toBe('.ts');
-      expect(String(callCliMethod<RegExp[]>('getMigrationFileFilter')[0])).toContain('ts');
-
-      process.argv = ['node'];
-      process.execArgv = ['ts-node/register'];
-      expect(callCliMethod('isTypeScriptExecution')).toBe(true);
-
-      process.execArgv = [];
-      (process as NodeJS.Process & { [key: symbol]: unknown })[symbol] = {};
-      expect(callCliMethod('isTypeScriptExecution')).toBe(true);
-      expect(callCliMethod('normalizeMigrationFileName', '1_first.ts')).toBe('1_first');
-    } finally {
-      process.argv = originalArgv;
-      process.execArgv = originalExecArgv;
-      delete (process as NodeJS.Process & { [key: symbol]: unknown })[symbol];
-    }
-  });
 });

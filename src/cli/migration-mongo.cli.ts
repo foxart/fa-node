@@ -1,11 +1,14 @@
 import { MongoClient, WithId } from 'mongodb';
 import { createRequire } from 'node:module';
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
 import { CodegenHelper } from '../helpers/codegen.helper';
 import { ConverterHelper } from '../helpers/converter.helper';
-import { DataHelper } from '../helpers/data.helper';
 import { IoHelper } from '../helpers/io.helper';
+import {
+  MigrationAbstractCli,
+  type CommandBuilderYargs,
+  type CommandInterface,
+  type MigrationAbstractConfiguration,
+} from './migration-abstract.cli';
 
 const loadModule = createRequire(__filename);
 
@@ -14,11 +17,9 @@ export interface MigrationMongoCliInterface {
   down(db: unknown): Promise<void>;
 }
 
-interface ConfigurationInterface {
-  pathMigration: string;
-  uri: string;
-  database: string;
+interface ConfigurationInterface extends MigrationAbstractConfiguration {
   collectionMigration: string;
+  collectionSeeder: string;
   template?: string;
 }
 
@@ -29,6 +30,11 @@ enum CommandNameEnum {
   DOWN = 'down',
   RESET = 'reset',
   STATUS = 'status',
+  SEEDER_CREATE = 'seederCreate <collection>',
+  SEEDER_UP = 'seederUp',
+  SEEDER_DOWN = 'seederDown',
+  SEEDER_RESET = 'seederReset',
+  SEEDER_STATUS = 'seederStatus',
 }
 
 interface CollectionInterface {
@@ -36,62 +42,18 @@ interface CollectionInterface {
   fileName: string;
 }
 
-type CommandBuilderYargs = {
-  positional: (key: string, options: yargs.Options) => void;
-};
-
-interface CommandInterface {
-  name: CommandNameEnum;
-  desc: string;
-  builder?: (yargs: CommandBuilderYargs) => void;
-  handler: (argv: yargs.ArgumentsCamelCase<Record<string, unknown>>) => void;
-}
-
-class MigrationMongoCliClass {
-  private static readonly migrationFileExtensionRegexp = /\.(ts|js)$/;
+class MigrationMongoCliClass extends MigrationAbstractCli<ConfigurationInterface> {
 
   private client!: MongoClient;
 
   private clientIsConnected!: boolean;
 
-  private configuration!: ConfigurationInterface;
-
-  private readonly commandList: CommandInterface[];
+  protected readonly commandList: CommandInterface[];
 
   public constructor() {
+    super();
     this.clientIsConnected = false;
     this.commandList = this.getCommandList();
-  }
-
-  public async migrate(configuration: ConfigurationInterface): Promise<void> {
-    this.configuration = configuration;
-    await this.check();
-    const yargsInstance = this.commandList.reduce(
-      (yargsInstance, command) =>
-        yargsInstance.command(
-          command.name,
-          command.desc,
-          (instance) => {
-            command.builder?.(instance);
-            return instance;
-          },
-          command.handler,
-        ),
-      yargs(hideBin(process.argv)),
-    );
-    void yargsInstance
-      .demandCommand(1, 'Use --help to view available commands.')
-      .strictCommands(true)
-      .fail((msg, err) => {
-        if (err) {
-          console.error('Error:', err.message);
-        } else {
-          console.error('Invalid command:', msg);
-        }
-        yargs.showHelp();
-        process.exit(1);
-      })
-      .help().argv;
   }
 
   private getCommandList(): CommandInterface[] {
@@ -101,7 +63,7 @@ class MigrationMongoCliClass {
     return [
       {
         name: CommandNameEnum.DROP,
-        desc: 'Drops all collections in the database',
+        desc: 'Drops ALL collections in the database',
         builder: emptyBuilder,
         handler: (): void => void this.drop(),
       },
@@ -135,17 +97,90 @@ class MigrationMongoCliClass {
       },
       {
         name: CommandNameEnum.RESET,
-        desc: 'Revokes migration',
+        desc: 'Revokes ALL migrations',
         builder: emptyBuilder,
         handler: (): void => void this.reset(),
       },
       {
         name: CommandNameEnum.STATUS,
-        desc: 'Lists all migrations',
+        desc: 'Lists ALL migrations',
         builder: emptyBuilder,
         handler: (): void => void this.status(),
       },
+      {
+        name: CommandNameEnum.SEEDER_CREATE,
+        desc: 'Creates seeder',
+        builder: (yargs: CommandBuilderYargs): void => {
+          yargs.positional('collection', {
+            describe: 'The collection name for the seeder',
+            type: 'string',
+          });
+        },
+        handler: (argv): void => {
+          if (typeof argv.collection !== 'string') {
+            throw new Error('Collection argument is required');
+          }
+          void this.seederCreate(argv.collection);
+        },
+      },
+      {
+        name: CommandNameEnum.SEEDER_UP,
+        desc: 'Applies seeder',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederUp(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_DOWN,
+        desc: 'Revokes seeder',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederDown(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_RESET,
+        desc: 'Revokes ALL seeders',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederReset(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_STATUS,
+        desc: 'Lists ALL seeders',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederStatus(),
+      },
     ];
+  }
+
+  private useSeederConfiguration(): void {
+    this.configuration = {
+      ...this.configuration,
+      pathMigration: this.configuration.pathSeeder,
+      collectionMigration: this.configuration.collectionSeeder,
+    };
+  }
+
+  private seederCreate(seeder: string): Promise<void> {
+    this.useSeederConfiguration();
+    return this.create(seeder);
+  }
+
+  private async seederUp(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.up();
+  }
+
+  private async seederDown(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.down();
+  }
+
+  private async seederReset(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.reset();
+  }
+
+  private async seederStatus(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.status();
   }
 
   private async getMongoClient(): Promise<MongoClient> {
@@ -168,7 +203,7 @@ class MigrationMongoCliClass {
     return this.client;
   }
 
-  private async check(): Promise<void> {
+  protected async check(): Promise<void> {
     try {
       const client = await this.getMongoClient();
       const db = client.db(this.configuration.database);
@@ -193,17 +228,6 @@ class MigrationMongoCliClass {
       CodegenHelper.logSuccess(this.configuration.database, `Dropped collection: ${collection.collectionName}`);
     }
     CodegenHelper.logSuccess(this.configuration.database, 'All collections dropped');
-    process.exit(0);
-  }
-
-  private create(migration: string): Promise<void> {
-    CodegenHelper.displayMessage('migration', this.create.name);
-    const timestamp = new Date().getTime();
-    const migrationName = ConverterHelper.tokenizeWords(migration.replace(/[^a-zA-Z0-9]/g, '-'), '-').toLowerCase();
-    const fileName = `${timestamp}_${migrationName}`;
-    const filePath = `${this.configuration.pathMigration}/${fileName}${this.getMigrationExtension()}`;
-    IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
-    CodegenHelper.logSuccess(`${fileName}`, DataHelper.excludePath(filePath, this.configuration.pathMigration));
     process.exit(0);
   }
 
@@ -283,7 +307,7 @@ class MigrationMongoCliClass {
   /**
    *
    */
-  private getTemplate(timestamp: number, migrationName: string): string {
+  protected getTemplate(timestamp: number, migrationName: string): string {
     const pascalCase = ConverterHelper.toPascalCase(migrationName, '-');
     const camelCase = ConverterHelper.toCamelCase(migrationName, '-');
     const className = `${pascalCase}_${timestamp}`;
@@ -323,13 +347,11 @@ class MigrationMongoCliClass {
       if (!ClassToLoad) {
         CodegenHelper.logError(filePath, new Error(`No valid constructor in: ${filePath}`));
         process.exit(1);
-        return;
       }
       return new ClassToLoad();
     } catch (e) {
       CodegenHelper.logError(filePath, e);
       process.exit(1);
-      return;
     }
   }
 
@@ -368,35 +390,6 @@ class MigrationMongoCliClass {
     }
   }
 
-  private getMigrationExtension(): '.ts' | '.js' {
-    return this.isTypeScriptExecution() ? '.ts' : '.js';
-  }
-
-  private getMigrationFileFilter(): RegExp[] {
-    return [this.getMigrationExtension() === '.ts' ? /\.ts$/ : /\.js$/];
-  }
-
-  private normalizeMigrationFileName(fileName: string): string {
-    return fileName.replace(MigrationMongoCliClass.migrationFileExtensionRegexp, '');
-  }
-
-  private scanMigrationFiles(): string[] {
-    return IoHelper.scanFilesSync(this.configuration.pathMigration, { filter: this.getMigrationFileFilter() }).map(
-      (filePath) => DataHelper.excludePath(filePath, this.configuration.pathMigration),
-    );
-  }
-
-  private getMigrationFileName(fileName: string): string {
-    return `${this.normalizeMigrationFileName(fileName)}${this.getMigrationExtension()}`;
-  }
-
-  private isTypeScriptExecution(): boolean {
-    return (
-      process.argv.some((argument) => argument.includes('ts-node')) ||
-      process.execArgv.some((argument) => argument.includes('ts-node')) ||
-      Boolean((process as NodeJS.Process & { [key: symbol]: unknown })[Symbol.for('ts-node.register.instance')])
-    );
-  }
 }
 
 export const MigrationMongoCli: MigrationMongoCliClass = new MigrationMongoCliClass();

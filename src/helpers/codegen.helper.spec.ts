@@ -147,10 +147,14 @@ describe('CodegenHelper', () => {
       method: 'POST',
       url: 'https://example.com',
     });
+    const arrayError = Object.assign(new Error('array container'), {
+      details: [new Error('array detail'), 'plain detail'],
+    });
 
     CodegenHelper.logError('context', rich);
     CodegenHelper.logError('context', grouped);
     CodegenHelper.logError('context', wrapped);
+    CodegenHelper.logError('context', arrayError);
     CodegenHelper.logError('context', { value: true });
     CodegenHelper.logError('context', circular);
 
@@ -159,6 +163,8 @@ describe('CodegenHelper', () => {
     expect(output).toContain('errors: [0] name: Error');
     expect(output).toContain('message: IPv6 refused');
     expect(output).toContain('message: IPv4 refused');
+    expect(output).toContain('details: [0] name: Error');
+    expect(output).toContain('[1] plain detail');
     const loggedMessages = consoleLog.mock.calls as unknown as [unknown][];
     expect(String(loggedMessages.at(2)?.[0])).not.toContain('cause:');
     expect(output).toContain('[object Object]');

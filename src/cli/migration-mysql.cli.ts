@@ -1,12 +1,15 @@
 import type { Connection, RowDataPacket } from 'mysql2/promise';
 import { createConnection } from 'mysql2/promise';
 import { createRequire } from 'node:module';
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
 import { CodegenHelper } from '../helpers/codegen.helper';
 import { ConverterHelper } from '../helpers/converter.helper';
-import { DataHelper } from '../helpers/data.helper';
 import { IoHelper } from '../helpers/io.helper';
+import {
+  MigrationAbstractCli,
+  type CommandBuilderYargs,
+  type CommandInterface,
+  type MigrationAbstractConfiguration,
+} from './migration-abstract.cli';
 
 const loadModule = createRequire(__filename);
 
@@ -15,11 +18,9 @@ export interface MigrationMysqlCliInterface {
   down(connection: Connection): Promise<void>;
 }
 
-interface ConfigurationInterface {
-  pathMigration: string;
-  uri: string;
-  database: string;
+interface ConfigurationInterface extends MigrationAbstractConfiguration {
   tableMigration: string;
+  tableSeeder: string;
   template?: string;
 }
 
@@ -30,6 +31,11 @@ enum CommandNameEnum {
   DOWN = 'down',
   RESET = 'reset',
   STATUS = 'status',
+  SEEDER_CREATE = 'seederCreate <migration>',
+  SEEDER_UP = 'seederUp',
+  SEEDER_DOWN = 'seederDown',
+  SEEDER_RESET = 'seederReset',
+  SEEDER_STATUS = 'seederStatus',
 }
 
 interface MigrationLockRow extends RowDataPacket {
@@ -46,59 +52,15 @@ interface DatabaseTableRow extends RowDataPacket {
   tableName: string;
 }
 
-type CommandBuilderYargs = {
-  positional: (key: string, options: yargs.Options) => void;
-};
-
-interface CommandInterface {
-  name: CommandNameEnum;
-  desc: string;
-  builder?: (yargs: CommandBuilderYargs) => void;
-  handler: (argv: yargs.ArgumentsCamelCase<Record<string, unknown>>) => void;
-}
-
-class MigrationMysqlCliClass {
-  private static readonly migrationFileExtensionRegexp = /\.(ts|js)$/;
+class MigrationMysqlCliClass extends MigrationAbstractCli<ConfigurationInterface> {
 
   private connection!: Connection;
 
-  private configuration!: ConfigurationInterface;
-
-  private readonly commandList: CommandInterface[];
+  protected readonly commandList: CommandInterface[];
 
   public constructor() {
+    super();
     this.commandList = this.getCommandList();
-  }
-
-  public async migrate(configuration: ConfigurationInterface): Promise<void> {
-    this.configuration = configuration;
-    await this.check();
-    const yargsInstance = this.commandList.reduce(
-      (yargsInstance, command) =>
-        yargsInstance.command(
-          command.name,
-          command.desc,
-          (instance) => {
-            command.builder?.(instance);
-            return instance;
-          },
-          command.handler,
-        ),
-      yargs(hideBin(process.argv)),
-    );
-    void yargsInstance
-      .demandCommand(1, 'Use --help to view available commands.')
-      .strictCommands(true)
-      .fail((msg, err) => {
-        if (err) {
-          console.error('Error:', err.message);
-        } else {
-          console.error('Invalid command:', msg);
-        }
-        yargs.showHelp();
-        process.exit(1);
-      })
-      .help().argv;
   }
 
   private getCommandList(): CommandInterface[] {
@@ -108,7 +70,7 @@ class MigrationMysqlCliClass {
     return [
       {
         name: CommandNameEnum.DROP,
-        desc: 'Drops all tables in the database',
+        desc: 'Drops ALL tables in the database',
         builder: emptyBuilder,
         handler: (): void => void this.drop(),
       },
@@ -142,17 +104,90 @@ class MigrationMysqlCliClass {
       },
       {
         name: CommandNameEnum.RESET,
-        desc: 'Revokes migration',
+        desc: 'Revokes ALL migrations',
         builder: emptyBuilder,
         handler: (): void => void this.reset(),
       },
       {
         name: CommandNameEnum.STATUS,
-        desc: 'Lists all migrations',
+        desc: 'Lists ALL migrations',
         builder: emptyBuilder,
         handler: (): void => void this.status(),
       },
+      {
+        name: CommandNameEnum.SEEDER_CREATE,
+        desc: 'Creates seeder',
+        builder: (yargs: CommandBuilderYargs): void => {
+          yargs.positional('migration', {
+            describe: 'The seeder name',
+            type: 'string',
+          });
+        },
+        handler: (argv): void => {
+          if (typeof argv.migration !== 'string') {
+            throw new Error('Migration argument is required');
+          }
+          void this.seederCreate(argv.migration);
+        },
+      },
+      {
+        name: CommandNameEnum.SEEDER_UP,
+        desc: 'Applies seeder',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederUp(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_DOWN,
+        desc: 'Revokes seeder',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederDown(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_RESET,
+        desc: 'Revokes ALL seeders',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederReset(),
+      },
+      {
+        name: CommandNameEnum.SEEDER_STATUS,
+        desc: 'Lists ALL seeders',
+        builder: emptyBuilder,
+        handler: (): void => void this.seederStatus(),
+      },
     ];
+  }
+
+  private useSeederConfiguration(): void {
+    this.configuration = {
+      ...this.configuration,
+      pathMigration: this.configuration.pathSeeder,
+      tableMigration: this.configuration.tableSeeder,
+    };
+  }
+
+  private seederCreate(seeder: string): Promise<void> {
+    this.useSeederConfiguration();
+    return this.create(seeder);
+  }
+
+  private async seederUp(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.up();
+  }
+
+  private async seederDown(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.down();
+  }
+
+  private async seederReset(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.reset();
+  }
+
+  private async seederStatus(): Promise<void> {
+    this.useSeederConfiguration();
+    await this.status();
   }
 
   private async getMysqlConnection(): Promise<Connection> {
@@ -168,7 +203,7 @@ class MigrationMysqlCliClass {
     return this.connection;
   }
 
-  private async check(): Promise<void> {
+  protected async check(): Promise<void> {
     try {
       const connection = await this.getMysqlConnection();
       await connection.query('SELECT 1');
@@ -184,10 +219,13 @@ class MigrationMysqlCliClass {
     const connection = await this.getMysqlConnection();
     const lockName = await this.acquireLock(connection);
     const [tableList] = await connection.execute<DatabaseTableRow[]>(
-      `SELECT TABLE_NAME AS tableName
-       FROM information_schema.TABLES
-       WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'
-       ORDER BY TABLE_NAME`,
+      `
+        SELECT TABLE_NAME AS tableName
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = ?
+          AND TABLE_TYPE = 'BASE TABLE'
+        ORDER BY TABLE_NAME
+      `,
       [this.configuration.database],
     );
     if (tableList.length === 0) {
@@ -206,17 +244,6 @@ class MigrationMysqlCliClass {
     }
     await this.releaseLock(connection, lockName);
     CodegenHelper.logSuccess(this.configuration.database, 'All tables dropped');
-    process.exit(0);
-  }
-
-  private create(migration: string): Promise<void> {
-    CodegenHelper.displayMessage('migration', this.create.name);
-    const timestamp = new Date().getTime();
-    const migrationName = ConverterHelper.tokenizeWords(migration.replace(/[^a-zA-Z0-9]/g, '-'), '-').toLowerCase();
-    const fileName = `${timestamp}_${migrationName}`;
-    const filePath = `${this.configuration.pathMigration}/${fileName}${this.getMigrationExtension()}`;
-    IoHelper.createFileSync(filePath, this.getTemplate(timestamp, migrationName));
-    CodegenHelper.logSuccess(`${fileName}`, DataHelper.excludePath(filePath, this.configuration.pathMigration));
     process.exit(0);
   }
 
@@ -305,7 +332,7 @@ class MigrationMysqlCliClass {
     process.exit(0);
   }
 
-  private getTemplate(timestamp: number, migrationName: string): string {
+  protected getTemplate(timestamp: number, migrationName: string): string {
     const pascalCase = ConverterHelper.toPascalCase(migrationName, '-');
     const camelCase = ConverterHelper.toCamelCase(migrationName, '-');
     const className = `${pascalCase}_${timestamp}`;
@@ -353,13 +380,11 @@ class MigrationMysqlCliClass {
       if (!ClassToLoad) {
         CodegenHelper.logError(filePath, new Error(`No valid constructor in: ${filePath}`));
         process.exit(1);
-        return;
       }
       return new ClassToLoad();
     } catch (e) {
       CodegenHelper.logError(filePath, e);
       process.exit(1);
-      return;
     }
   }
 
@@ -368,9 +393,13 @@ class MigrationMysqlCliClass {
     if (!migration) return;
     try {
       await migration.up(connection);
-      await connection.execute(`INSERT INTO ${migrationTable} (filename) VALUES (?)`, [
-        this.normalizeMigrationFileName(filePath),
-      ]);
+      await connection.execute(
+        `
+        INSERT INTO ${migrationTable} (filename)
+        VALUES (?)
+      `,
+        [this.normalizeMigrationFileName(filePath)],
+      );
       CodegenHelper.logSuccess(migration.constructor.name, filePath);
     } catch (e) {
       CodegenHelper.logError(migration.constructor.name, e);
@@ -387,7 +416,14 @@ class MigrationMysqlCliClass {
     if (!migration) return;
     try {
       await migration.down(connection);
-      await connection.execute(`DELETE FROM ${migrationTable} WHERE id = ?`, [migrationLog.id]);
+      await connection.execute(
+        `
+        DELETE
+        FROM ${migrationTable}
+        WHERE id = ?
+      `,
+        [migrationLog.id],
+      );
       CodegenHelper.logSuccess(migration.constructor.name, migrationLog.fileName);
     } catch (e) {
       CodegenHelper.logError(migration.constructor.name, e);
@@ -432,43 +468,14 @@ class MigrationMysqlCliClass {
     migrationTable: string,
     descending = true,
   ): Promise<SchemaMigrationRow[]> {
-    const [rows] = await connection.query<SchemaMigrationRow[]>(
-      `SELECT id, applied_at AS appliedAt, filename AS fileName
-       FROM ${migrationTable}
-       ORDER BY id ${descending ? 'DESC' : 'ASC'}`,
-    );
+    const [rows] = await connection.query<SchemaMigrationRow[]>(`
+        SELECT id, applied_at AS appliedAt, filename AS fileName
+        FROM ${migrationTable}
+        ORDER BY id ${descending ? 'DESC' : 'ASC'}
+      `);
     return rows;
   }
 
-  private getMigrationExtension(): '.ts' | '.js' {
-    return this.isTypeScriptExecution() ? '.ts' : '.js';
-  }
-
-  private getMigrationFileFilter(): RegExp[] {
-    return [this.getMigrationExtension() === '.ts' ? /\.ts$/ : /\.js$/];
-  }
-
-  private normalizeMigrationFileName(fileName: string): string {
-    return fileName.replace(MigrationMysqlCliClass.migrationFileExtensionRegexp, '');
-  }
-
-  private scanMigrationFiles(): string[] {
-    return IoHelper.scanFilesSync(this.configuration.pathMigration, { filter: this.getMigrationFileFilter() }).map(
-      (filePath) => DataHelper.excludePath(filePath, this.configuration.pathMigration),
-    );
-  }
-
-  private getMigrationFileName(fileName: string): string {
-    return `${this.normalizeMigrationFileName(fileName)}${this.getMigrationExtension()}`;
-  }
-
-  private isTypeScriptExecution(): boolean {
-    return (
-      process.argv.some((argument) => argument.includes('ts-node')) ||
-      process.execArgv.some((argument) => argument.includes('ts-node')) ||
-      Boolean((process as NodeJS.Process & { [key: symbol]: unknown })[Symbol.for('ts-node.register.instance')])
-    );
-  }
 }
 
 export const MigrationMysqlCli: MigrationMysqlCliClass = new MigrationMysqlCliClass();
