@@ -49,9 +49,9 @@ function mockAsyncCliMethod(method: string, value?: unknown): jest.SpyInstance {
 describe('MigrationMongoCli', () => {
   const configuration = {
     pathMigration: MIGRATION_PATH,
-    uri: 'mongodb://localhost/test',
+    uri: 'mongodb://localhost/database',
     database: 'database',
-    collection: 'migrations',
+    collectionMigration: 'collectionMigration',
   };
   const mockedCreateRequire = createRequire as jest.Mock;
   const mockedLoadModule = mockedCreateRequire.mock.results[0].value as jest.Mock;
@@ -298,10 +298,7 @@ describe('MigrationMongoCli', () => {
 
   it('applies only pending migrations and reports an empty queue', async () => {
     setCliState({ client, clientIsConnected: true });
-    scanFiles.mockReturnValue([
-      `${MIGRATION_PATH}/1_first.js`,
-      `${MIGRATION_PATH}/2_second.js`,
-    ]);
+    scanFiles.mockReturnValue([`${MIGRATION_PATH}/1_first.js`, `${MIGRATION_PATH}/2_second.js`]);
     collection.find.mockReturnValueOnce({
       toArray: jest.fn().mockResolvedValue([{ fileName: '1_first.ts' }]),
     });
@@ -344,10 +341,7 @@ describe('MigrationMongoCli', () => {
     await callCliMethod<Promise<void>>('status');
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migration files found.'));
 
-    scanFiles.mockReturnValue([
-      `${MIGRATION_PATH}/1_first.js`,
-      `${MIGRATION_PATH}/2_second.js`,
-    ]);
+    scanFiles.mockReturnValue([`${MIGRATION_PATH}/1_first.js`, `${MIGRATION_PATH}/2_second.js`]);
     collection.find.mockReturnValueOnce({
       toArray: jest.fn().mockResolvedValue([{ fileName: '1_first.ts' }]),
     });

@@ -18,7 +18,7 @@ interface ConfigurationInterface {
   pathMigration: string;
   uri: string;
   database: string;
-  collection: string;
+  collectionMigration: string;
   template?: string;
 }
 
@@ -211,7 +211,7 @@ class MigrationMongoCliClass {
     CodegenHelper.displayMessage('migration', this.up.name);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const collection = db.collection<CollectionInterface>(this.configuration.collectionMigration);
     const migrationList = await collection.find({}, { sort: { _id: 1 } }).toArray();
     const migrationSet = new Set(migrationList.map((migration) => this.normalizeMigrationFileName(migration.fileName)));
     const fileList = this.scanMigrationFiles().filter(
@@ -222,7 +222,7 @@ class MigrationMongoCliClass {
         await this.executeMigrationUp(file);
       }
     } else {
-      CodegenHelper.logSuccess(this.configuration.collection, `No migrations to ${this.up.name}`);
+      CodegenHelper.logSuccess(this.configuration.collectionMigration, `No migrations to ${this.up.name}`);
     }
     process.exit(0);
   }
@@ -231,12 +231,12 @@ class MigrationMongoCliClass {
     CodegenHelper.displayMessage('migration', this.down.name);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const collection = db.collection<CollectionInterface>(this.configuration.collectionMigration);
     const migrationList = await collection.findOne({}, { sort: { _id: -1 } });
     if (migrationList) {
       await this.executeMigrationDown(migrationList);
     } else {
-      CodegenHelper.logSuccess(this.configuration.collection, `No migrations to ${this.down.name}`);
+      CodegenHelper.logSuccess(this.configuration.collectionMigration, `No migrations to ${this.down.name}`);
     }
     process.exit(0);
   }
@@ -245,14 +245,14 @@ class MigrationMongoCliClass {
     CodegenHelper.displayMessage('migration', this.reset.name);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const collection = db.collection<CollectionInterface>(this.configuration.collectionMigration);
     const migrationList = await collection.find({}, { sort: { _id: -1 } }).toArray();
     if (migrationList.length) {
       for (const log of migrationList) {
         await this.executeMigrationDown(log);
       }
     } else {
-      CodegenHelper.logSuccess(this.configuration.collection, `No migrations to ${this.reset.name}`);
+      CodegenHelper.logSuccess(this.configuration.collectionMigration, `No migrations to ${this.reset.name}`);
     }
     process.exit(0);
   }
@@ -261,12 +261,12 @@ class MigrationMongoCliClass {
     CodegenHelper.displayMessage('migration', this.status.name);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const collection = db.collection<CollectionInterface>(this.configuration.collectionMigration);
     const migrationList = await collection.find({}, { sort: { _id: 1 } }).toArray();
     const migrationsSet = new Set(migrationList.map((log) => this.normalizeMigrationFileName(log.fileName)));
     const fileList = this.scanMigrationFiles();
     if (!fileList.length) {
-      CodegenHelper.logSuccess(this.configuration.collection, 'No migration files found.');
+      CodegenHelper.logSuccess(this.configuration.collectionMigration, 'No migration files found.');
       process.exit(0);
     }
     for (const file of fileList) {
@@ -338,7 +338,7 @@ class MigrationMongoCliClass {
     if (!migration) return;
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const collection = db.collection<CollectionInterface>(this.configuration.collectionMigration);
     try {
       await migration.up(db);
       await collection.insertOne({
@@ -357,7 +357,7 @@ class MigrationMongoCliClass {
     if (!migration) return;
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
-    const collection = db.collection<CollectionInterface>(this.configuration.collection);
+    const collection = db.collection<CollectionInterface>(this.configuration.collectionMigration);
     try {
       await migration.down(db);
       await collection.deleteOne({ _id: log._id });

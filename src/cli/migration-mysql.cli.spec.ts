@@ -1,4 +1,4 @@
-import { createConnection, type Connection } from 'mysql2/promise';
+import { type Connection, createConnection } from 'mysql2/promise';
 import { createRequire } from 'node:module';
 import yargs from 'yargs';
 import { IoHelper } from '../helpers/io.helper';
@@ -54,9 +54,9 @@ function mockAsyncCliMethod(method: string, value?: unknown): jest.SpyInstance {
 describe('MigrationMysqlCli', () => {
   const configuration = {
     pathMigration: MIGRATION_PATH,
-    uri: 'mysql://user:password@localhost:3306/dashboard',
-    database: 'dashboard',
-    table: 'app_migration',
+    uri: 'mysql://user:password@localhost:3306/database',
+    database: 'database',
+    tableMigration: 'tableMigration',
   };
   const mockedCreateConnection = createConnection as jest.Mock;
   const mockedCreateRequire = createRequire as jest.Mock;
@@ -210,7 +210,7 @@ describe('MigrationMysqlCli', () => {
     expect(second).toBe(connection);
     expect(mockedCreateConnection).toHaveBeenCalledTimes(1);
     expect(mockedCreateConnection).toHaveBeenCalledWith({
-      database: 'dashboard',
+      database: 'database',
       connectTimeout: 5000,
       multipleStatements: true,
       timezone: 'Z',
@@ -271,10 +271,7 @@ describe('MigrationMysqlCli', () => {
       `${MIGRATION_PATH}/123_user-profile.js`,
       expect.stringContaining('UserProfile_123'),
     );
-    expect(createFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.stringContaining('user_profile_123'),
-    );
+    expect(createFile).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('user_profile_123'));
 
     setCliState({ configuration: { ...configuration } });
     expect(callCliMethod<string>('getTemplate', 1, 'sample-name')).toContain('SampleName_1');
@@ -303,10 +300,7 @@ describe('MigrationMysqlCli', () => {
     mockCliMethod('getMigration').mockImplementation((fileName: string) =>
       fileName.startsWith('1_') ? firstMigration : secondMigration,
     );
-    scanFiles.mockReturnValue([
-      `${MIGRATION_PATH}/1_first.js`,
-      `${MIGRATION_PATH}/2_second.js`,
-    ]);
+    scanFiles.mockReturnValue([`${MIGRATION_PATH}/1_first.js`, `${MIGRATION_PATH}/2_second.js`]);
     query.mockImplementation((sql: string) => {
       if (sql.includes('SELECT id')) {
         return Promise.resolve([[{ appliedAt: new Date(), fileName: '1_first', id: 1 }]]);
@@ -319,7 +313,7 @@ describe('MigrationMysqlCli', () => {
     expect(firstMigration.up).not.toHaveBeenCalled();
     expect(secondMigration.up).toHaveBeenCalledWith(connection);
     expect(secondMigration.up).toHaveBeenCalledTimes(1);
-    expect(execute).toHaveBeenCalledWith('INSERT INTO `app_migration` (filename) VALUES (?)', ['2_second']);
+    expect(execute).toHaveBeenCalledWith('INSERT INTO `tableMigration` (filename) VALUES (?)', ['2_second']);
     expect(scanFiles).toHaveBeenCalledWith(MIGRATION_PATH, { filter: [expect.any(RegExp)] });
 
     query.mockImplementation((sql: string) => {
@@ -351,7 +345,7 @@ describe('MigrationMysqlCli', () => {
 
     await callCliMethod<Promise<void>>('down');
     expect(down).toHaveBeenCalledWith(connection);
-    expect(execute).toHaveBeenCalledWith('DELETE FROM `app_migration` WHERE id = ?', [2]);
+    expect(execute).toHaveBeenCalledWith('DELETE FROM `tableMigration` WHERE id = ?', [2]);
 
     migrationList = [];
     await callCliMethod<Promise<void>>('down');
@@ -365,7 +359,7 @@ describe('MigrationMysqlCli', () => {
     migrationList = [];
     await callCliMethod<Promise<void>>('reset');
 
-    expect(execute).toHaveBeenCalledWith('DELETE FROM `app_migration` WHERE id = ?', [1]);
+    expect(execute).toHaveBeenCalledWith('DELETE FROM `tableMigration` WHERE id = ?', [1]);
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migrations to reset'));
   });
 
@@ -373,10 +367,7 @@ describe('MigrationMysqlCli', () => {
     await callCliMethod<Promise<void>>('status');
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('No migration files found.'));
 
-    scanFiles.mockReturnValue([
-      `${MIGRATION_PATH}/1_first.js`,
-      `${MIGRATION_PATH}/2_second.js`,
-    ]);
+    scanFiles.mockReturnValue([`${MIGRATION_PATH}/1_first.js`, `${MIGRATION_PATH}/2_second.js`]);
     query.mockImplementation((sql: string) => {
       if (sql.includes('SELECT id')) {
         return Promise.resolve([[{ appliedAt: new Date(), fileName: '1_first', id: 1 }]]);
@@ -424,25 +415,25 @@ describe('MigrationMysqlCli', () => {
     };
     const getMigration = mockCliMethod('getMigration', migration);
 
-    await callCliMethod<Promise<void>>('executeMigrationUp', connection, '`app_migration`', '1_first.js');
+    await callCliMethod<Promise<void>>('executeMigrationUp', connection, '`tableMigration`', '1_first.js');
     expect(migration.up).toHaveBeenCalledWith(connection);
-    expect(execute).toHaveBeenCalledWith('INSERT INTO `app_migration` (filename) VALUES (?)', ['1_first']);
+    expect(execute).toHaveBeenCalledWith('INSERT INTO `tableMigration` (filename) VALUES (?)', ['1_first']);
 
     const migrationLog = { appliedAt: new Date(), fileName: '1_first', id: 1 };
-    await callCliMethod<Promise<void>>('executeMigrationDown', connection, '`app_migration`', migrationLog);
+    await callCliMethod<Promise<void>>('executeMigrationDown', connection, '`tableMigration`', migrationLog);
     expect(migration.down).toHaveBeenCalledWith(connection);
-    expect(execute).toHaveBeenCalledWith('DELETE FROM `app_migration` WHERE id = ?', [1]);
+    expect(execute).toHaveBeenCalledWith('DELETE FROM `tableMigration` WHERE id = ?', [1]);
 
     getMigration.mockReturnValueOnce({
       up: jest.fn().mockRejectedValue(new Error('up failure')),
       down: jest.fn(),
     });
-    await callCliMethod<Promise<void>>('executeMigrationUp', connection, '`app_migration`', '2_second.js');
+    await callCliMethod<Promise<void>>('executeMigrationUp', connection, '`tableMigration`', '2_second.js');
     getMigration.mockReturnValueOnce({
       up: jest.fn(),
       down: jest.fn().mockRejectedValue(new Error('down failure')),
     });
-    await callCliMethod<Promise<void>>('executeMigrationDown', connection, '`app_migration`', migrationLog);
+    await callCliMethod<Promise<void>>('executeMigrationDown', connection, '`tableMigration`', migrationLog);
 
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('up failure'));
     expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('down failure'));
@@ -450,14 +441,12 @@ describe('MigrationMysqlCli', () => {
   });
 
   it('validates identifiers and migration locks', async () => {
-    expect(callCliMethod('quoteIdentifier', 'app_migration')).toBe('`app_migration`');
-    expect(() => callCliMethod('quoteIdentifier', 'app-migration')).toThrow(
-      'Invalid MySQL identifier: app-migration',
-    );
+    expect(callCliMethod('quoteIdentifier', 'tableMigration')).toBe('`tableMigration`');
+    expect(() => callCliMethod('quoteIdentifier', 'app-migration')).toThrow('Invalid MySQL identifier: app-migration');
 
     execute.mockResolvedValueOnce([[{ acquired: 0 }]]);
     await expect(callCliMethod<Promise<string>>('acquireLock', connection)).rejects.toThrow(
-      'Timed out waiting for migration lock dashboard:app_migration',
+      'Timed out waiting for migration lock database:tableMigration',
     );
   });
 

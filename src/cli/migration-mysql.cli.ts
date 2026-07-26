@@ -19,7 +19,7 @@ interface ConfigurationInterface {
   pathMigration: string;
   uri: string;
   database: string;
-  table: string;
+  tableMigration: string;
   template?: string;
 }
 
@@ -180,7 +180,7 @@ class MigrationMysqlCliClass {
 
   private async drop(): Promise<void> {
     CodegenHelper.displayMessage('migration', this.drop.name);
-    this.quoteIdentifier(this.configuration.table);
+    this.quoteIdentifier(this.configuration.tableMigration);
     const connection = await this.getMysqlConnection();
     const lockName = await this.acquireLock(connection);
     const [tableList] = await connection.execute<DatabaseTableRow[]>(
@@ -222,7 +222,7 @@ class MigrationMysqlCliClass {
 
   private async up(): Promise<void> {
     CodegenHelper.displayMessage('migration', this.up.name);
-    const migrationTable = this.quoteIdentifier(this.configuration.table);
+    const migrationTable = this.quoteIdentifier(this.configuration.tableMigration);
     const connection = await this.getMysqlConnection();
     const lockName = await this.acquireLock(connection);
     await this.createMigrationTable(connection, migrationTable);
@@ -236,7 +236,7 @@ class MigrationMysqlCliClass {
         await this.executeMigrationUp(connection, migrationTable, file);
       }
     } else {
-      CodegenHelper.logSuccess(this.configuration.table, `No migrations to ${this.up.name}`);
+      CodegenHelper.logSuccess(this.configuration.tableMigration, `No migrations to ${this.up.name}`);
     }
     await this.releaseLock(connection, lockName);
     process.exit(0);
@@ -244,7 +244,7 @@ class MigrationMysqlCliClass {
 
   private async down(): Promise<void> {
     CodegenHelper.displayMessage('migration', this.down.name);
-    const migrationTable = this.quoteIdentifier(this.configuration.table);
+    const migrationTable = this.quoteIdentifier(this.configuration.tableMigration);
     const connection = await this.getMysqlConnection();
     const lockName = await this.acquireLock(connection);
     await this.createMigrationTable(connection, migrationTable);
@@ -253,7 +253,7 @@ class MigrationMysqlCliClass {
     if (migration) {
       await this.executeMigrationDown(connection, migrationTable, migration);
     } else {
-      CodegenHelper.logSuccess(this.configuration.table, `No migrations to ${this.down.name}`);
+      CodegenHelper.logSuccess(this.configuration.tableMigration, `No migrations to ${this.down.name}`);
     }
     await this.releaseLock(connection, lockName);
     process.exit(0);
@@ -261,7 +261,7 @@ class MigrationMysqlCliClass {
 
   private async reset(): Promise<void> {
     CodegenHelper.displayMessage('migration', this.reset.name);
-    const migrationTable = this.quoteIdentifier(this.configuration.table);
+    const migrationTable = this.quoteIdentifier(this.configuration.tableMigration);
     const connection = await this.getMysqlConnection();
     const lockName = await this.acquireLock(connection);
     await this.createMigrationTable(connection, migrationTable);
@@ -271,7 +271,7 @@ class MigrationMysqlCliClass {
         await this.executeMigrationDown(connection, migrationTable, migration);
       }
     } else {
-      CodegenHelper.logSuccess(this.configuration.table, `No migrations to ${this.reset.name}`);
+      CodegenHelper.logSuccess(this.configuration.tableMigration, `No migrations to ${this.reset.name}`);
     }
     await this.releaseLock(connection, lockName);
     process.exit(0);
@@ -279,7 +279,7 @@ class MigrationMysqlCliClass {
 
   private async status(): Promise<void> {
     CodegenHelper.displayMessage('migration', this.status.name);
-    const migrationTable = this.quoteIdentifier(this.configuration.table);
+    const migrationTable = this.quoteIdentifier(this.configuration.tableMigration);
     const connection = await this.getMysqlConnection();
     const lockName = await this.acquireLock(connection);
     await this.createMigrationTable(connection, migrationTable);
@@ -290,7 +290,7 @@ class MigrationMysqlCliClass {
     const fileList = this.scanMigrationFiles();
     if (!fileList.length) {
       await this.releaseLock(connection, lockName);
-      CodegenHelper.logSuccess(this.configuration.table, 'No migration files found.');
+      CodegenHelper.logSuccess(this.configuration.tableMigration, 'No migration files found.');
       process.exit(0);
     }
     for (const file of fileList) {
@@ -403,7 +403,7 @@ class MigrationMysqlCliClass {
   }
 
   private async acquireLock(connection: Connection): Promise<string> {
-    const lockName = `${this.configuration.database}:${this.configuration.table}`;
+    const lockName = `${this.configuration.database}:${this.configuration.tableMigration}`;
     const [lockRows] = await connection.execute<MigrationLockRow[]>('SELECT GET_LOCK(?, 30) AS acquired', [lockName]);
     if (lockRows[0]?.acquired !== 1) {
       throw new Error(`Timed out waiting for migration lock ${lockName}`);
@@ -422,7 +422,7 @@ class MigrationMysqlCliClass {
         applied_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         filename VARCHAR(255) NOT NULL,
         PRIMARY KEY (id),
-        UNIQUE KEY ${this.quoteIdentifier(`${this.configuration.table}_filename_unique`)} (filename)
+        UNIQUE KEY ${this.quoteIdentifier(`${this.configuration.tableMigration}_filename_unique`)} (filename)
       ) ENGINE=InnoDB
     `);
   }
