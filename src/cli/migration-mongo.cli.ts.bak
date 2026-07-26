@@ -1,5 +1,4 @@
 import { MongoClient, WithId } from 'mongodb';
-import { createRequire } from 'node:module';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { CodegenHelper } from '../helpers/codegen.helper';
@@ -7,19 +6,17 @@ import { ConverterHelper } from '../helpers/converter.helper';
 import { DataHelper } from '../helpers/data.helper';
 import { IoHelper } from '../helpers/io.helper';
 
-const loadModule = createRequire(__filename);
-
 export interface MigrationMongoCliInterface {
   up(db: unknown): Promise<void>;
   down(db: unknown): Promise<void>;
 }
 
 interface ConfigurationInterface {
-  uri: string;
-  database: string;
   collection: string;
+  database: string;
   path: string;
   template?: string;
+  uri: string;
 }
 
 enum CommandNameEnum {
@@ -64,7 +61,14 @@ class MigrationMongoCliClass {
   }
 
   public async migrate(configuration: ConfigurationInterface): Promise<void> {
-    this.configuration = configuration;
+    const { collection, database, template, uri } = configuration;
+    this.configuration = {
+      uri: uri,
+      database: database,
+      collection: collection,
+      path: configuration.path,
+      template: template,
+    };
     await this.check();
     const yargsInstance = this.commandList.reduce(
       (yargsInstance, command) =>
@@ -305,37 +309,27 @@ class MigrationMongoCliClass {
     }
   }
 
-  private getMigration(filePath: string): MigrationMongoCliInterface | undefined {
+  private async getMigration(filePath: string): Promise<MigrationMongoCliInterface> {
     try {
-      const module = loadModule(`${this.configuration.path}/${this.getMigrationFileName(filePath)}`) as Record<
+      const module = (await import(`${this.configuration.path}/${this.getMigrationFileName(filePath)}`)) as Record<
         string,
         unknown
       >;
-      const exports = Object.values(module).flatMap((value): unknown[] =>
-        typeof value === 'object' && value !== null ? Object.values(value as Record<string, unknown>) : [value],
-      );
-      const ClassToLoad = exports.find(
-        (value): value is new () => MigrationMongoCliInterface =>
-          typeof value === 'function' &&
-          typeof (value as { prototype?: Partial<MigrationMongoCliInterface> }).prototype?.up === 'function' &&
-          typeof (value as { prototype?: Partial<MigrationMongoCliInterface> }).prototype?.down === 'function',
-      );
-      if (!ClassToLoad) {
+      const className = Object.keys(module).find((key) => typeof module[key] === 'function');
+      if (!className) {
         CodegenHelper.logError(filePath, new Error(`No valid constructor in: ${filePath}`));
         process.exit(1);
-        return;
       }
+      const ClassToLoad = module[className] as new () => MigrationMongoCliInterface;
       return new ClassToLoad();
     } catch (e) {
       CodegenHelper.logError(filePath, e);
       process.exit(1);
-      return;
     }
   }
 
   private async executeMigrationUp(filePath: string): Promise<void> {
-    const migration = this.getMigration(filePath);
-    if (!migration) return;
+    const migration = await this.getMigration(filePath);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
     const collection = db.collection<CollectionInterface>(this.configuration.collection);
@@ -353,8 +347,7 @@ class MigrationMongoCliClass {
   }
 
   private async executeMigrationDown(log: WithId<CollectionInterface>): Promise<void> {
-    const migration = this.getMigration(log.fileName);
-    if (!migration) return;
+    const migration = await this.getMigration(log.fileName);
     const client = await this.getMongoClient();
     const db = client.db(this.configuration.database);
     const collection = db.collection<CollectionInterface>(this.configuration.collection);
