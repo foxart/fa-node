@@ -1,11 +1,13 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
-export type ConfigurationType<T> = {
-  [K in keyof T]: T[K] extends object ? ConfigurationType<T[K]> : ConfigurationInterface<T[K]> | T[K];
-};
+export type ConfigurationType<T> = [T] extends [readonly (infer U)[]]
+  ? ConfigurationType<U>[]
+  : [T] extends [object]
+    ? { [K in keyof T]: ConfigurationType<T[K]> }
+    : EnvironmentValue<T>;
 
-type ConfigurationInterface<T = string> =
+type EnvironmentValue<T> =
   | {
       placeholder: string;
       transform: (value: string | undefined) => T;
@@ -18,25 +20,13 @@ type ConfigurationInterface<T = string> =
     }
   | (T extends string ? { placeholder: string; transform?: never; default?: never } : never);
 
-type DictionaryType<T> = T extends { transform: (...args: never[]) => infer R }
-  ? R
-  : T extends { default: infer R }
-    ? R
-    : T extends { placeholder: string }
-      ? string
-      : T extends readonly (infer U)[]
-        ? readonly DictionaryType<U>[]
-        : T extends object
-          ? { readonly [K in keyof T]: DictionaryType<T[K]> }
-          : T;
-
 interface DictionaryInterface {
   placeholder: string;
   default?: unknown;
   transform?: (value: string | undefined) => unknown;
 }
 
-export class ConfigurationClass<T extends object = object> {
+export class ConfigurationClass<TConfiguration extends object = object> {
   public constructor(filePath = '.env') {
     ConfigurationClass.loadEnv(filePath);
   }
@@ -124,15 +114,15 @@ export class ConfigurationClass<T extends object = object> {
     return typeof ref.placeholder === 'string';
   }
 
-  public apply<TConfiguration extends object>(configuration: TConfiguration): DictionaryType<TConfiguration> {
+  public apply(configuration: ConfigurationType<TConfiguration>): TConfiguration {
     const { environments, errors } = this.extractRecursive(configuration as Record<string, unknown>);
     if (errors.length) {
       throw new Error(`Configuration errors:\n${errors.map((error) => `- ${error}`).join('\n')}`);
     }
-    return environments as DictionaryType<TConfiguration>;
+    return environments as TConfiguration;
   }
 
-  public mask(dictionary: DictionaryType<T>, fullList: string[], partialList: string[]): DictionaryType<T> {
+  public mask(dictionary: TConfiguration, fullList: string[], partialList: string[]): TConfiguration {
     const result: Record<string, unknown> = {};
     for (const key in dictionary) {
       const value = dictionary[key];
@@ -141,7 +131,7 @@ export class ConfigurationClass<T extends object = object> {
         continue;
       }
       if (typeof value === 'object' && value !== null) {
-        result[key] = this.mask(value as DictionaryType<T>, fullList, partialList);
+        result[key] = this.mask(value as TConfiguration, fullList, partialList);
         continue;
       }
       const str = value?.toString?.() ?? '';
@@ -170,10 +160,13 @@ export class ConfigurationClass<T extends object = object> {
       }
       result[key] = value;
     }
-    return result as DictionaryType<T>;
+    return result as TConfiguration;
   }
 
-  private extractRecursive(dictionary: Record<string, unknown>): {
+  private extractRecursive(
+    dictionary: Record<string, unknown>,
+    path = '',
+  ): {
     environments: Record<string, unknown>;
     errors: string[];
   } {
@@ -181,34 +174,64 @@ export class ConfigurationClass<T extends object = object> {
     const errors: string[] = [];
     for (const key in dictionary) {
       const value = dictionary[key];
+      const valuePath = path ? `${path}.${key}` : key;
       if (ConfigurationClass.isReference(value)) {
         const { placeholder, default: def, transform } = value;
-        if (!placeholder) continue;
+        if (!placeholder) {
+          errors.push(`${valuePath} (placeholder is empty)`);
+          continue;
+        }
         const rawValue = process.env[placeholder];
         const raw = rawValue !== undefined && rawValue !== '' ? String(rawValue).replace(/\r$/, '') : undefined;
         if (transform) {
           try {
             result[key] = transform(raw);
           } catch {
-            errors.push(`${placeholder} (transform failed)`);
+            errors.push(`${valuePath}: ${placeholder} (transform failed)`);
           }
         } else if (raw !== undefined) {
           result[key] = raw;
         } else if (def !== undefined) {
           result[key] = def;
         } else {
-          errors.push(placeholder);
+          errors.push(`${valuePath}: ${placeholder}`);
         }
         continue;
       }
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        const nested = this.extractRecursive(value as Record<string, unknown>);
+      if (Array.isArray(value)) {
+        const nested = this.extractArray(value, valuePath);
         result[key] = nested.environments;
         errors.push(...nested.errors);
         continue;
       }
-      result[key] = value;
+      if (typeof value === 'object' && value !== null) {
+        const nested = this.extractRecursive(value as Record<string, unknown>, valuePath);
+        result[key] = nested.environments;
+        errors.push(...nested.errors);
+        continue;
+      }
+      errors.push(`${valuePath} (literal values are not supported)`);
     }
     return { environments: result, errors };
+  }
+
+  private extractArray(
+    values: unknown[],
+    path: string,
+  ): {
+    environments: unknown[];
+    errors: string[];
+  } {
+    const environments: unknown[] = [];
+    const errors: string[] = [];
+    for (const [index, value] of values.entries()) {
+      const key = String(index);
+      const nested = this.extractRecursive({ [key]: value }, path);
+      if (key in nested.environments) {
+        environments.push(nested.environments[key]);
+      }
+      errors.push(...nested.errors);
+    }
+    return { environments, errors };
   }
 }

@@ -137,7 +137,9 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ requiredValue: string }>;
 
-      expect(() => new ConfigurationClass().apply(configuration)).toThrow('Configuration errors:\n- REQUIRED_KEY');
+      expect(() => new ConfigurationClass().apply(configuration)).toThrow(
+        'Configuration errors:\n- requiredValue: REQUIRED_KEY',
+      );
     });
 
     it('should preserve string and numeric defaults', () => {
@@ -154,7 +156,7 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ stringValue: string; numericValue: number }>;
 
-      const result = new ConfigurationClass().apply(configuration);
+      const result = new ConfigurationClass<{ stringValue: string; numericValue: number }>().apply(configuration);
 
       expect(result).toStrictEqual({
         stringValue: 'fallback',
@@ -170,7 +172,7 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ rawValue: string }>;
 
-      const result = new ConfigurationClass().apply(configuration);
+      const result = new ConfigurationClass<{ rawValue: string }>().apply(configuration);
 
       expect(result.rawValue).toBe('raw-value');
     });
@@ -192,7 +194,7 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ presentValue: number; missingValue: number }>;
 
-      const result = new ConfigurationClass().apply(configuration);
+      const result = new ConfigurationClass<{ presentValue: number; missingValue: number }>().apply(configuration);
 
       expect(result).toStrictEqual({
         presentValue: 12.5,
@@ -216,44 +218,94 @@ describe('ConfigurationClass', () => {
       } satisfies ConfigurationType<{ invalidValue: number; missingValue: number }>;
 
       expect(() => new ConfigurationClass().apply(configuration)).toThrow(
-        'Configuration errors:\n- INVALID_INT_KEY (transform failed)\n- MISSING_INT_KEY (transform failed)',
+        [
+          'Configuration errors:',
+          '- invalidValue: INVALID_INT_KEY (transform failed)',
+          '- missingValue: MISSING_INT_KEY (transform failed)',
+        ].join('\n'),
       );
     });
 
-    it('should recursively process nested values and preserve literals and arrays', () => {
+    it('should recursively process nested objects and arrays', () => {
       process.env.NESTED_REQUIRED_KEY = 'nested-value';
-      const values = ['first', 'second'];
+      process.env.ARRAY_REQUIRED_KEY = 'array-value';
+      const values = [
+        {
+          requiredValue: {
+            placeholder: 'ARRAY_REQUIRED_KEY',
+          },
+        },
+        [
+          {
+            fallbackValue: {
+              placeholder: 'ARRAY_DEFAULT_KEY',
+              default: 'array-default',
+            },
+          },
+        ],
+      ];
+      type NestedConfiguration = {
+        nested: {
+          requiredValue: string;
+        };
+        values: Array<{ requiredValue: string } | Array<{ fallbackValue: string }>>;
+      };
       const configuration = {
         nested: {
           requiredValue: {
             placeholder: 'NESTED_REQUIRED_KEY',
           },
-          literalValue: 10,
         },
         values,
-        emptyPlaceholder: {
-          placeholder: '',
-        },
-        nonStringPlaceholder: {
-          placeholder: 10,
-        },
-        nullValue: null,
-      };
+      } satisfies ConfigurationType<NestedConfiguration>;
 
-      const result = new ConfigurationClass().apply(configuration);
+      const result = new ConfigurationClass<NestedConfiguration>().apply(configuration);
 
       expect(result).toStrictEqual({
         nested: {
           requiredValue: 'nested-value',
+        },
+        values: [{ requiredValue: 'array-value' }, [{ fallbackValue: 'array-default' }]],
+      });
+      expect(result.values).not.toBe(values);
+    });
+
+    it('should reject literal values and empty placeholders', () => {
+      const configuration = {
+        nested: {
           literalValue: 10,
         },
-        values,
-        nonStringPlaceholder: {
-          placeholder: 10,
+        values: ['literal'],
+        emptyPlaceholder: {
+          placeholder: '',
         },
-        nullValue: null,
-      });
-      expect(result.values).toBe(values);
+      };
+
+      expect(() => new ConfigurationClass().apply(configuration)).toThrow(
+        [
+          'Configuration errors:',
+          '- nested.literalValue (literal values are not supported)',
+          '- values.0 (literal values are not supported)',
+          '- emptyPlaceholder (placeholder is empty)',
+        ].join('\n'),
+      );
+    });
+
+    it('should reject a missing required value inside an array', () => {
+      delete process.env.ARRAY_REQUIRED_KEY;
+      const configuration = {
+        values: [
+          {
+            requiredValue: {
+              placeholder: 'ARRAY_REQUIRED_KEY',
+            },
+          },
+        ],
+      } satisfies ConfigurationType<{ values: { requiredValue: string }[] }>;
+
+      expect(() => new ConfigurationClass().apply(configuration)).toThrow(
+        'Configuration errors:\n- values.0.requiredValue: ARRAY_REQUIRED_KEY',
+      );
     });
   });
 
