@@ -129,6 +129,16 @@ describe('ConfigurationClass', () => {
   });
 
   describe('process', () => {
+    it('should define a typed configuration without changing it', () => {
+      const configuration = ConfigurationClass.define<{ appName: string }>()({
+        appName: { placeholder: 'APP_NAME' },
+      });
+
+      expect(configuration).toStrictEqual({
+        appName: { placeholder: 'APP_NAME' },
+      });
+    });
+
     it('should reject a missing required value', () => {
       delete process.env.REQUIRED_KEY;
       const configuration = {
@@ -137,7 +147,7 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ requiredValue: string }>;
 
-      expect(() => new ConfigurationClass().apply(configuration)).toThrow(
+      expect(() => new ConfigurationClass().load(configuration)).toThrow(
         'Configuration errors:\n- requiredValue: REQUIRED_KEY',
       );
     });
@@ -156,7 +166,7 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ stringValue: string; numericValue: number }>;
 
-      const result = new ConfigurationClass<{ stringValue: string; numericValue: number }>().apply(configuration);
+      const result = new ConfigurationClass<{ stringValue: string; numericValue: number }>().load(configuration);
 
       expect(result).toStrictEqual({
         stringValue: 'fallback',
@@ -172,7 +182,7 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ rawValue: string }>;
 
-      const result = new ConfigurationClass<{ rawValue: string }>().apply(configuration);
+      const result = new ConfigurationClass<{ rawValue: string }>().load(configuration);
 
       expect(result.rawValue).toBe('raw-value');
     });
@@ -194,13 +204,41 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ presentValue: number; missingValue: number }>;
 
-      const result = new ConfigurationClass<{ presentValue: number; missingValue: number }>().apply(configuration);
+      const result = new ConfigurationClass<{ presentValue: number; missingValue: number }>().load(configuration);
 
       expect(result).toStrictEqual({
         presentValue: 12.5,
         missingValue: 42,
       });
-      expect(missingTransform).toHaveBeenCalledWith(undefined);
+      expect(missingTransform.mock.calls[0]?.[0]).toBeUndefined();
+    });
+
+    it('should provide all env values as the second transform argument', () => {
+      process.env.APP_NAME = 'Application';
+      process.env.NODE_ENV = 'production';
+      const helper = new ConfigurationClass<{ nodeEnvironment: string; appName: string }>();
+      const configuration = {
+        nodeEnvironment: {
+          placeholder: 'NODE_ENV',
+          default: 'development',
+        },
+        appName: {
+          placeholder: 'APP_NAME',
+          transform: (value, environment): string => {
+            if (!value || !environment.NODE_ENV) {
+              throw new Error('Missing environment value');
+            }
+            return `${value}-${environment.NODE_ENV}`;
+          },
+        },
+      } satisfies ConfigurationType<{ nodeEnvironment: string; appName: string }>;
+
+      const result = helper.load(configuration);
+
+      expect(result).toStrictEqual({
+        nodeEnvironment: 'production',
+        appName: 'Application-production',
+      });
     });
 
     it('should reject transform failures', () => {
@@ -217,7 +255,7 @@ describe('ConfigurationClass', () => {
         },
       } satisfies ConfigurationType<{ invalidValue: number; missingValue: number }>;
 
-      expect(() => new ConfigurationClass().apply(configuration)).toThrow(
+      expect(() => new ConfigurationClass().load(configuration)).toThrow(
         [
           'Configuration errors:',
           '- invalidValue: INVALID_INT_KEY (transform failed)',
@@ -259,7 +297,7 @@ describe('ConfigurationClass', () => {
         values,
       } satisfies ConfigurationType<NestedConfiguration>;
 
-      const result = new ConfigurationClass<NestedConfiguration>().apply(configuration);
+      const result = new ConfigurationClass<NestedConfiguration>().load(configuration);
 
       expect(result).toStrictEqual({
         nested: {
@@ -281,7 +319,7 @@ describe('ConfigurationClass', () => {
         },
       };
 
-      expect(() => new ConfigurationClass().apply(configuration)).toThrow(
+      expect(() => new ConfigurationClass().load(configuration)).toThrow(
         [
           'Configuration errors:',
           '- nested.literalValue (literal values are not supported)',
@@ -303,7 +341,7 @@ describe('ConfigurationClass', () => {
         ],
       } satisfies ConfigurationType<{ values: { requiredValue: string }[] }>;
 
-      expect(() => new ConfigurationClass().apply(configuration)).toThrow(
+      expect(() => new ConfigurationClass().load(configuration)).toThrow(
         'Configuration errors:\n- values.0.requiredValue: ARRAY_REQUIRED_KEY',
       );
     });
@@ -324,9 +362,8 @@ describe('ConfigurationClass', () => {
         },
         values,
       };
-      const configuration = new ConfigurationClass<typeof dictionary>();
 
-      const result = configuration.mask(dictionary, ['token'], ['short', 'long', 'empty']);
+      const result = ConfigurationClass.mask(dictionary, ['token'], ['short', 'long', 'empty']);
 
       expect(result).toStrictEqual({
         nested: {

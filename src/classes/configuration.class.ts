@@ -1,34 +1,42 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
-export type ConfigurationType<T> = [T] extends [readonly (infer U)[]]
-  ? ConfigurationType<U>[]
-  : [T] extends [object]
-    ? { [K in keyof T]: ConfigurationType<T[K]> }
-    : EnvironmentValue<T>;
+export type ConfigurationType<T> = ConfigurationDefinition<T, NodeJS.ProcessEnv>;
 
-type EnvironmentValue<T> =
+type ConfigurationDefinition<T, TEnvironment extends object, TPlaceholder extends string = string> = [T] extends [
+  readonly (infer U)[],
+]
+  ? ConfigurationDefinition<U, TEnvironment, TPlaceholder>[]
+  : [T] extends [object]
+    ? { [K in keyof T]: ConfigurationDefinition<T[K], TEnvironment, TPlaceholder> }
+    : EnvironmentValue<T, TEnvironment, TPlaceholder>;
+
+type EnvironmentValue<T, TEnvironment extends object, TPlaceholder extends string> =
   | {
-      placeholder: string;
-      transform: (value: string | undefined) => T;
+      placeholder: TPlaceholder;
+      transform: (value: string | undefined, environment: Readonly<TEnvironment>) => T;
       default?: never;
     }
   | {
-      placeholder: string;
+      placeholder: TPlaceholder;
       transform?: never;
       default: T;
     }
-  | (T extends string ? { placeholder: string; transform?: never; default?: never } : never);
+  | (T extends string ? { placeholder: TPlaceholder; transform?: never; default?: never } : never);
+
+type ConfigurationFactory<TConfiguration extends object> = <const TPlaceholder extends string>(
+  configuration: ConfigurationDefinition<TConfiguration, Partial<Record<TPlaceholder, string>>, TPlaceholder>,
+) => ConfigurationDefinition<TConfiguration, Partial<Record<TPlaceholder, string>>, TPlaceholder>;
 
 interface DictionaryInterface {
   placeholder: string;
   default?: unknown;
-  transform?: (value: string | undefined) => unknown;
+  transform?: (value: string | undefined, environment: Readonly<NodeJS.ProcessEnv>) => unknown;
 }
 
 export class ConfigurationClass<TConfiguration extends object = object> {
   public constructor(filePath = '.env') {
-    ConfigurationClass.loadEnv(filePath);
+    this.loadEnv(filePath);
   }
 
   public static toFloat(this: void, value?: string): number {
@@ -81,48 +89,17 @@ export class ConfigurationClass<TConfiguration extends object = object> {
     throw new Error(`Invalid boolean: ${value}`);
   }
 
-  private static loadEnv(filePath: string): void {
-    const absPath = resolve(filePath);
-    if (!existsSync(absPath)) return;
-    const raw = readFileSync(absPath, 'utf8');
-    if (!raw) return;
-    raw.split(/\r?\n/).forEach((line) => {
-      const clean = line.trim();
-      if (!clean || clean.startsWith('#')) return;
-      const eqIndex = clean.indexOf('=');
-      if (eqIndex === -1) return;
-      const key = clean.slice(0, eqIndex).trim();
-      let value = clean.slice(eqIndex + 1).trim();
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1);
-      }
-      value = value.replace(/\r$/, '');
-      value = value.replace(/\$\{([A-Z0-9_]+)}/g, (_: string, envKey: string) => {
-        return process.env[String(envKey)] ?? '';
-      });
-      if (process.env[key] === undefined || process.env[key] === '') {
-        process.env[key] = value;
-      }
-    });
+  public static define<TConfiguration extends object>(): ConfigurationFactory<TConfiguration> {
+    return (configuration) => {
+      return configuration;
+    };
   }
 
-  private static isReference(value: unknown): value is DictionaryInterface {
-    if (typeof value !== 'object' || value === null) {
-      return false;
-    }
-    const ref = value as { placeholder?: unknown };
-    return typeof ref.placeholder === 'string';
-  }
-
-  public apply(configuration: ConfigurationType<TConfiguration>): TConfiguration {
-    const { environments, errors } = this.extractRecursive(configuration as Record<string, unknown>);
-    if (errors.length) {
-      throw new Error(`Configuration errors:\n${errors.map((error) => `- ${error}`).join('\n')}`);
-    }
-    return environments as TConfiguration;
-  }
-
-  public mask(dictionary: TConfiguration, fullList: string[], partialList: string[]): TConfiguration {
+  public static mask<TConfiguration>(
+    dictionary: TConfiguration,
+    fullList: string[],
+    partialList: string[],
+  ): TConfiguration {
     const result: Record<string, unknown> = {};
     for (const key in dictionary) {
       const value = dictionary[key];
@@ -131,7 +108,7 @@ export class ConfigurationClass<TConfiguration extends object = object> {
         continue;
       }
       if (typeof value === 'object' && value !== null) {
-        result[key] = this.mask(value as TConfiguration, fullList, partialList);
+        result[key] = ConfigurationClass.mask(value, fullList, partialList);
         continue;
       }
       const str = value?.toString?.() ?? '';
@@ -163,6 +140,47 @@ export class ConfigurationClass<TConfiguration extends object = object> {
     return result as TConfiguration;
   }
 
+  public load(configuration: ConfigurationType<TConfiguration>): TConfiguration {
+    const { environments, errors } = this.extractRecursive(configuration as Record<string, unknown>);
+    if (errors.length) {
+      throw new Error(`Configuration errors:\n${errors.map((error) => `- ${error}`).join('\n')}`);
+    }
+    return environments as TConfiguration;
+  }
+
+  private loadEnv(filePath: string): void {
+    const absPath = resolve(filePath);
+    if (!existsSync(absPath)) return;
+    const raw = readFileSync(absPath, 'utf8');
+    if (!raw) return;
+    raw.split(/\r?\n/).forEach((line) => {
+      const clean = line.trim();
+      if (!clean || clean.startsWith('#')) return;
+      const eqIndex = clean.indexOf('=');
+      if (eqIndex === -1) return;
+      const key = clean.slice(0, eqIndex).trim();
+      let value = clean.slice(eqIndex + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      value = value.replace(/\r$/, '');
+      value = value.replace(/\$\{([A-Z0-9_]+)}/g, (_: string, envKey: string) => {
+        return process.env[String(envKey)] ?? '';
+      });
+      if (process.env[key] === undefined || process.env[key] === '') {
+        process.env[key] = value;
+      }
+    });
+  }
+
+  private isReference(value: unknown): value is DictionaryInterface {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+    const ref = value as { placeholder?: unknown };
+    return typeof ref.placeholder === 'string';
+  }
+
   private extractRecursive(
     dictionary: Record<string, unknown>,
     path = '',
@@ -175,7 +193,7 @@ export class ConfigurationClass<TConfiguration extends object = object> {
     for (const key in dictionary) {
       const value = dictionary[key];
       const valuePath = path ? `${path}.${key}` : key;
-      if (ConfigurationClass.isReference(value)) {
+      if (this.isReference(value)) {
         const { placeholder, default: def, transform } = value;
         if (!placeholder) {
           errors.push(`${valuePath} (placeholder is empty)`);
@@ -185,7 +203,7 @@ export class ConfigurationClass<TConfiguration extends object = object> {
         const raw = rawValue !== undefined && rawValue !== '' ? String(rawValue).replace(/\r$/, '') : undefined;
         if (transform) {
           try {
-            result[key] = transform(raw);
+            result[key] = transform(raw, process.env);
           } catch {
             errors.push(`${valuePath}: ${placeholder} (transform failed)`);
           }
