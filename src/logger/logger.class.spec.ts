@@ -195,7 +195,7 @@ describe('logger', () => {
     });
 
     it('should normalize supported values and limits', () => {
-      const logger = new LoggerClass({ maxDepth: 1, maxArrayLength: 2 });
+      const logger = new LoggerClass({ maxNestingDepth: 1, maxCollectionSize: 2 });
       const circular: { self?: unknown } = {};
       circular.self = circular;
       class Custom {}
@@ -210,17 +210,23 @@ describe('logger', () => {
       expect(invoke(logger, 'normalizeForInspect', { pipe: () => undefined })).toBe('[Stream]');
       expect(invoke(logger, 'normalizeForInspect', circular)).toStrictEqual({ self: '[circular]' });
       expect(invoke(logger, 'normalizeForInspect', [1, 2, 3])).toStrictEqual([1, 2, '[+1 more items]']);
-      expect(invoke(logger, 'normalizeForInspect', new Map<unknown, unknown>([[1, 'one'], [2, 'two'], [3, 'three']]))).toStrictEqual({
+      expect(
+        invoke(
+          logger,
+          'normalizeForInspect',
+          new Map<unknown, unknown>([
+            [1, 'one'],
+            [2, 'two'],
+            [3, 'three'],
+          ]),
+        ),
+      ).toStrictEqual({
         '1': 'one',
         '2': 'two',
         __truncated__: '[+1 more entries]',
       });
       expect(invoke(logger, 'normalizeForInspect', new Map([['key', 'value']]))).toStrictEqual({ key: 'value' });
-      expect(invoke(logger, 'normalizeForInspect', new Set([1, 2, 3]))).toStrictEqual([
-        1,
-        2,
-        '[+1 more items]',
-      ]);
+      expect(invoke(logger, 'normalizeForInspect', new Set([1, 2, 3]))).toStrictEqual([1, 2, '[+1 more items]']);
       expect(invoke(logger, 'normalizeForInspect', new Custom())).toBeInstanceOf(Custom);
       expect(invoke(logger, 'normalizeForInspect', { a: 1, b: 2, c: 3 })).toStrictEqual({
         a: 1,
@@ -235,14 +241,9 @@ describe('logger', () => {
         name: 'Error',
         message: 'failure',
       });
-      expect(
-        invoke(
-          logger,
-          'normalizeCircular',
-          { value: true },
-          (error: Error) => error.message,
-        ),
-      ).toStrictEqual({ value: true });
+      expect(invoke(logger, 'normalizeCircular', { value: true }, (error: Error) => error.message)).toStrictEqual({
+        value: true,
+      });
     });
 
     it('should serialize and format errors', () => {

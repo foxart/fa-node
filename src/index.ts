@@ -21,6 +21,7 @@ export * from './helpers/data.helper';
 export * from './helpers/exception.helper';
 export * from './helpers/io.helper';
 export * from './helpers/ip.helper';
+export * from './helpers/mask.helper';
 export * from './helpers/parser.helper';
 export * from './helpers/password.helper';
 export * from './helpers/process.helper';

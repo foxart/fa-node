@@ -8,6 +8,7 @@ import {
   LoggerClass,
   LoggerNest,
   LoggerNode,
+  MaskHelper,
   MigrationMongoCli,
 } from './index';
 
@@ -20,6 +21,7 @@ describe('package entrypoint', () => {
     expect(MigrationMongoCli).toBeDefined();
     expect(AnsiHelper).toBeDefined();
     expect(CheckHelper).toBeDefined();
+    expect(MaskHelper).toBeDefined();
     expect(LoggerClass).toBeDefined();
     expect(LoggerNest).toBeDefined();
     expect(LoggerNode).toBeDefined();

@@ -27,6 +27,9 @@ function safePush(list: string[], value: string | undefined): void {
   }
 }
 
+export const MAX_NESTING_DEPTH = 10;
+export const MAX_COLLECTION_SIZE = 100;
+
 export interface LoggerConfigInterface {
   color?: boolean;
   level?: boolean;
@@ -42,8 +45,8 @@ export interface LoggerConfigInterface {
   stackDebug?: boolean;
   sort?: boolean;
   hidden?: boolean;
-  maxDepth?: number;
-  maxArrayLength?: number;
+  maxNestingDepth?: number;
+  maxCollectionSize?: number;
 }
 
 export interface LoggerMetadataInterface {
@@ -572,10 +575,10 @@ export class LoggerClass {
     seen = new WeakSet(),
     depth = 0,
   ): unknown {
-    const maxDepth = this.config.maxDepth ?? 5;
-    const maxArrayLength = this.config.maxArrayLength ?? 5;
+    const maxNestingDepth = this.config.maxNestingDepth ?? MAX_NESTING_DEPTH;
+    const maxCollectionSize = this.config.maxCollectionSize ?? MAX_COLLECTION_SIZE;
     // depth guard
-    if (depth > maxDepth) {
+    if (depth > maxNestingDepth) {
       return '[Max depth reached]';
     }
     // Error
@@ -615,10 +618,10 @@ export class LoggerClass {
     seen.add(data);
     // Array with truncation
     if (Array.isArray(data)) {
-      const sliced = data.slice(0, maxArrayLength);
+      const sliced = data.slice(0, maxCollectionSize);
       const normalized = sliced.map((item) => this.normalizeCircular(item, transformError, seen, depth + 1));
-      if (data.length > maxArrayLength) {
-        normalized.push(`[+${data.length - maxArrayLength} more items]`);
+      if (data.length > maxCollectionSize) {
+        normalized.push(`[+${data.length - maxCollectionSize} more items]`);
       }
       return normalized;
     }
@@ -627,8 +630,8 @@ export class LoggerClass {
       const out: Record<string, unknown> = {};
       let index = 0;
       for (const [k, v] of data.entries()) {
-        if (index >= maxArrayLength) {
-          out['__truncated__'] = `[+${data.size - maxArrayLength} more entries]`;
+        if (index >= maxCollectionSize) {
+          out['__truncated__'] = `[+${data.size - maxCollectionSize} more entries]`;
           break;
         }
         const key = typeof k === 'string' ? k : String(k);
@@ -639,10 +642,10 @@ export class LoggerClass {
     }
     // Set
     if (data instanceof Set) {
-      const values = Array.from(data.values()).slice(0, maxArrayLength);
+      const values = Array.from(data.values()).slice(0, maxCollectionSize);
       const normalized = values.map((v) => this.normalizeCircular(v, transformError, seen, depth + 1));
-      if (data.size > maxArrayLength) {
-        normalized.push(`[+${data.size - maxArrayLength} more items]`);
+      if (data.size > maxCollectionSize) {
+        normalized.push(`[+${data.size - maxCollectionSize} more items]`);
       }
       return normalized;
     }
@@ -653,7 +656,7 @@ export class LoggerClass {
     const normalized: Record<string, unknown> = {};
     let index = 0;
     for (const [key, value] of Object.entries(data)) {
-      if (index >= maxArrayLength) {
+      if (index >= maxCollectionSize) {
         normalized['__truncated__'] = `[+more keys truncated]`;
         break;
       }

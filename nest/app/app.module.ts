@@ -1,9 +1,10 @@
+import { environment } from '@nest/common/environment';
 import { LoggerNestService } from '@nest/common/logger-nest.service';
 import { LoggerNodeService } from '@nest/common/logger-node.service';
 import { UnhandledExceptionFilter } from '@nest/common/unhandled-exception.filter';
 import { Module, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
-import { ConsoleHelper } from '../../src';
+import { ConsoleHelper, MaskHelper } from '../../src';
 import { AppController } from './app.controller';
 
 @Module({
@@ -31,6 +32,8 @@ export class AppModule implements OnModuleInit, OnApplicationBootstrap {
       // process.exit(0);
       // process.exit(1);
       // process.kill(process.pid, 'SIGTERM');
+      const masked = MaskHelper.mask(environment, ['host', 'password', 'port', 'user'], ['version']);
+      console.log(masked);
     }, 500);
   }
 }

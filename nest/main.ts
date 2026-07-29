@@ -17,6 +17,5 @@ void (async function bootstrap(): Promise<void> {
   /** LISTEN */
   const { protocol, host, port } = environment.app;
   await app.listen(port, host);
-  // logger.verbose('Listening', `${protocol}://${host}:${port}`, 'MyApplication');
   logger.info('Listening', `${protocol}://${host}:${port}`, 'MyApplication');
 })();

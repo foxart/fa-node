@@ -217,7 +217,10 @@ describe('ConfigurationClass', () => {
       process.env.APP_NAME = 'Application';
       process.env.NODE_ENV = 'production';
       const helper = new ConfigurationClass<{ nodeEnvironment: string; appName: string }>();
-      const configuration = {
+      const configuration = ConfigurationClass.define<{
+        nodeEnvironment: string;
+        appName: string;
+      }>()({
         nodeEnvironment: {
           placeholder: 'NODE_ENV',
           default: 'development',
@@ -231,7 +234,7 @@ describe('ConfigurationClass', () => {
             return `${value}-${environment.NODE_ENV}`;
           },
         },
-      } satisfies ConfigurationType<{ nodeEnvironment: string; appName: string }>;
+      });
 
       const result = helper.load(configuration);
 
@@ -344,40 +347,6 @@ describe('ConfigurationClass', () => {
       expect(() => new ConfigurationClass().load(configuration)).toThrow(
         'Configuration errors:\n- values.0.requiredValue: ARRAY_REQUIRED_KEY',
       );
-    });
-  });
-
-  describe('mask', () => {
-    it('should fully and partially mask matching nested values', () => {
-      const values = ['visible'];
-      const dictionary = {
-        nested: {
-          apiToken: 'Ab-12',
-          shortOne: 'A',
-          shortTwo: 'AB',
-          shortValue: 'Ab12',
-          longValue: 'abcDEF123xyz',
-          emptyValue: null,
-          untouched: 42,
-        },
-        values,
-      };
-
-      const result = ConfigurationClass.mask(dictionary, ['token'], ['short', 'long', 'empty']);
-
-      expect(result).toStrictEqual({
-        nested: {
-          apiToken: '**-**',
-          shortOne: 'A',
-          shortTwo: 'AB',
-          shortValue: 'A**2',
-          longValue: 'abc******xyz',
-          emptyValue: '',
-          untouched: 42,
-        },
-        values,
-      });
-      expect(result.values).toBe(values);
     });
   });
 });

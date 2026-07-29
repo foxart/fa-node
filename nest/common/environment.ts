@@ -1,4 +1,4 @@
-import { ConfigurationClass, ConfigurationType } from '../../src';
+import { ConfigurationClass } from '../../src';
 
 interface EnvironmentInterface {
   app: {
@@ -11,15 +11,18 @@ interface EnvironmentInterface {
   };
 }
 
-const Configurations: ConfigurationType<EnvironmentInterface> = {
+const env = ConfigurationClass.define<EnvironmentInterface>()({
   app: {
     env: {
       placeholder: 'ENV',
     },
     debug: {
-      placeholder: 'ENV',
-      transform: (value) => {
-        return value?.toLowerCase() !== 'production';
+      placeholder: 'DEBUG',
+      transform: (value, environment) => {
+        if (environment.ENV) {
+          return environment.ENV.toLowerCase() === 'production';
+        }
+        return ConfigurationClass.toBoolean(value);
       },
     },
     version: {
@@ -40,23 +43,6 @@ const Configurations: ConfigurationType<EnvironmentInterface> = {
       },
     },
   },
-};
+});
 
-const ConfigurationHelper = new ConfigurationClass();
-const configuration = ConfigurationHelper.apply(Configurations);
-
-export const environment = configuration;
-export const environmentMasked = ConfigurationHelper.mask(
-  configuration,
-  [
-    'host',
-    'password',
-    'port',
-    'user',
-    //
-  ],
-  [
-    'version',
-    //
-  ],
-);
+export const environment = new ConfigurationClass<EnvironmentInterface>().load(env);
