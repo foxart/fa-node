@@ -1,0 +1,29 @@
+[
+  { "type": "divider" },
+  {
+    "type": "section",
+    "fields": [
+      { "type": "mrkdwn", "text": "*Repository:* <__REPO_URL__|__REPO__>" },
+      { "type": "mrkdwn", "text": "*Branch:* <__BRANCH_URL__|__BRANCH__>" },
+      { "type": "mrkdwn", "text": "*Target:* `__TARGET__`" },
+      { "type": "mrkdwn", "text": "*IP:* __TARGET_IP__" },
+      { "type": "mrkdwn", "text": "*Status:* `__STATUS_LABEL__`" },
+      { "type": "mrkdwn", "text": "*Author:* `__COMMIT_AUTHOR__`" },
+      { "type": "mrkdwn", "text": "*Started at:* `__RUN_STARTED_AT__`" },
+      { "type": "mrkdwn", "text": "*Triggered by:* `__TRIGGERED_BY__`" }
+    ]
+  },
+  {
+    "type": "context",
+    "elements": [
+      { "type": "plain_text", "text": "__COMMIT_SUBJECT__", "emoji": true }
+    ]
+  },
+  {
+    "type": "section",
+    "fields": [
+      { "type": "mrkdwn", "text": "*Commit:* <__COMMIT_URL__|__SHA_SHORT__>" },
+      { "type": "mrkdwn", "text": "*Build:* <__RUN_URL__|#__RUN_NUMBER__>" }
+    ]
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "type": "section",
+    "text": { "type": "mrkdwn", "text": "__SLACK_TEXT__" }
+  },
+  {
+    "type": "section",
+    "fields": [
+      { "type": "mrkdwn", "text": "*Public IP:* `__TARGET_PUBLIC_IP__`" },
+      { "type": "mrkdwn", "text": "*Private IP:* `__TARGET_PRIVATE_IP__`" }
+    ]
+  }
+]

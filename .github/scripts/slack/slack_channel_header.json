@@ -1,0 +1,6 @@
+[
+  {
+    "type": "header",
+    "text": { "type": "plain_text", "text": "__SLACK_TEXT__", "emoji": true }
+  }
+]
