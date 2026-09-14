@@ -82,7 +82,11 @@ class CheckHelperClass {
   }
 
   public isMongoId(data: unknown): boolean {
-    return data instanceof Object ? /^[0-9a-fA-F]{24}$/.test(data.toString()) : false;
+    if (!(data instanceof Object) || data.toString === Object.prototype.toString) {
+      return false;
+    }
+    const stringableData = data as { toString: () => string };
+    return /^[0-9a-fA-F]{24}$/.test(stringableData.toString());
   }
 
   public isNull(data: unknown): boolean {

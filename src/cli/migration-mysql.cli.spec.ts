@@ -1,4 +1,4 @@
-import { type Connection, createConnection } from 'mysql2/promise';
+import { createConnection } from 'mysql2/promise';
 import { createRequire } from 'node:module';
 import yargs from 'yargs';
 import { IoHelper } from '../helpers/io.helper';
@@ -401,11 +401,11 @@ describe('MigrationMysqlCli', () => {
 
   it('loads valid migration modules and reports invalid modules', () => {
     class ValidMigration implements MigrationMysqlCliInterface {
-      public up(_: Connection): Promise<void> {
+      public up(): Promise<void> {
         return Promise.resolve();
       }
 
-      public down(_: Connection): Promise<void> {
+      public down(): Promise<void> {
         return Promise.resolve();
       }
     }
