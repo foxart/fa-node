@@ -22,7 +22,7 @@ class MaskHelperClass {
         result[key] = this.maskArray(value, fullList, partialList);
         continue;
       }
-      if (typeof value === 'object' && value !== null) {
+      if (this.isDictionary(value)) {
         result[key] = this.maskObject(value, fullList, partialList);
         continue;
       }
@@ -48,7 +48,7 @@ class MaskHelperClass {
       let masked = value;
       if (Array.isArray(value)) {
         masked = this.maskArray(value, fullList, partialList);
-      } else if (typeof value === 'object' && value !== null) {
+      } else if (this.isDictionary(value)) {
         masked = this.maskObject(value, fullList, partialList);
       }
       changed ||= masked !== value;
@@ -61,7 +61,7 @@ class MaskHelperClass {
     if (Array.isArray(value)) {
       return value.map((item) => this.maskMatchedValue(item, mask));
     }
-    if (typeof value === 'object' && value !== null) {
+    if (this.isDictionary(value)) {
       const result: Record<string, unknown> = {};
       for (const key in value) {
         result[key] = this.maskMatchedValue(value[key], mask);
@@ -84,6 +84,10 @@ class MaskHelperClass {
     const suffix = str.slice(-suffixLength);
     const middle = str.slice(prefixLength, -suffixLength).replace(/[A-Za-z0-9]/g, '*');
     return prefix + middle + suffix;
+  }
+
+  private isDictionary(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 }
 

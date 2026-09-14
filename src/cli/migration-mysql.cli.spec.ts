@@ -401,11 +401,11 @@ describe('MigrationMysqlCli', () => {
 
   it('loads valid migration modules and reports invalid modules', () => {
     class ValidMigration implements MigrationMysqlCliInterface {
-      public up(_connection: Connection): Promise<void> {
+      public up(_: Connection): Promise<void> {
         return Promise.resolve();
       }
 
-      public down(_connection: Connection): Promise<void> {
+      public down(_: Connection): Promise<void> {
         return Promise.resolve();
       }
     }
@@ -474,5 +474,4 @@ describe('MigrationMysqlCli', () => {
       'Timed out waiting for migration lock database:tableMigration',
     );
   });
-
 });
