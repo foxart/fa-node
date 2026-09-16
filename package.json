@@ -41,6 +41,7 @@
     }
   },
   "dependencies": {
+    "@clickhouse/client": "^1.23.1",
     "@nestjs/common": "^11.1.18",
     "@nestjs/core": "^11.1.18",
     "@types/mongodb": "^4.0.7",
