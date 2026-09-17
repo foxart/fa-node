@@ -1,4 +1,4 @@
-import { createClient } from '@clickhouse/client';
+import { createClient, type ClickHouseSettings } from '@clickhouse/client';
 import { createRequire } from 'node:module';
 import yargs from 'yargs';
 import { IoHelper } from '../helpers/io.helper';
@@ -56,6 +56,11 @@ describe('MigrationClickhouseCli', () => {
     password: 'password',
     tableMigration: 'app_migration',
     tableSeeder: 'app_seeder',
+    request_timeout: 45000,
+    clickhouse_settings: {
+      wait_end_of_query: 1,
+      alter_sync: '2',
+    } satisfies ClickHouseSettings,
   };
   const mockedCreateRequire = createRequire as jest.Mock;
   const mockedLoadModule = mockedCreateRequire.mock.results[0].value as jest.Mock;
@@ -217,9 +222,10 @@ describe('MigrationClickhouseCli', () => {
       database: configuration.database,
       username: configuration.username,
       password: configuration.password,
-      request_timeout: 120000,
+      request_timeout: configuration.request_timeout,
       clickhouse_settings: {
         wait_end_of_query: 1,
+        alter_sync: '2',
       },
     });
     expect(client.query).toHaveBeenCalledWith({ query: 'SELECT 1 AS value', format: 'JSONEachRow' });
@@ -385,6 +391,42 @@ describe('MigrationClickhouseCli', () => {
       clickhouse_settings: { mutations_sync: '2' },
     });
   });
+
+  it('records a migration only after its DDL and verification finish', async () => {
+    let finishMigration!: () => void;
+    const pendingMigration = new Promise<void>((resolve) => {
+      finishMigration = resolve;
+    });
+    mockCliMethod('getMigration', {
+      up: jest.fn().mockReturnValue(pendingMigration),
+    });
+
+    const execution = callCliMethod<Promise<void>>('executeMigrationUp', client, '1_first.ts');
+    await Promise.resolve();
+
+    expect(client.insert).not.toHaveBeenCalled();
+
+    finishMigration();
+    await execution;
+
+    expect(client.insert).toHaveBeenCalledTimes(1);
+    expect(exit).not.toHaveBeenCalled();
+  });
+
+  it.each(['DDL replication timeout', 'Migration verification failed'])(
+    'fails without recording a migration on %s',
+    async (message) => {
+      mockCliMethod('getMigration', {
+        up: jest.fn().mockRejectedValue(new Error(message)),
+      });
+
+      await callCliMethod<Promise<void>>('executeMigrationUp', client, '1_first.ts');
+
+      expect(client.insert).not.toHaveBeenCalled();
+      expect(exit).toHaveBeenCalledWith(1);
+      expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining(message));
+    },
+  );
 
   it('creates and reads the migration history table', async () => {
     const rows = [{ appliedAt: '2026-09-16 12:00:00.000', fileName: '1_first' }];

@@ -1,4 +1,4 @@
-import { createClient, type ClickHouseClient } from '@clickhouse/client';
+import { createClient, type ClickHouseClient, type ClickHouseClientConfigOptions } from '@clickhouse/client';
 import { createRequire } from 'node:module';
 import { CodegenHelper } from '../helpers/codegen.helper';
 import { ConverterHelper } from '../helpers/converter.helper';
@@ -17,7 +17,9 @@ export interface MigrationClickhouseCliInterface {
   down(client: ClickHouseClient, database: string): Promise<void>;
 }
 
-interface ConfigurationInterface extends MigrationAbstractConfiguration {
+interface ConfigurationInterface
+  extends MigrationAbstractConfiguration,
+    Pick<ClickHouseClientConfigOptions, 'request_timeout' | 'clickhouse_settings'> {
   username: string;
   password: string;
   tableMigration: string;
@@ -192,10 +194,8 @@ class MigrationClickhouseCliClass extends MigrationAbstractCli<ConfigurationInte
         database: this.configuration.database,
         username: this.configuration.username,
         password: this.configuration.password,
-        request_timeout: 120000,
-        clickhouse_settings: {
-          wait_end_of_query: 1,
-        },
+        request_timeout: this.configuration.request_timeout,
+        clickhouse_settings: this.configuration.clickhouse_settings,
       });
     }
     return this.client;
