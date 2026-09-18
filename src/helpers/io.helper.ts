@@ -76,7 +76,6 @@ class IoHelperClass {
     content: string | NodeJS.ArrayBufferView,
     options: WriteFileOptions = { encoding: 'utf-8' },
   ): void {
-    this.createDirectorySync(path.dirname(filePath));
     fs.writeFileSync(filePath, content, options);
   }
 

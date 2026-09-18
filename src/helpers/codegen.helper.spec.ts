@@ -1,26 +1,37 @@
-import { exec } from 'child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { execFile } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { CodegenHelper } from './codegen.helper';
 
-jest.mock('child_process', () => ({
-  exec: jest.fn((_command: string, callback: (error: Error | null, stdout?: string, stderr?: string) => void) => {
-    callback(null, '', '');
-  }),
+jest.mock('node:child_process', () => ({
+  execFile: jest.fn(
+    (
+      _file: string,
+      _arguments: readonly string[],
+      callback: (error: Error | null, stdout?: string, stderr?: string) => void,
+    ) => {
+      callback(null, '', '');
+    },
+  ),
 }));
 
 describe('CodegenHelper', () => {
   const originalFetch = globalThis.fetch;
-  const mockedExec = exec as unknown as jest.Mock;
+  const mockedExecFile = execFile as unknown as jest.Mock;
   let temporaryDirectory: string;
   let consoleLog: jest.SpyInstance;
 
   beforeEach(() => {
     temporaryDirectory = mkdtempSync(join(tmpdir(), 'fa-node-codegen-'));
     consoleLog = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-    mockedExec.mockImplementation(
-      (_command: string, callback: (error: Error | null, stdout?: string, stderr?: string) => void) => {
+    mockedExecFile.mockClear();
+    mockedExecFile.mockImplementation(
+      (
+        _file: string,
+        _arguments: readonly string[],
+        callback: (error: Error | null, stdout?: string, stderr?: string) => void,
+      ) => {
         callback(null, '', '');
       },
     );
@@ -95,19 +106,48 @@ describe('CodegenHelper', () => {
     expect(consoleLog.mock.calls.some(([message]) => String(message).includes('transform failure'))).toBe(true);
   });
 
-  it('should build proto output and enrich command failures', async () => {
+  it('should build one proto file and report command failures', async () => {
+    const source = join(temporaryDirectory, 'source');
+    const sourceFile = join(source, 'value.proto');
     const destination = join(temporaryDirectory, 'proto');
+    mkdirSync(source, { recursive: true });
+    writeFileSync(sourceFile, 'syntax = "proto3";');
 
-    await CodegenHelper.buildProto('/source', destination, '/source/value.proto');
-    expect(mockedExec).toHaveBeenCalledWith(
-      'protoc --proto_path=/source --js_out=import_style=commonjs,binary:' +
-        `${destination} --ts_out=${destination} /source/value.proto`,
+    await CodegenHelper.buildProto(sourceFile, destination);
+    expect(readFileSync(sourceFile, 'utf8')).toBe('syntax = "proto3";');
+    expect(mockedExecFile).toHaveBeenCalledWith(
+      process.execPath,
+      [
+        resolve('node_modules/protoc/protoc.cjs'),
+        '--experimental_editions',
+        `--plugin=protoc-gen-ts_proto=${resolve('node_modules/ts-proto/protoc-gen-ts_proto')}`,
+        `--proto_path=${source}`,
+        `--ts_proto_out=${destination}`,
+        '--ts_proto_opt=forceLong=number,onlyTypes=true,snakeToCamel=false,unrecognizedEnum=false,useOptionals=all',
+        'value.proto',
+      ],
       expect.any(Function),
     );
 
-    mockedExec.mockImplementationOnce(
+    await CodegenHelper.buildProto(sourceFile, destination, { forceLong: 'string' });
+    expect(mockedExecFile).toHaveBeenLastCalledWith(
+      process.execPath,
+      [
+        resolve('node_modules/protoc/protoc.cjs'),
+        '--experimental_editions',
+        `--plugin=protoc-gen-ts_proto=${resolve('node_modules/ts-proto/protoc-gen-ts_proto')}`,
+        `--proto_path=${source}`,
+        `--ts_proto_out=${destination}`,
+        '--ts_proto_opt=forceLong=string',
+        'value.proto',
+      ],
+      expect.any(Function),
+    );
+
+    mockedExecFile.mockImplementationOnce(
       (
-        _command: string,
+        _file: string,
+        _arguments: readonly string[],
         callback: (error: Error & { code?: number; cmd?: string; stdout?: string; stderr?: string }) => void,
       ) => {
         callback(
@@ -120,8 +160,36 @@ describe('CodegenHelper', () => {
         );
       },
     );
-    await CodegenHelper.buildProto('/source', destination, '/source/value.proto');
-    expect(consoleLog.mock.calls.some(([message]) => String(message).includes('ProtoError'))).toBe(true);
+    await expect(CodegenHelper.buildProto(sourceFile, destination)).resolves.toBeNull();
+    const output = consoleLog.mock.calls.map(([message]) => String(message)).join('\n');
+    expect(output).toContain('protoc failure');
+    expect(output).toContain('code: 1');
+    expect(output).toContain('cmd: protoc');
+    expect(output).toContain('stdout: stdout');
+    expect(output).toContain('stderr: stderr');
+  });
+
+  it('should report a missing proto file returned by protoc', async () => {
+    const sourceFile = join(temporaryDirectory, 'missing.proto');
+    mockedExecFile.mockImplementationOnce(
+      (
+        _file: string,
+        _arguments: readonly string[],
+        callback: (error: Error & { code?: number; stderr?: string }) => void,
+      ) => {
+        callback(
+          Object.assign(new Error('missing.proto: No such file or directory'), {
+            code: 1,
+            stderr: 'missing.proto: No such file or directory',
+          }),
+        );
+      },
+    );
+
+    await expect(CodegenHelper.buildProto(sourceFile, join(temporaryDirectory, 'proto'))).resolves.toBeNull();
+
+    expect(mockedExecFile).toHaveBeenCalledTimes(1);
+    expect(consoleLog.mock.calls.some(([message]) => String(message).includes('No such file or directory'))).toBe(true);
   });
 
   it('should format Error metadata and non-Error values', () => {

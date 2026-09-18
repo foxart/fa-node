@@ -55,6 +55,7 @@ describe('IoHelper', () => {
     const empty = join(parent, 'empty');
     const occupied = join(parent, 'occupied');
     IoHelper.createDirectorySync(empty, true);
+    IoHelper.createDirectorySync(occupied, true);
     IoHelper.createFileSync(join(occupied, 'value.txt'), 'value');
 
     IoHelper.deleteDirectorySync(parent, { onlyEmpty: true });

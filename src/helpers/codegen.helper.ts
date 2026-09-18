@@ -1,7 +1,35 @@
-import { exec } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import { promisify } from 'util';
+import { execFile } from 'node:child_process';
+import * as fs from 'node:fs';
+import { dirname } from 'node:path';
+import { promisify } from 'node:util';
+import { basename, resolve } from 'path';
+
+interface ProtoGeneratorOptions {
+  env?: 'browser' | 'both' | 'node';
+  esModuleInterop?: boolean;
+  forceLong?: 'bigint' | 'long' | 'number' | 'string';
+  lowerCaseServiceMethods?: boolean;
+  oneof?: 'properties' | 'unions' | 'unions-value';
+  onlyTypes?: boolean;
+  outputJsonMethods?: boolean | 'from-only' | 'to-only';
+  outputPartialMethods?: boolean;
+  outputServices?: 'default' | 'generic-definitions' | 'grpc-js' | 'nice-grpc' | 'none';
+  snakeToCamel?: boolean;
+  unrecognizedEnum?: boolean;
+  useOptionals?: 'all' | 'messages' | 'none';
+}
+
+const PROTO_GENERATOR_OPTIONS: ProtoGeneratorOptions = {
+  forceLong: 'number',
+  onlyTypes: true,
+  snakeToCamel: false,
+  unrecognizedEnum: false,
+  useOptionals: 'all',
+};
+
+const PROTOC_FILE = resolve('node_modules/protoc/protoc.cjs');
+const PROTO_PLUGIN_FILE = resolve('node_modules/ts-proto/protoc-gen-ts_proto');
+const execFileAsync = promisify(execFile);
 // 🎨 ANSI color codes for console output
 const COLORS = {
   reset: '\x1b[0m',
@@ -70,41 +98,40 @@ class CodegenHelperClass {
     return text;
   }
 
-  public buildGraphql<T>(filePath: string, introspectionQuery: T, transformer: (input: T) => string): void {
+  public buildGraphql<T>(destinationFile: string, introspectionQuery: T, transformer: (input: T) => string): void {
     try {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      fs.writeFileSync(filePath, transformer(introspectionQuery));
-      this.logSuccess(this.buildGraphql.name, path.basename(filePath));
+      fs.mkdirSync(dirname(destinationFile), { recursive: true });
+      fs.writeFileSync(destinationFile, transformer(introspectionQuery));
+      this.logSuccess(this.buildGraphql.name, basename(destinationFile));
     } catch (e) {
       this.logError(this.buildGraphql.name, e);
     }
   }
 
-  public async buildProto(source: string, destination: string, filePath: string): Promise<void> {
+  public async buildProto(
+    sourceFile: string,
+    destinationFolder: string,
+    generatorOptions: ProtoGeneratorOptions = PROTO_GENERATOR_OPTIONS,
+  ): Promise<void | null> {
     try {
-      fs.mkdirSync(destination, { recursive: true });
-      const command = [
-        'protoc',
-        `--proto_path=${source}`,
-        `--js_out=import_style=commonjs,binary:${destination}`,
-        // `--csharp_out=${destination}`,
-        `--ts_out=${destination}`,
-        filePath,
-      ];
-      await promisify(exec)(command.join(' '));
-      this.logSuccess(this.buildProto.name, path.basename(filePath));
-    } catch (e) {
-      const error = e as Error & { stdout?: string; stderr?: string; cmd?: string; code?: number | string };
-
-      const enriched = Object.assign(new Error(error.message), {
-        name: 'ProtoError',
-        code: error.code,
-        cmd: error.cmd,
-        stdout: error.stdout,
-        stderr: error.stderr,
-      });
-
-      this.logError(this.buildProto.name, enriched);
+      fs.mkdirSync(destinationFolder, { recursive: true });
+      const options = Object.entries(generatorOptions)
+        .filter((entry): entry is [string, boolean | string] => entry[1] !== undefined)
+        .map(([name, value]) => `${name}=${String(value)}`)
+        .join(',');
+      await execFileAsync(process.execPath, [
+        PROTOC_FILE,
+        '--experimental_editions',
+        `--plugin=protoc-gen-ts_proto=${PROTO_PLUGIN_FILE}`,
+        `--proto_path=${dirname(sourceFile)}`,
+        `--ts_proto_out=${destinationFolder}`,
+        `--ts_proto_opt=${options}`,
+        basename(sourceFile),
+      ]);
+      this.logSuccess(this.buildProto.name, basename(sourceFile));
+    } catch (error) {
+      this.logError(this.buildProto.name, error);
+      return null;
     }
   }
 
@@ -145,6 +172,9 @@ class CodegenHelperClass {
       const source = error as Error &
         Record<string, unknown> & {
           code?: string | number;
+          cmd?: string;
+          stderr?: string;
+          stdout?: string;
           status?: string | number;
           method?: string;
           url?: string;
@@ -153,6 +183,9 @@ class CodegenHelperClass {
         ['name', source.name],
         ['message', source.message],
         ['code', source.code],
+        ['cmd', source.cmd],
+        ['stdout', source.stdout],
+        ['stderr', source.stderr],
         ['status', source.status],
         ['method', source.method],
         ['url', source.url],
